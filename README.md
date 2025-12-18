@@ -3,21 +3,25 @@
 Jira-like web application for CSCI3100 Software Engineering.
 
 ## Tech Stack
+
 - Frontend: React + Vite + Tailwind CSS (minimal shadcn/ui where helpful)
 - Backend: Node.js + Express + TypeScript
 - Database: MongoDB (local dev; hosted DB allowed for demo)
 
 ## Repository Structure
+
 - `frontend/` — UI
 - `backend/` — API server
 - `docs/` — course deliverables and process evidence
 
 ## Prerequisites
+
 - Node.js 20 (see `.nvmrc`)
 - npm
 - MongoDB (local) OR MongoDB Atlas connection string
 
 Verify:
+
 ```bash
 node -v
 ```
@@ -53,7 +57,7 @@ npm run dev
 ```
 
 Frontend: [http://localhost:5173](http://localhost:5173)
-Backend:  [http://localhost:5000](http://localhost:5000)
+Backend: [http://localhost:5000](http://localhost:5000)
 
 ## Build
 
