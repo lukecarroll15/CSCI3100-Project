@@ -10,17 +10,17 @@ const navItems = [
 
 export default function Sidebar({ children }) {
   return (
-    <aside className="w-64 bg-gray-50 border-r-2 border-gray-800 pt-8 flex flex-col">
+    <aside className="flex w-64 flex-col border-r-2 border-gray-800 bg-gray-50 pt-8">
       <nav className="flex-1">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `block mx-5 my-2 px-6 py-3 border-2 rounded-lg text-base transition-colors ${
+              `mx-5 my-2 block rounded-lg border-2 px-6 py-3 text-base transition-colors ${
                 isActive
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white border-gray-500 hover:bg-gray-200'
+                  ? 'border-gray-800 bg-gray-800 text-white'
+                  : 'border-gray-500 bg-white hover:bg-gray-200'
               }`
             }
           >

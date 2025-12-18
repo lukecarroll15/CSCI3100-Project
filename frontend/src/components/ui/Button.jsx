@@ -19,7 +19,7 @@ export default function Button({
 }) {
   return (
     <button
-      className={`border-2 rounded-lg font-bold cursor-pointer transition-colors ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`cursor-pointer rounded-lg border-2 font-bold transition-colors ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {children}

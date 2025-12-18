@@ -16,12 +16,60 @@ const folders = [
 ];
 
 const files = [
-  { name: 'Q4_Budget_Report.xlsx', type: 'Spreadsheet', icon: '📄 DOC', size: '2.3 MB', date: 'Nov 17, 2025', author: 'Michael Torres', adminOnly: false },
-  { name: 'Project_Proposal_v3.pdf', type: 'PDF', icon: '📄 PDF', size: '1.8 MB', date: 'Nov 16, 2025', author: 'Sarah Chen', adminOnly: false },
-  { name: 'Sales_Strategy_2025.docx', type: 'Document', icon: '📄 DOC', size: '890 KB', date: 'Nov 15, 2025', author: 'Emma Wilson', adminOnly: true },
-  { name: 'Campaign_Banner.png', type: 'Image', icon: '🖼️ IMG', size: '3.5 MB', date: 'Nov 14, 2025', author: 'David Park', adminOnly: false },
-  { name: 'Employee_Schedule.xlsx', type: 'Spreadsheet', icon: '📊 XLS', size: '456 KB', date: 'Nov 13, 2025', author: 'John Smith', adminOnly: false },
-  { name: 'Security_Audit_Report.pdf', type: 'PDF', icon: '📄 PDF', size: '2.1 MB', date: 'Nov 12, 2025', author: 'David Park', adminOnly: true },
+  {
+    name: 'Q4_Budget_Report.xlsx',
+    type: 'Spreadsheet',
+    icon: '📄 DOC',
+    size: '2.3 MB',
+    date: 'Nov 17, 2025',
+    author: 'Michael Torres',
+    adminOnly: false,
+  },
+  {
+    name: 'Project_Proposal_v3.pdf',
+    type: 'PDF',
+    icon: '📄 PDF',
+    size: '1.8 MB',
+    date: 'Nov 16, 2025',
+    author: 'Sarah Chen',
+    adminOnly: false,
+  },
+  {
+    name: 'Sales_Strategy_2025.docx',
+    type: 'Document',
+    icon: '📄 DOC',
+    size: '890 KB',
+    date: 'Nov 15, 2025',
+    author: 'Emma Wilson',
+    adminOnly: true,
+  },
+  {
+    name: 'Campaign_Banner.png',
+    type: 'Image',
+    icon: '🖼️ IMG',
+    size: '3.5 MB',
+    date: 'Nov 14, 2025',
+    author: 'David Park',
+    adminOnly: false,
+  },
+  {
+    name: 'Employee_Schedule.xlsx',
+    type: 'Spreadsheet',
+    icon: '📊 XLS',
+    size: '456 KB',
+    date: 'Nov 13, 2025',
+    author: 'John Smith',
+    adminOnly: false,
+  },
+  {
+    name: 'Security_Audit_Report.pdf',
+    type: 'PDF',
+    icon: '📄 PDF',
+    size: '2.1 MB',
+    date: 'Nov 12, 2025',
+    author: 'David Park',
+    adminOnly: true,
+  },
 ];
 
 const fileTypes = ['All', 'Documents', 'Spreadsheets', 'PDFs', 'Images'];
@@ -50,12 +98,12 @@ function AdminPanel({ isAdmin, onActivate }) {
   };
 
   return (
-    <div className="mx-5 mb-5 p-5 border-2 border-gray-800 rounded-lg bg-white">
-      <div className="text-sm font-bold mb-3 text-center border-b-2 border-gray-800 pb-2">
+    <div className="mx-5 mb-5 rounded-lg border-2 border-gray-800 bg-white p-5">
+      <div className="mb-3 border-b-2 border-gray-800 pb-2 text-center text-sm font-bold">
         Admin Access
       </div>
       <div className="mb-3">
-        <label className="text-xs block mb-1 border border-gray-500 p-1 rounded bg-gray-50">
+        <label className="mb-1 block rounded border border-gray-500 bg-gray-50 p-1 text-xs">
           Admin Key (AAAA-BBBB-CCCC)
         </label>
         <input
@@ -64,17 +112,17 @@ function AdminPanel({ isAdmin, onActivate }) {
           maxLength={14}
           value={adminKey}
           onChange={handleKeyChange}
-          className="w-full p-2 border-2 border-gray-800 rounded-md text-xs"
+          className="w-full rounded-md border-2 border-gray-800 p-2 text-xs"
         />
       </div>
       <button
         onClick={handleActivate}
-        className="w-full p-2 bg-white border-2 border-gray-800 rounded-md cursor-pointer text-sm font-bold hover:bg-gray-100"
+        className="w-full cursor-pointer rounded-md border-2 border-gray-800 bg-white p-2 text-sm font-bold hover:bg-gray-100"
       >
         Activate
       </button>
       <div
-        className={`mt-3 p-2 border-2 rounded-md text-xs text-center font-bold ${
+        className={`mt-3 rounded-md border-2 p-2 text-center text-xs font-bold ${
           isAdmin
             ? 'border-green-600 bg-green-100 text-green-600'
             : 'border-red-600 bg-red-100 text-red-600'
@@ -88,20 +136,20 @@ function AdminPanel({ isAdmin, onActivate }) {
 
 function FolderTree({ activeFolder, onSelect }) {
   return (
-    <div className="w-72 border-r-2 border-gray-800 p-6 overflow-y-auto bg-gray-50">
-      <div className="text-lg font-bold mb-5 p-3 border-2 border-gray-800 rounded-md bg-white">
+    <div className="w-72 overflow-y-auto border-r-2 border-gray-800 bg-gray-50 p-6">
+      <div className="mb-5 rounded-md border-2 border-gray-800 bg-white p-3 text-lg font-bold">
         My Files
       </div>
       {folders.map((folder) => (
         <div
           key={folder.name}
           onClick={() => onSelect(folder.name)}
-          className={`p-3 my-2 border-2 rounded-md cursor-pointer flex items-center gap-2 transition-colors ${
+          className={`my-2 flex cursor-pointer items-center gap-2 rounded-md border-2 p-3 transition-colors ${
             folder.sub ? 'ml-5 text-sm' : ''
           } ${
             activeFolder === folder.name
-              ? 'bg-gray-800 text-white border-gray-800'
-              : 'bg-white border-gray-500 hover:bg-gray-200'
+              ? 'border-gray-800 bg-gray-800 text-white'
+              : 'border-gray-500 bg-white hover:bg-gray-200'
           }`}
         >
           {folder.icon} {folder.name}
@@ -126,16 +174,16 @@ function FileGrid({ files, isAdmin }) {
         <div
           key={file.name}
           onClick={() => handleClick(file)}
-          className={`border-2 rounded-lg p-5 cursor-pointer flex flex-col items-center gap-2 transition-colors ${
+          className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 p-5 transition-colors ${
             file.adminOnly && !isAdmin
-              ? 'opacity-60 cursor-not-allowed border-gray-500'
+              ? 'cursor-not-allowed border-gray-500 opacity-60'
               : 'border-gray-500 hover:border-gray-800 hover:bg-gray-50'
           }`}
         >
-          <div className="w-20 h-20 border-2 border-gray-500 rounded-lg flex items-center justify-center text-sm bg-gray-100">
+          <div className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-gray-500 bg-gray-100 text-sm">
             {file.icon}
           </div>
-          <div className="text-sm font-bold text-center break-words">{file.name}</div>
+          <div className="break-words text-center text-sm font-bold">{file.name}</div>
           <div className="text-xs text-gray-500">{file.size}</div>
           <div className="text-xs text-gray-500">{file.date}</div>
           <div className="text-xs text-gray-500">{file.author}</div>
@@ -156,11 +204,11 @@ function FileList({ files, isAdmin }) {
   };
 
   return (
-    <table className="w-full border-collapse border-2 border-gray-800 rounded-lg overflow-hidden">
+    <table className="w-full border-collapse overflow-hidden rounded-lg border-2 border-gray-800">
       <thead className="bg-gray-100">
         <tr>
           {['Name', 'Type', 'Size', 'Uploaded By', 'Date', 'Access'].map((h) => (
-            <th key={h} className="p-4 text-left border-2 border-gray-500 text-sm font-bold">
+            <th key={h} className="border-2 border-gray-500 p-4 text-left text-sm font-bold">
               {h}
             </th>
           ))}
@@ -172,15 +220,17 @@ function FileList({ files, isAdmin }) {
             key={file.name}
             onClick={() => handleClick(file)}
             className={`cursor-pointer ${
-              file.adminOnly && !isAdmin ? 'opacity-60 cursor-not-allowed' : 'hover:bg-gray-50'
+              file.adminOnly && !isAdmin ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
             }`}
           >
-            <td className="p-4 border-2 border-gray-300 text-sm">{file.icon.split(' ')[0]} {file.name}</td>
-            <td className="p-4 border-2 border-gray-300 text-sm">{file.type}</td>
-            <td className="p-4 border-2 border-gray-300 text-sm">{file.size}</td>
-            <td className="p-4 border-2 border-gray-300 text-sm">{file.author}</td>
-            <td className="p-4 border-2 border-gray-300 text-sm">{file.date}</td>
-            <td className="p-4 border-2 border-gray-300 text-sm">
+            <td className="border-2 border-gray-300 p-4 text-sm">
+              {file.icon.split(' ')[0]} {file.name}
+            </td>
+            <td className="border-2 border-gray-300 p-4 text-sm">{file.type}</td>
+            <td className="border-2 border-gray-300 p-4 text-sm">{file.size}</td>
+            <td className="border-2 border-gray-300 p-4 text-sm">{file.author}</td>
+            <td className="border-2 border-gray-300 p-4 text-sm">{file.date}</td>
+            <td className="border-2 border-gray-300 p-4 text-sm">
               {file.adminOnly ? <Badge variant="admin">🔒 Admin Only</Badge> : 'Everyone'}
             </td>
           </tr>
@@ -198,15 +248,15 @@ export default function FilesPage() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   return (
-    <div className="flex h-full -m-10">
+    <div className="-m-10 flex h-full">
       {/* Folder Tree */}
       <FolderTree activeFolder={activeFolder} onSelect={setActiveFolder} />
 
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-800">
-          <div className="text-base text-gray-500 border-2 border-gray-500 px-4 py-2 rounded-md bg-gray-50">
+        <div className="mb-6 flex items-center justify-between border-b-2 border-gray-800 pb-4">
+          <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base text-gray-500">
             Home &gt; {activeFolder}
           </div>
           <div className="flex gap-3">
@@ -228,30 +278,30 @@ export default function FilesPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 mb-6 p-4 border-2 border-gray-500 rounded-lg bg-gray-50 items-center flex-wrap">
-          <div className="text-sm font-bold border-r-2 border-gray-400 pr-4">File Type:</div>
+        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border-2 border-gray-500 bg-gray-50 p-4">
+          <div className="border-r-2 border-gray-400 pr-4 text-sm font-bold">File Type:</div>
           {fileTypes.map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`px-3 py-1.5 border-2 rounded-md text-sm cursor-pointer transition-colors ${
+              className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
                 typeFilter === t
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white border-gray-500 hover:bg-gray-100'
+                  ? 'border-gray-800 bg-gray-800 text-white'
+                  : 'border-gray-500 bg-white hover:bg-gray-100'
               }`}
             >
               {t}
             </button>
           ))}
-          <div className="text-sm font-bold border-r-2 border-gray-400 pr-4 ml-4">Department:</div>
+          <div className="ml-4 border-r-2 border-gray-400 pr-4 text-sm font-bold">Department:</div>
           {departments.map((d) => (
             <button
               key={d}
               onClick={() => setDeptFilter(d)}
-              className={`px-3 py-1.5 border-2 rounded-md text-sm cursor-pointer transition-colors ${
+              className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
                 deptFilter === d
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white border-gray-500 hover:bg-gray-100'
+                  ? 'border-gray-800 bg-gray-800 text-white'
+                  : 'border-gray-500 bg-white hover:bg-gray-100'
               }`}
             >
               {d}
@@ -275,7 +325,7 @@ export default function FilesPage() {
       {/* Upload Button */}
       <button
         onClick={() => alert('Would open file upload dialog')}
-        className="fixed bottom-12 right-12 w-14 h-14 border-2 border-gray-800 rounded-full bg-white text-3xl cursor-pointer flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
+        className="fixed bottom-12 right-12 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-gray-800 bg-white text-3xl shadow-lg transition-colors hover:bg-gray-100"
       >
         +
       </button>

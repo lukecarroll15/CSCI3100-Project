@@ -7,8 +7,8 @@ import FilesPage from './pages/FilesPage';
 
 function PlaceholderPage({ title }) {
   return (
-    <div className="text-center py-20">
-      <h1 className="text-3xl mb-4">{title}</h1>
+    <div className="py-20 text-center">
+      <h1 className="mb-4 text-3xl">{title}</h1>
       <p className="text-gray-500">This page is under construction.</p>
     </div>
   );
