@@ -1,8 +1,8 @@
-## Summary
+## Summary (for non-trivial PR)
 
 - What changed?
 
-## Reason / Context
+## Reason / Context (for non-trivial PR)
 
 - Why is this change needed?
 
@@ -16,12 +16,12 @@
 
 ## Screenshots (UI changes)
 
-- Before/After:
+- Before/After (if applicable):
 
 ## Related requirements / issues
 
-- Requirement ID(s):
-- Link(s):
+- Requirement ID(s) (if applicable):
+- Link(s) (if applicable):
 
 ## Notes for reviewers (optional)
 
