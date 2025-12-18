@@ -83,18 +83,16 @@ function ActivityItem({ time, icon, title, description, priority, meta }) {
   return (
     <div
       onClick={handleClick}
-      className="flex gap-5 p-5 mb-4 border-2 border-gray-500 rounded-lg cursor-pointer bg-white hover:bg-gray-50 hover:border-gray-800 transition-colors"
+      className="mb-4 flex cursor-pointer gap-5 rounded-lg border-2 border-gray-500 bg-white p-5 transition-colors hover:border-gray-800 hover:bg-gray-50"
     >
-      <div className="min-w-20 text-sm text-gray-500 border-r-2 border-gray-300 pr-5">
-        {time}
-      </div>
-      <div className="min-w-10 h-10 border-2 border-gray-500 rounded-lg flex items-center justify-center text-sm bg-gray-100">
+      <div className="min-w-20 border-r-2 border-gray-300 pr-5 text-sm text-gray-500">{time}</div>
+      <div className="flex h-10 min-w-10 items-center justify-center rounded-lg border-2 border-gray-500 bg-gray-100 text-sm">
         {icon}
       </div>
       <div className="flex-1">
-        <div className="text-base font-bold mb-2">{title}</div>
-        <div className="text-sm text-gray-500 mb-2">{description}</div>
-        <div className="text-xs text-gray-400 flex gap-4 items-center flex-wrap">
+        <div className="mb-2 text-base font-bold">{title}</div>
+        <div className="mb-2 text-sm text-gray-500">{description}</div>
+        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
           {priority && <Badge variant={priority}>{priority.toUpperCase()} PRIORITY</Badge>}
           {meta.map((m, i) => (
             <span key={i}>{m}</span>
@@ -108,7 +106,7 @@ function ActivityItem({ time, icon, title, description, priority, meta }) {
 function ActivityGroup({ date, items }) {
   return (
     <div className="mb-10">
-      <div className="text-xl font-bold mb-5 p-3 border-2 border-gray-800 rounded-lg bg-gray-50">
+      <div className="mb-5 rounded-lg border-2 border-gray-800 bg-gray-50 p-3 text-xl font-bold">
         {date}
       </div>
       {items.map((item, i) => (
@@ -121,7 +119,7 @@ function ActivityGroup({ date, items }) {
 export default function DashboardPage() {
   return (
     <div>
-      <h1 className="text-3xl mb-8 pb-4 border-b-2 border-gray-800">Activity Feed</h1>
+      <h1 className="mb-8 border-b-2 border-gray-800 pb-4 text-3xl">Activity Feed</h1>
       <ActivityGroup {...activityData.today} />
       <ActivityGroup {...activityData.yesterday} />
     </div>

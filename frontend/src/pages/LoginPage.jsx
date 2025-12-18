@@ -47,19 +47,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="text-center">
         {/* Company Name */}
-        <div className="text-3xl mb-8 text-gray-800 border-2 border-gray-800 rounded-lg px-10 py-3 inline-block">
+        <div className="mb-8 inline-block rounded-lg border-2 border-gray-800 px-10 py-3 text-3xl text-gray-800">
           SecureVault
         </div>
 
         {/* Login Card */}
-        <div className="bg-white border-2 border-gray-800 rounded-xl p-9 w-96 shadow-[4px_4px_0_rgba(0,0,0,0.2)]">
+        <div className="w-96 rounded-xl border-2 border-gray-800 bg-white p-9 shadow-[4px_4px_0_rgba(0,0,0,0.2)]">
           {/* Step 1: Username */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl mb-6 border-b-2 border-gray-800 pb-3">Sign In</h2>
+              <h2 className="mb-6 border-b-2 border-gray-800 pb-3 text-xl">Sign In</h2>
               <Input
                 label="Username or Email"
                 type="text"
@@ -67,10 +67,10 @@ export default function LoginPage() {
                 value={formData.username}
                 onChange={handleChange('username')}
               />
-              <Button onClick={handleNext} className="w-full mt-3">
+              <Button onClick={handleNext} className="mt-3 w-full">
                 Next
               </Button>
-              <div className="text-xs text-gray-500 mt-5 border border-gray-400 rounded-md p-3 text-center">
+              <div className="mt-5 rounded-md border border-gray-400 p-3 text-center text-xs text-gray-500">
                 Create account | Forgot username?
               </div>
             </div>
@@ -79,9 +79,9 @@ export default function LoginPage() {
           {/* Step 2: Password */}
           {step === 2 && (
             <div>
-              <h2 className="text-xl mb-6 border-b-2 border-gray-800 pb-3">Enter Password</h2>
+              <h2 className="mb-6 border-b-2 border-gray-800 pb-3 text-xl">Enter Password</h2>
               <div className="mb-5 text-left">
-                <div className="text-sm border-2 border-gray-500 rounded-md px-3 py-1.5 bg-gray-50">
+                <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-3 py-1.5 text-sm">
                   Username: {formData.username || '[username]'}
                 </div>
               </div>
@@ -92,16 +92,16 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={handleChange('password')}
               />
-              <Button onClick={handleNext} className="w-full mt-3">
+              <Button onClick={handleNext} className="mt-3 w-full">
                 Next
               </Button>
               <button
                 onClick={handleBack}
-                className="mt-4 text-sm text-gray-500 underline cursor-pointer border border-gray-400 rounded-md p-2 block w-full text-center hover:bg-gray-50"
+                className="mt-4 block w-full cursor-pointer rounded-md border border-gray-400 p-2 text-center text-sm text-gray-500 underline hover:bg-gray-50"
               >
                 ← Back to Username
               </button>
-              <div className="text-xs text-gray-500 mt-5 border border-gray-400 rounded-md p-3 text-center">
+              <div className="mt-5 rounded-md border border-gray-400 p-3 text-center text-xs text-gray-500">
                 Forgot password?
               </div>
             </div>
@@ -110,9 +110,9 @@ export default function LoginPage() {
           {/* Step 3: License Key */}
           {step === 3 && (
             <div>
-              <h2 className="text-xl mb-6 border-b-2 border-gray-800 pb-3">Company License Key</h2>
+              <h2 className="mb-6 border-b-2 border-gray-800 pb-3 text-xl">Company License Key</h2>
               <div className="mb-5 text-left">
-                <div className="text-sm border-2 border-gray-500 rounded-md px-3 py-1.5 bg-gray-50">
+                <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-3 py-1.5 text-sm">
                   Username: {formData.username || '[username]'}
                 </div>
               </div>
@@ -124,16 +124,16 @@ export default function LoginPage() {
                 value={formData.licenseKey}
                 onChange={handleChange('licenseKey')}
               />
-              <Button onClick={handleLogin} className="w-full mt-3">
+              <Button onClick={handleLogin} className="mt-3 w-full">
                 Sign In
               </Button>
               <button
                 onClick={handleBack}
-                className="mt-4 text-sm text-gray-500 underline cursor-pointer border border-gray-400 rounded-md p-2 block w-full text-center hover:bg-gray-50"
+                className="mt-4 block w-full cursor-pointer rounded-md border border-gray-400 p-2 text-center text-sm text-gray-500 underline hover:bg-gray-50"
               >
                 ← Back to Password
               </button>
-              <div className="text-xs text-gray-500 mt-5 border border-gray-400 rounded-md p-3 text-center">
+              <div className="mt-5 rounded-md border border-gray-400 p-3 text-center text-xs text-gray-500">
                 Contact your administrator for license key
               </div>
             </div>

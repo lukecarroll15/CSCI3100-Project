@@ -11,11 +11,11 @@ export default function AppLayout({ sidebarExtra }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-gray-100">
       <TopBar onLogout={handleLogout} />
       <div className="flex flex-1">
         <Sidebar>{sidebarExtra}</Sidebar>
-        <main className="flex-1 p-10 overflow-y-auto bg-white">
+        <main className="flex-1 overflow-y-auto bg-white p-10">
           <Outlet />
         </main>
       </div>
