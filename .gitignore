@@ -34,3 +34,9 @@ backend/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Claude local files (not part of deliverable)
+.claude/
+
+# env
+.env*

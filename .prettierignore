@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build output
+dist/
+build/
+frontend/dist/
+
+# Locks
+package-lock.json
+frontend/package-lock.json
+backend/package-lock.json
+
+# Env
+.env
+.env.*
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*
+
+# Tooling / misc
+.vscode/
+.idea/
+.DS_Store
+
+# Claude local files (not part of deliverable)
+.claude/
