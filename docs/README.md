@@ -3,6 +3,7 @@
 Store course/project deliverables here so the repository stays organized.
 
 Suggested contents:
+
 - Requirements / SRS (SC2)
 - Design & Implementation notes
 - Testing document (SC3)
