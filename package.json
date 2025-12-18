@@ -1,0 +1,20 @@
+{
+  "name": "csci3100-project",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CSCI3100 Software Engineering Project monorepo (frontend + backend)",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npm --prefix frontend run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.6.14"
+  }
+}
