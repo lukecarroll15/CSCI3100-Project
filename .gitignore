@@ -38,5 +38,15 @@ backend/.env
 # Claude local files (not part of deliverable)
 .claude/
 
-# env
+# env (ignore real env files)
 .env*
+backend/.env*
+frontend/.env*
+
+# but keep templates
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# mac zip junk
+__MACOSX/
