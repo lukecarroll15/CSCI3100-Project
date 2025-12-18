@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ['main', 'master']
+  pull_request:
+    branches: ['main', 'master']
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install root tools
+        run: npm ci
+
+      - name: Install backend
+        run: npm --prefix backend ci
+
+      - name: Install frontend
+        run: npm --prefix frontend ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build (backend + frontend)
+        run: npm run build
+
+      - name: Lint (frontend)
+        run: npm run lint

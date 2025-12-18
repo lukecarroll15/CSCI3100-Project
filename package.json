@@ -3,14 +3,21 @@
   "private": true,
   "version": "1.0.0",
   "description": "CSCI3100 Software Engineering Project monorepo (frontend + backend)",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "node backend/server.js",
-    "dev:frontend": "npm --prefix frontend run dev",
     "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev": "concurrently -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint": "npm run lint:frontend",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "npm --prefix frontend run lint"
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "concurrently": "^9.2.0",

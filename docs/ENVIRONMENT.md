@@ -1,9 +1,13 @@
 # Environment Configuration
 
-## Backend
+Goal: a teammate (or TA) can set up and run the system from scratch.
 
-Copy template and edit:
+## Node version
+
+Use Node 20 (see `.nvmrc`).
+
+Verify:
 
 ```bash
-cp backend/.env.example backend/.env
+node -v
 ```
