@@ -1,27 +1,27 @@
-# CSCI3100 Project (Monorepo)
+# CSCI3100 Project (TaskFlow) — Monorepo
 
-Monorepo containing a Jira-like web application.
+Jira-like web application for CSCI3100 Software Engineering.
 
 ## Tech Stack
 
-- Frontend: React + Vite + Tailwind CSS (and minimal shadcn/ui components where helpful)
+- Frontend: React + Vite + Tailwind CSS (minimal shadcn/ui where helpful)
 - Backend: Node.js + Express + TypeScript
-- Database: MongoDB (local for development; third-party hosted MongoDB for deployment/demo)
+- Database: MongoDB (local dev; hosted DB allowed for demo)
 
 ## Repository Structure
 
-- `frontend/` - UI (React)
-- `backend/` - API server (Express + TS)
-- `docs/` - course deliverables and working documents
+- `frontend/` — UI
+- `backend/` — API server
+- `docs/` — course deliverables and process evidence
 
 ## Prerequisites
 
-- Node.js 20 (recommended; see `.nvmrc`)
+- Node.js 20 (see `.nvmrc`)
 - npm
 - MongoDB (local) OR MongoDB Atlas connection string
 
-If you use nvm:
+Node version check:
 
 ```bash
-nvm use
+node -v
 ```
