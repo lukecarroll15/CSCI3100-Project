@@ -1,114 +1,185 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import { useAuth } from '../auth/useAuth';
 import { ApiRequestError } from '../api/client';
+import { useAuth } from '../auth/useAuth';
+import type { OtpPurpose } from '../api/auth';
 
-type Step = 'email' | 'code';
+type Step = 'details' | 'code';
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof ApiRequestError) return err.payload?.error?.message ?? err.message;
+  if (err instanceof Error) return err.message;
+  return 'Unexpected error';
+}
 
 export default function LoginPage() {
+  const auth = useAuth();
   const navigate = useNavigate();
-  const { requestOtp, verifyOtp } = useAuth();
 
-  const appName = useMemo(
-    () => (import.meta.env.VITE_APP_NAME as string | undefined) ?? 'TaskFlow',
-    []
-  );
+  const [purpose, setPurpose] = useState<OtpPurpose>('login');
+  const [step, setStep] = useState<Step>('details');
 
-  const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
+
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const onSendCode = async () => {
-    setMsg(null);
+  useEffect(() => {
+    if (!auth.loading && auth.user) navigate('/');
+  }, [auth.loading, auth.user, navigate]);
+
+  useEffect(() => {
+    setStep('details');
+    setCode('');
+    setMessage(null);
+  }, [purpose]);
+
+  async function onSendCode() {
+    setMessage(null);
     setBusy(true);
     try {
-      await requestOtp(email.trim());
+      await auth.requestOtp(email, purpose);
       setStep('code');
-      setMsg('Login code sent. Check your email (or backend logs if SMTP is not configured).');
-    } catch (e) {
-      if (e instanceof ApiRequestError) setMsg(`${e.code}: ${e.message}`);
-      else setMsg('Failed to request OTP.');
+      setMessage('Code sent. Check your email (or Mailpit in dev).');
+    } catch (err) {
+      setMessage(getErrorMessage(err));
     } finally {
       setBusy(false);
     }
-  };
+  }
 
-  const onVerify = async () => {
-    setMsg(null);
+  async function onVerify() {
+    setMessage(null);
     setBusy(true);
     try {
-      await verifyOtp(email.trim(), code.trim());
-      navigate('/', { replace: true });
-    } catch (e) {
-      if (e instanceof ApiRequestError) setMsg(`${e.code}: ${e.message}`);
-      else setMsg('Failed to verify OTP.');
+      await auth.verifyOtp(email, code, purpose, purpose === 'signup' ? displayName : undefined);
+      navigate('/');
+    } catch (err) {
+      setMessage(getErrorMessage(err));
     } finally {
       setBusy(false);
     }
-  };
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <div className="mb-8 inline-block rounded-lg border-2 border-gray-800 px-10 py-3 text-3xl text-gray-800">
-          {appName}
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">TaskFlow</h1>
+            <p className="text-sm text-gray-600">Email OTP authentication</p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant={purpose === 'login' ? 'primary' : 'outline'}
+              onClick={() => setPurpose('login')}
+              disabled={busy}
+            >
+              Log in
+            </Button>
+            <Button
+              variant={purpose === 'signup' ? 'primary' : 'outline'}
+              onClick={() => setPurpose('signup')}
+              disabled={busy}
+            >
+              Sign up
+            </Button>
+          </div>
         </div>
 
-        <div className="w-96 rounded-xl border-2 border-gray-800 bg-white p-9 shadow-[4px_4px_0_rgba(0,0,0,0.2)]">
-          <h2 className="mb-6 border-b-2 border-gray-800 pb-3 text-xl">Sign In (OTP)</h2>
+        {message ? (
+          <div className="mb-4 rounded border border-gray-200 bg-gray-100 p-3 text-sm text-gray-800">
+            {message}
+          </div>
+        ) : null}
 
-          {msg && (
-            <div className="mb-4 rounded-md border border-gray-400 bg-gray-50 p-3 text-left text-sm text-gray-700">
-              {msg}
-            </div>
-          )}
-
-          {step === 'email' && (
-            <>
+        {step === 'details' ? (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
               <Input
-                label="Email"
-                type="email"
-                placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                autoComplete="email"
               />
-              <Button onClick={onSendCode} className="mt-2 w-full" disabled={busy || !email.trim()}>
-                {busy ? 'Sending...' : 'Send login code'}
-              </Button>
-            </>
-          )}
+            </div>
 
-          {step === 'code' && (
-            <>
-              <div className="mb-5 text-left">
-                <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-3 py-1.5 text-sm">
-                  Email: {email || '[email]'}
-                </div>
+            {purpose === 'signup' ? (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Display name (optional)
+                </label>
+                <Input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Nate"
+                  type="text"
+                  autoComplete="nickname"
+                />
+              </div>
+            ) : null}
+
+            <Button
+              className="w-full"
+              onClick={onSendCode}
+              disabled={busy || email.trim().length === 0}
+            >
+              {busy ? 'Sending…' : purpose === 'signup' ? 'Send Sign-up Code' : 'Send Login Code'}
+            </Button>
+
+            {purpose === 'login' ? (
+              <p className="text-xs text-gray-500">
+                Only registered emails can log in. Use “Sign up” to create an account.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Signing up creates your user profile after you verify the code.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Verification code</label>
+                <button
+                  type="button"
+                  className="text-sm text-gray-600 underline hover:text-gray-900"
+                  onClick={() => setStep('details')}
+                  disabled={busy}
+                >
+                  Change email
+                </button>
               </div>
               <Input
-                label="One-time code"
-                type="text"
-                placeholder="123456"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
+                placeholder="123456"
+                inputMode="numeric"
+                autoComplete="one-time-code"
               />
-              <Button onClick={onVerify} className="mt-2 w-full" disabled={busy || !code.trim()}>
-                {busy ? 'Verifying...' : 'Verify & continue'}
-              </Button>
-              <button
-                onClick={() => setStep('email')}
-                className="mt-4 block w-full cursor-pointer rounded-md border border-gray-400 p-2 text-center text-sm text-gray-500 underline hover:bg-gray-50"
-                disabled={busy}
-              >
-                ← Back
-              </button>
-            </>
-          )}
-        </div>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={onVerify}
+              disabled={busy || code.trim().length === 0}
+            >
+              {busy ? 'Verifying…' : purpose === 'signup' ? 'Create Account' : 'Log In'}
+            </Button>
+
+            <Button className="w-full" variant="outline" onClick={onSendCode} disabled={busy}>
+              Resend code
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

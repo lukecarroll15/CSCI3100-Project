@@ -1,55 +1,46 @@
 name: CI
 
 on:
-  push:
-    branches: ['main', 'master']
   pull_request:
-    branches: ['main', 'master']
+  push:
+    branches: [main]
 
 jobs:
   build-and-check:
     runs-on: ubuntu-latest
 
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
+          node-version: 20
           cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            backend/package-lock.json
-            frontend/package-lock.json
-
-      - name: Install root tools
+      - name: Install root deps
         run: npm ci
-
-      - name: Install backend
-        run: npm --prefix backend ci
-
-      - name: Install frontend
-        run: npm --prefix frontend ci
-
-      - name: Format check
+      - name: Root formatting check
         run: npm run format:check
-
-      - name: Build (backend + frontend)
-        run: npm run build
-
-      - name: Lint (frontend)
-        run: npm run lint:frontend
-
-      - name: Typecheck (frontend)
-        run: npm run typecheck:frontend
-
-      - name: Typecheck (backend)
-        run: npm run typecheck:backend
-
-      - name: Lint (backend)
-        run: npm run lint:backend
-
-      - name: Test (backend)
-        run: npm run test:backend
+      - name: Backend install
+        run: npm ci --prefix backend
+      - name: Backend checks
+        run: |
+          npm run lint --prefix backend
+          npm run typecheck --prefix backend
+          npm run test --prefix backend
+      - name: Frontend install
+        run: npm ci --prefix frontend
+      - name: Frontend checks
+        run: |
+          npm run lint --prefix frontend
+          npm run typecheck --prefix frontend
+          npm run build --prefix frontend

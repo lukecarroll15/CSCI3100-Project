@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { postRequestOtp, postVerifyOtp, postLogout } from '../../controllers/auth.controller';
+import { handleLogout, handleRequestOtp, handleVerifyOtp } from '../../controllers/auth.controller';
 
 export const authRouter = Router();
 
-authRouter.post('/request-otp', postRequestOtp);
-authRouter.post('/verify-otp', postVerifyOtp);
-authRouter.post('/logout', postLogout);
+authRouter.post('/request-otp', handleRequestOtp);
+authRouter.post('/verify-otp', handleVerifyOtp);
+authRouter.post('/logout', handleLogout);

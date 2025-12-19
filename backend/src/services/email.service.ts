@@ -8,7 +8,7 @@ function isPlaceholderHost(host?: string) {
   return h === 'smtp.example.com' || h.endsWith('.example.com') || h === 'example.com';
 }
 
-export async function sendOtpEmail(to: string, code: string): Promise<void> {
+export async function sendOtpEmail(to: string, code: string, expiresMs?: number): Promise<void> {
   // Dev-friendly fallback: if SMTP not configured (or placeholder), print OTP to logs
   if (!env.SMTP_HOST || !env.SMTP_PORT || isPlaceholderHost(env.SMTP_HOST)) {
     if (env.NODE_ENV === 'production') {
@@ -32,7 +32,7 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
       from: env.EMAIL_FROM,
       to,
       subject: 'Your TaskFlow login code',
-      text: `Your one-time login code is: ${code}\n\nThis code expires soon.`,
+      text: buildOtpBody(code, expiresMs),
     });
   } catch (err) {
     // Production should fail loudly; dev/test should fall back to logs
@@ -44,4 +44,13 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
 
     logger.info({ to, code }, 'SMTP send failed; OTP printed to logs (dev fallback)');
   }
+}
+
+function buildOtpBody(code: string, expiresMs?: number): string {
+  const expiryMinutes = expiresMs ? Math.max(1, Math.round(expiresMs / 60000)) : null;
+  const expiryLine = expiryMinutes
+    ? `This code expires in about ${expiryMinutes} minute${expiryMinutes === 1 ? '' : 's'}.`
+    : 'This code expires soon.';
+
+  return `Your one-time login code is: ${code}\n\n${expiryLine}`;
 }
