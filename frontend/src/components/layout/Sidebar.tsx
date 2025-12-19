@@ -8,7 +8,7 @@ const navItems = [
   { path: '/messages', label: 'Messages', icon: '✉️' },
 ];
 
-export default function Sidebar({ children }) {
+export default function Sidebar({ children }: { children?: React.ReactNode }) {
   return (
     <aside className="flex w-64 flex-col border-r-2 border-gray-800 bg-gray-50 pt-8">
       <nav className="flex-1">
