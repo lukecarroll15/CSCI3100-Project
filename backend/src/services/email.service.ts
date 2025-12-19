@@ -11,7 +11,11 @@ function isPlaceholderHost(host?: string) {
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   // Dev-friendly fallback: if SMTP not configured (or placeholder), print OTP to logs
   if (!env.SMTP_HOST || !env.SMTP_PORT || isPlaceholderHost(env.SMTP_HOST)) {
-    logger.info({ to, code }, 'SMTP not configured; OTP printed to logs');
+    if (env.NODE_ENV === 'production') {
+      throw new Error('SMTP_NOT_CONFIGURED');
+    }
+    logger.info({ to }, 'SMTP not configured; printing OTP to logs (dev mode)');
+    logger.info({ to, code }, 'OTP code');
     return;
   }
 

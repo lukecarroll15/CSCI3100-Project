@@ -22,6 +22,7 @@ This document records automated and manual testing performed for TaskFlow.
 - Tools:
   - Terminal
   - Postman (manual API testing)
+  - Mailpit (optional, for OTP email inbox)
 
 ## 3) Automated tests
 
@@ -39,7 +40,13 @@ Current automated coverage:
 
 ## 4) Manual API test cases (SF-UM)
 
-Note: If SMTP is not configured, OTP codes will be printed to backend logs.
+Note: OTP delivery depends on SMTP configuration.
+
+- With **Mailpit** (recommended for local testing), OTP is delivered to the Mailpit inbox:
+  - Start: `docker compose -f docker-compose.mailpit.yml up -d`
+  - UI: http://localhost:8025
+  - SMTP: localhost:1025
+- Without SMTP, OTP codes are printed to backend logs (development convenience).
 
 ### TC-UM-01 Request OTP
 
