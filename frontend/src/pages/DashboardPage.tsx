@@ -1,6 +1,22 @@
 import Badge from '../components/ui/Badge';
 
-const activityData = {
+type Priority = 'high' | 'medium' | 'low';
+
+type ActivityItemData = {
+  time: string;
+  icon: string;
+  title: string;
+  description: string;
+  priority?: Priority;
+  meta: string[];
+};
+
+type ActivityGroupData = {
+  date: string;
+  items: ActivityItemData[];
+};
+
+const activityData: { today: ActivityGroupData; yesterday: ActivityGroupData } = {
   today: {
     date: 'Today - November 17, 2025',
     items: [
@@ -72,7 +88,7 @@ const activityData = {
   },
 };
 
-function ActivityItem({ time, icon, title, description, priority, meta }) {
+function ActivityItem({ time, icon, title, description, priority, meta }: ActivityItemData) {
   const handleClick = () => {
     if (icon === '📅') alert('Would navigate to Calendar task');
     else if (icon === '📁') alert('Would navigate to File');
@@ -103,7 +119,7 @@ function ActivityItem({ time, icon, title, description, priority, meta }) {
   );
 }
 
-function ActivityGroup({ date, items }) {
+function ActivityGroup({ date, items }: ActivityGroupData) {
   return (
     <div className="mb-10">
       <div className="mb-5 rounded-lg border-2 border-gray-800 bg-gray-50 p-3 text-xl font-bold">

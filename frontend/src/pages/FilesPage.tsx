@@ -1,9 +1,28 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
-const folders = [
+type Folder = { name: string; icon: string; sub: boolean };
+type FileType = 'Document' | 'Spreadsheet' | 'PDF' | 'Image';
+type Department = 'Sales' | 'IT' | 'Finance' | 'Marketing' | 'HR' | 'Shared';
+type ViewMode = 'grid' | 'list';
+
+type FileItem = {
+  name: string;
+  type: FileType;
+  icon: string;
+  size: string;
+  date: string;
+  author: string;
+  department: Department;
+  adminOnly: boolean;
+};
+
+type FileCollection = FileItem[];
+
+const folders: Folder[] = [
   { name: 'All Files', icon: '📁', sub: false },
   { name: 'Sales', icon: '📁', sub: false },
   { name: 'Proposals', icon: '📂', sub: true },
@@ -15,7 +34,7 @@ const folders = [
   { name: 'Shared', icon: '📁', sub: false },
 ];
 
-const files = [
+const files: FileCollection = [
   {
     name: 'Q4_Budget_Report.xlsx',
     type: 'Spreadsheet',
@@ -23,6 +42,7 @@ const files = [
     size: '2.3 MB',
     date: 'Nov 17, 2025',
     author: 'Michael Torres',
+    department: 'Finance',
     adminOnly: false,
   },
   {
@@ -32,6 +52,7 @@ const files = [
     size: '1.8 MB',
     date: 'Nov 16, 2025',
     author: 'Sarah Chen',
+    department: 'Sales',
     adminOnly: false,
   },
   {
@@ -41,6 +62,7 @@ const files = [
     size: '890 KB',
     date: 'Nov 15, 2025',
     author: 'Emma Wilson',
+    department: 'Sales',
     adminOnly: true,
   },
   {
@@ -50,6 +72,7 @@ const files = [
     size: '3.5 MB',
     date: 'Nov 14, 2025',
     author: 'David Park',
+    department: 'Marketing',
     adminOnly: false,
   },
   {
@@ -59,6 +82,7 @@ const files = [
     size: '456 KB',
     date: 'Nov 13, 2025',
     author: 'John Smith',
+    department: 'HR',
     adminOnly: false,
   },
   {
@@ -68,18 +92,38 @@ const files = [
     size: '2.1 MB',
     date: 'Nov 12, 2025',
     author: 'David Park',
+    department: 'IT',
     adminOnly: true,
   },
 ];
 
-const fileTypes = ['All', 'Documents', 'Spreadsheets', 'PDFs', 'Images'];
-const departments = ['All', 'Sales', 'IT', 'Finance', 'Marketing'];
+const fileTypeFilters: Array<{ label: string; value: 'All' | FileType }> = [
+  { label: 'All', value: 'All' },
+  { label: 'Documents', value: 'Document' },
+  { label: 'Spreadsheets', value: 'Spreadsheet' },
+  { label: 'PDFs', value: 'PDF' },
+  { label: 'Images', value: 'Image' },
+];
+const departments: Array<'All' | Department> = [
+  'All',
+  'Sales',
+  'IT',
+  'Finance',
+  'Marketing',
+  'Shared',
+];
 
-function AdminPanel({ isAdmin, onActivate }) {
+function AdminPanel({
+  isAdmin,
+  onActivate,
+}: {
+  isAdmin: boolean;
+  onActivate: (active: boolean) => void;
+}) {
   const [adminKey, setAdminKey] = useState('');
 
-  const handleKeyChange = (e) => {
-    let value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const handleKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     let formatted = '';
     for (let i = 0; i < value.length && i < 12; i++) {
       if (i > 0 && i % 4 === 0) formatted += '-';
@@ -106,21 +150,22 @@ function AdminPanel({ isAdmin, onActivate }) {
         <label className="mb-1 block rounded border border-gray-500 bg-gray-50 p-1 text-xs">
           Admin Key (AAAA-BBBB-CCCC)
         </label>
-        <input
+        <Input
           type="text"
           placeholder="Enter admin key"
           maxLength={14}
           value={adminKey}
           onChange={handleKeyChange}
-          className="w-full rounded-md border-2 border-gray-800 p-2 text-xs"
+          className="w-full"
         />
       </div>
-      <button
+      <Button
         onClick={handleActivate}
-        className="w-full cursor-pointer rounded-md border-2 border-gray-800 bg-white p-2 text-sm font-bold hover:bg-gray-100"
+        variant="outline"
+        className="w-full border-2 border-gray-800 text-sm font-bold hover:bg-gray-100"
       >
         Activate
-      </button>
+      </Button>
       <div
         className={`mt-3 rounded-md border-2 p-2 text-center text-xs font-bold ${
           isAdmin
@@ -134,7 +179,13 @@ function AdminPanel({ isAdmin, onActivate }) {
   );
 }
 
-function FolderTree({ activeFolder, onSelect }) {
+function FolderTree({
+  activeFolder,
+  onSelect,
+}: {
+  activeFolder: string;
+  onSelect: (folder: string) => void;
+}) {
   return (
     <div className="w-72 overflow-y-auto border-r-2 border-gray-800 bg-gray-50 p-6">
       <div className="mb-5 rounded-md border-2 border-gray-800 bg-white p-3 text-lg font-bold">
@@ -159,8 +210,8 @@ function FolderTree({ activeFolder, onSelect }) {
   );
 }
 
-function FileGrid({ files, isAdmin }) {
-  const handleClick = (file) => {
+function FileGrid({ files, isAdmin }: { files: FileCollection; isAdmin: boolean }) {
+  const handleClick = (file: FileItem) => {
     if (file.adminOnly && !isAdmin) {
       alert('Access Denied: This file requires admin privileges.');
     } else {
@@ -194,8 +245,8 @@ function FileGrid({ files, isAdmin }) {
   );
 }
 
-function FileList({ files, isAdmin }) {
-  const handleClick = (file) => {
+function FileList({ files, isAdmin }: { files: FileCollection; isAdmin: boolean }) {
+  const handleClick = (file: FileItem) => {
     if (file.adminOnly && !isAdmin) {
       alert('Access Denied: This file requires admin privileges.');
     } else {
@@ -241,11 +292,19 @@ function FileList({ files, isAdmin }) {
 }
 
 export default function FilesPage() {
-  const [view, setView] = useState('grid');
+  const [view, setView] = useState<ViewMode>('grid');
   const [activeFolder, setActiveFolder] = useState('All Files');
-  const [typeFilter, setTypeFilter] = useState('All');
-  const [deptFilter, setDeptFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState<'All' | FileType>('All');
+  const [deptFilter, setDeptFilter] = useState<'All' | Department>('All');
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const visibleFiles = useMemo(() => {
+    return files.filter((file) => {
+      const typeMatches = typeFilter === 'All' || file.type === typeFilter;
+      const deptMatches = deptFilter === 'All' || file.department === deptFilter;
+      return typeMatches && deptMatches;
+    });
+  }, [typeFilter, deptFilter]);
 
   return (
     <div className="-m-10 flex h-full">
@@ -280,17 +339,17 @@ export default function FilesPage() {
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border-2 border-gray-500 bg-gray-50 p-4">
           <div className="border-r-2 border-gray-400 pr-4 text-sm font-bold">File Type:</div>
-          {fileTypes.map((t) => (
+          {fileTypeFilters.map(({ label, value }) => (
             <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
+              key={value}
+              onClick={() => setTypeFilter(value)}
               className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
-                typeFilter === t
+                typeFilter === value
                   ? 'border-gray-800 bg-gray-800 text-white'
                   : 'border-gray-500 bg-white hover:bg-gray-100'
               }`}
             >
-              {t}
+              {label}
             </button>
           ))}
           <div className="ml-4 border-r-2 border-gray-400 pr-4 text-sm font-bold">Department:</div>
@@ -311,9 +370,9 @@ export default function FilesPage() {
 
         {/* File Views */}
         {view === 'grid' ? (
-          <FileGrid files={files} isAdmin={isAdmin} />
+          <FileGrid files={visibleFiles} isAdmin={isAdmin} />
         ) : (
-          <FileList files={files} isAdmin={isAdmin} />
+          <FileList files={visibleFiles} isAdmin={isAdmin} />
         )}
       </div>
 

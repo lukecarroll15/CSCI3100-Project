@@ -1,8 +1,22 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 
-const tasks = [
+type Priority = 'high' | 'medium' | 'low';
+type Department = 'sales' | 'it' | 'finance' | 'marketing' | 'hr' | 'customer-service';
+type ViewMode = 'calendar' | 'table';
+
+type Task = {
+  name: string;
+  date: string;
+  priority: Priority;
+  assignee: string;
+  department: Department;
+  status: 'In Progress' | 'Not Started';
+  day: number | null;
+};
+
+const tasks: Task[] = [
   {
     name: 'Submit Final Tender',
     date: 'Nov 20, 2025',
@@ -77,11 +91,33 @@ const tasks = [
   },
 ];
 
-const departments = ['all', 'sales', 'it', 'finance', 'marketing', 'hr', 'customer-service'];
-const priorities = ['all', 'high', 'medium', 'low'];
+const departments: Array<Department | 'all'> = [
+  'all',
+  'sales',
+  'it',
+  'finance',
+  'marketing',
+  'hr',
+  'customer-service',
+];
+const priorities: Array<Priority | 'all'> = ['all', 'high', 'medium', 'low'];
 const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function FilterSection({ label, options, active, onChange, colorMap }) {
+type FilterSectionProps<T extends string> = {
+  label: string;
+  options: T[];
+  active: T;
+  onChange: (value: T) => void;
+  colorMap?: Record<T, string>;
+};
+
+function FilterSection<T extends string>({
+  label,
+  options,
+  active,
+  onChange,
+  colorMap,
+}: FilterSectionProps<T>) {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border-2 border-gray-500 bg-gray-50 p-5">
       <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">{label}</div>
@@ -106,7 +142,7 @@ function FilterSection({ label, options, active, onChange, colorMap }) {
   );
 }
 
-function TableView({ filteredTasks }) {
+function TableView({ filteredTasks }: { filteredTasks: Task[] }) {
   return (
     <table className="w-full border-collapse overflow-hidden rounded-lg border-2 border-gray-800">
       <thead className="bg-gray-100">
@@ -142,13 +178,9 @@ function TableView({ filteredTasks }) {
   );
 }
 
-function CalendarView({ filteredTasks }) {
-  const calendarDays = [];
-  for (let i = 10; i <= 30; i++) {
-    calendarDays.push(i);
-  }
-
-  const getTasksForDay = (day) => filteredTasks.filter((t) => t.day === day);
+function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
+  const calendarDays = useMemo(() => Array.from({ length: 21 }, (_, i) => i + 10), []);
+  const getTasksForDay = (day: number) => filteredTasks.filter((t) => t.day === day);
 
   return (
     <div className="grid grid-cols-7 gap-3 rounded-lg border-2 border-gray-800 bg-gray-50 p-5">
@@ -188,21 +220,26 @@ function CalendarView({ filteredTasks }) {
 }
 
 export default function CalendarPage() {
-  const [view, setView] = useState('calendar');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [view, setView] = useState<ViewMode>('calendar');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<Department | 'all'>('all');
 
-  const filteredTasks = tasks.filter((task) => {
-    const priorityMatch = priorityFilter === 'all' || task.priority === priorityFilter;
-    const deptMatch = departmentFilter === 'all' || task.department === departmentFilter;
-    return priorityMatch && deptMatch;
-  });
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter((task) => {
+        const priorityMatch = priorityFilter === 'all' || task.priority === priorityFilter;
+        const deptMatch = departmentFilter === 'all' || task.department === departmentFilter;
+        return priorityMatch && deptMatch;
+      }),
+    [priorityFilter, departmentFilter]
+  );
 
   const priorityColors = {
     high: 'border-red-600 text-red-600',
     medium: 'border-orange-500 text-orange-500',
     low: 'border-green-600 text-green-600',
-  };
+    all: '',
+  } as const;
 
   return (
     <div>
@@ -230,14 +267,14 @@ export default function CalendarPage() {
         label="Filter by Priority:"
         options={priorities}
         active={priorityFilter}
-        onChange={setPriorityFilter}
+        onChange={(value) => setPriorityFilter(value)}
         colorMap={priorityColors}
       />
       <FilterSection
         label="Filter by Department:"
         options={departments}
         active={departmentFilter}
-        onChange={setDepartmentFilter}
+        onChange={(value) => setDepartmentFilter(value)}
       />
 
       {/* Views */}
