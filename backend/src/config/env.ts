@@ -4,6 +4,8 @@ import { z } from 'zod';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5001),
@@ -24,14 +26,12 @@ const EnvSchema = z.object({
   OTP_MAX_VERIFY_ATTEMPTS: z.coerce.number().int().positive().default(5),
 
   EMAIL_FROM: z.string().default('no-reply@taskflow.local'),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().optional(),
-  SMTP_SECURE: z
-    .string()
-    .optional()
-    .transform((v) => v === 'true'),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
+
+  SMTP_HOST: z.preprocess(emptyToUndefined, z.string().optional()),
+  SMTP_PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(65535).optional()),
+  SMTP_SECURE: z.preprocess(emptyToUndefined, z.string().optional()).transform((v) => v === 'true'),
+  SMTP_USER: z.preprocess(emptyToUndefined, z.string().optional()),
+  SMTP_PASS: z.preprocess(emptyToUndefined, z.string().optional()),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
