@@ -8,6 +8,8 @@
   },
   "scripts": {
     "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "mail:up": "docker compose -f docker-compose.mailpit.yml up -d",
+    "mail:down": "docker compose -f docker-compose.mailpit.yml down",
     "dev": "concurrently -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",

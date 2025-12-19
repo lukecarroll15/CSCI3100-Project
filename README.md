@@ -59,6 +59,23 @@ npm run dev
 Frontend: [http://localhost:5173](http://localhost:5173)
 Backend: [http://localhost:5001](http://localhost:5001)
 
+## OTP email testing (Mailpit)
+
+TaskFlow uses email-based OTP login. For local development, you can run **Mailpit** to capture outgoing OTP emails in a local inbox.
+
+Start Mailpit:
+
+```bash
+docker compose -f docker-compose.mailpit.yml up -d
+```
+
+Open the Mailpit inbox:
+
+- UI: http://localhost:8025
+- SMTP: localhost:1025
+
+Then set backend SMTP env (see `backend/.env.example`) and request a login code from the Login page.
+
 ## Build
 
 ```bash

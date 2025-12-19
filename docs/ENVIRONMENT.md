@@ -47,6 +47,25 @@ Email delivery (OTP):
 - If SMTP is configured (`SMTP_HOST`, `SMTP_PORT`, etc.), OTP will be sent by email.
 - If SMTP is NOT configured, the backend will print OTP codes to backend logs (development convenience).
 
+#### Recommended: Mailpit (local SMTP + inbox)
+
+For local development/testing, we recommend using **Mailpit** so OTP emails are sent via SMTP and can be viewed in a local inbox.
+
+1. Start Mailpit:
+
+```bash
+docker compose -f docker-compose.mailpit.yml up -d
+```
+
+2. Open Mailpit UI:
+
+- http://localhost:8025
+
+3. Configure backend SMTP in `backend/.env` (example values in `backend/.env.example`):
+
+- `SMTP_HOST=127.0.0.1`
+- `SMTP_PORT=1025`
+
 ## 4) Run (development)
 
 From repo root:

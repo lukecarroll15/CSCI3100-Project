@@ -37,3 +37,6 @@ frontend/.env*
 
 # ===== Cookies =====
 cookies.txt
+
+# ===== Local debug exports =====
+taskflow_dev.*.json
