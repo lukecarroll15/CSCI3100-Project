@@ -22,32 +22,80 @@ npm run install:all
 
 ## 3) Backend environment
 
+Create local backend env:
+
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Minimum fields to check:
+Minimum fields to check in `backend/.env`:
 
-- `PORT` (default 5000)
-- `CORS_ORIGIN` (default [http://localhost:5173](http://localhost:5173))
-- `MONGO_URI`
-- `SESSION_SECRET` (set a long random string)
+- `PORT` (default `5000`)
+- `CORS_ORIGIN` (default `http://localhost:5173`)
+- `MONGO_URI` (MongoDB connection string)
+- `SESSION_SECRET` (long random string, >= 20 chars)
+
+SF-UM (OTP login) settings:
+
+- `OTP_LENGTH` (default `6`)
+- `OTP_TTL_SECONDS` (default `600`)
+- `OTP_RESEND_COOLDOWN_SECONDS` (default `30`)
+- `OTP_MAX_VERIFY_ATTEMPTS` (default `5`)
+
+Email delivery (OTP):
+
+- If SMTP is configured (`SMTP_HOST`, `SMTP_PORT`, etc.), OTP will be sent by email.
+- If SMTP is NOT configured, the backend will print OTP codes to backend logs (development convenience).
 
 ## 4) Run (development)
+
+From repo root:
 
 ```bash
 npm run dev
 ```
 
-Frontend: [http://localhost:5173](http://localhost:5173)
-Backend: [http://localhost:5000](http://localhost:5000)
+Frontend: `http://localhost:5173`
+Backend: `http://localhost:5000`
 
-Health:
+## 5) Health checks
 
-- GET [http://localhost:5000/api/health/live](http://localhost:5000/api/health/live)
-- GET [http://localhost:5000/api/health/ready](http://localhost:5000/api/health/ready)
+Base API prefix is `/api/v1`.
 
-## 5) Troubleshooting
+- Liveness: `GET http://localhost:5000/api/v1/health/live`
+- Readiness: `GET http://localhost:5000/api/v1/health/ready`
+
+## 6) SF-UM API endpoints (backend)
+
+### Request OTP
+
+`POST http://localhost:5000/api/v1/auth/request-otp`
+
+Body:
+
+```json
+{ "email": "user@example.com" }
+```
+
+### Verify OTP (creates session cookie)
+
+`POST http://localhost:5000/api/v1/auth/verify-otp`
+
+Body:
+
+```json
+{ "email": "user@example.com", "code": "123456" }
+```
+
+### Current user (requires cookie session)
+
+`GET http://localhost:5000/api/v1/users/me`
+
+### Logout
+
+`POST http://localhost:5000/api/v1/auth/logout`
+
+## 7) Troubleshooting
 
 ### EADDRINUSE (port 5000 already in use)
 
@@ -58,7 +106,7 @@ kill -9 <PID>
 
 Or change `PORT` in `backend/.env` and restart.
 
-### Formatting fails
+### Formatting
 
 ```bash
 npm run format

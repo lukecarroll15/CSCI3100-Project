@@ -1,17 +1,34 @@
-# User Manual (SC3 Placeholder)
+# User Manual (SC3)
 
-## Getting Started
+## 1) Accessing the system
 
-- How to open the system
-- How to log in (OTP)
-- How to log out
+- Frontend URL (dev): `http://localhost:5173`
+- Backend URL (dev): `http://localhost:5000`
 
-## Core Features
+## 2) Log in (OTP)
 
-- Projects
-- Boards
-- Tasks
+TaskFlow uses email-based one-time password (OTP) login.
 
-## Troubleshooting
+### Intended UI flow (frontend)
 
-- Common issues and fixes
+1. Enter your email
+2. Click “Send login code”
+3. Enter the OTP from email
+4. Click “Log in”
+
+### Developer note (when SMTP is not configured)
+
+If SMTP is not configured, OTP codes are printed to backend logs for development/testing.
+
+## 3) Log out
+
+Click “Log out” in the UI (to be connected), which calls:
+
+- `POST /api/v1/auth/logout`
+
+## 4) Troubleshooting
+
+- If login fails, request a new OTP and retry.
+- If the backend is not ready, check:
+  - `GET /api/v1/health/ready`
+  - MongoDB connection string in `backend/.env`
