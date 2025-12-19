@@ -4,8 +4,9 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CalendarPage from './pages/CalendarPage';
 import FilesPage from './pages/FilesPage';
+import { RequireAuth } from './auth/RequireAuth';
 
-function PlaceholderPage({ title }) {
+function PlaceholderPage({ title }: { title: string }) {
   return (
     <div className="py-20 text-center">
       <h1 className="mb-4 text-3xl">{title}</h1>
@@ -14,15 +15,19 @@ function PlaceholderPage({ title }) {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Login page without layout */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* App pages with layout */}
-        <Route element={<AppLayout />}>
+        <Route
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        >
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/files" element={<FilesPage />} />
@@ -33,5 +38,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;

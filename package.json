@@ -19,6 +19,8 @@
     "format:check": "prettier --check .",
     "lint:backend": "npm --prefix backend run lint",
     "typecheck:backend": "npm --prefix backend run typecheck",
+    "typecheck:frontend": "npm --prefix frontend run typecheck",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
     "test:backend": "npm --prefix backend run test",
     "lint": "npm run lint:backend && npm run lint:frontend",
     "test": "npm run test:backend"
