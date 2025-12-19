@@ -31,9 +31,11 @@ docker compose -f docker-compose.mailpit.yml up -d
 ```
 
 2. Open the inbox UI:
+
 - http://localhost:8025
 
 3. Configure backend SMTP (`backend/.env`) to use Mailpit:
+
 - `SMTP_HOST=127.0.0.1`
 - `SMTP_PORT=1025`
 

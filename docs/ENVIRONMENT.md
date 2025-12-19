@@ -51,16 +51,18 @@ Email delivery (OTP):
 
 For local development/testing, we recommend using **Mailpit** so OTP emails are sent via SMTP and can be viewed in a local inbox.
 
-1) Start Mailpit:
+1. Start Mailpit:
 
 ```bash
 docker compose -f docker-compose.mailpit.yml up -d
 ```
 
-2) Open Mailpit UI:
+2. Open Mailpit UI:
+
 - http://localhost:8025
 
-3) Configure backend SMTP in `backend/.env` (example values in `backend/.env.example`):
+3. Configure backend SMTP in `backend/.env` (example values in `backend/.env.example`):
+
 - `SMTP_HOST=127.0.0.1`
 - `SMTP_PORT=1025`
 
