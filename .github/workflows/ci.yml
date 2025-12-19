@@ -40,4 +40,13 @@ jobs:
         run: npm run build
 
       - name: Lint (frontend)
-        run: npm run lint
+        run: npm run lint:frontend
+
+      - name: Typecheck (backend)
+        run: npm run typecheck:backend
+
+      - name: Lint (backend)
+        run: npm run lint:backend
+
+      - name: Test (backend)
+        run: npm run test:backend

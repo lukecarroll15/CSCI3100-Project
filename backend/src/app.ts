@@ -5,9 +5,14 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { registerRoutes } from './routes';
 import { errorHandler, notFoundHandler } from './middleware/error';
+import cookieParser from 'cookie-parser';
+import pinoHttp from 'pino-http';
+import { logger } from './utils/logger';
 
 export function createApp() {
   const app = express();
+  app.use(pinoHttp({ logger }));
+  app.use(cookieParser());
 
   app.use(helmet());
   app.use(
