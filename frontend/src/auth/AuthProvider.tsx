@@ -1,41 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as authApi from '../api/auth';
-import { ApiRequestError } from '../api/client';
-import type { AuthContextValue } from './context';
-import { AuthContext } from './context';
+import { AuthContext, type AuthContextValue } from './context';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthContextValue['user']>(null);
+  const [user, setUser] = useState<authApi.User | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const refreshMe = useCallback(async () => {
-    try {
-      const me = await authApi.getMe();
-      setUser(me);
-    } catch (e) {
-      // 401 is expected when not logged in
-      if (e instanceof ApiRequestError && e.status === 401) {
-        setUser(null);
-        return;
-      }
-      setUser(null);
-    }
-  }, []);
 
   useEffect(() => {
     (async () => {
-      await refreshMe();
-      setLoading(false);
+      try {
+        const me = await authApi.getMe();
+        setUser(me);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     })();
-  }, [refreshMe]);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
-      requestOtp: authApi.requestOtp,
-      verifyOtp: async (email, code) => {
-        const u = await authApi.verifyOtp(email, code);
+      requestOtp: async (email, purpose) => {
+        await authApi.requestOtp(email, purpose);
+      },
+      verifyOtp: async (email, code, purpose, displayName) => {
+        const u = await authApi.verifyOtp(email, code, purpose, displayName);
         setUser(u);
         return u;
       },
@@ -43,9 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await authApi.logout();
         setUser(null);
       },
-      refreshMe,
     }),
-    [user, loading, refreshMe]
+    [user, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

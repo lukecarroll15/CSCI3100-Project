@@ -9,12 +9,19 @@
 
 TaskFlow uses email-based one-time password (OTP) login.
 
+### Sign up (first-time users)
+
+1. Choose **Sign up**.
+2. Enter your email (and optional display name) and request a code.
+3. Enter the OTP from email/Mailpit.
+4. Submit to create the account and sign in.
+
 ### Intended UI flow (frontend)
 
-1. Enter your email
-2. Click “Send login code”
-3. Enter the OTP from email
-4. Click “Log in”
+1. Choose **Log in** (for existing accounts) or **Sign up** (new users).
+2. Enter your email and click “Send code”.
+3. Enter the OTP from email.
+4. Click “Log in” (existing) or “Create Account” (signup).
 
 ### Developer note (when SMTP is not configured)
 

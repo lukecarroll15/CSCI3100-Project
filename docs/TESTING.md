@@ -48,6 +48,9 @@ Note: OTP delivery depends on SMTP configuration.
   - SMTP: localhost:1025
 - Without SMTP, OTP codes are printed to backend logs (development convenience).
 
+- Login OTP can only be requested for existing emails.
+- Signup OTP is for new emails and will create the user after successful verification.
+
 ### TC-UM-01 Request OTP
 
 - Precondition: backend running

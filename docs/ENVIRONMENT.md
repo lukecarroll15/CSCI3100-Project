@@ -38,14 +38,21 @@ Minimum fields to check in `backend/.env`:
 SF-UM (OTP login) settings:
 
 - `OTP_LENGTH` (default `6`)
-- `OTP_TTL_SECONDS` (default `600`)
-- `OTP_RESEND_COOLDOWN_SECONDS` (default `30`)
-- `OTP_MAX_VERIFY_ATTEMPTS` (default `5`)
+- `OTP_EXPIRES_MS` (default `600000`)
+- `OTP_RESEND_COOLDOWN_MS` (default `30000`)
+- `OTP_MAX_ATTEMPTS` (default `5`)
+- `OTP_BCRYPT_ROUNDS` (default `10`)
+- You can also use legacy seconds-based fields (`OTP_TTL_SECONDS`, `OTP_RESEND_COOLDOWN_SECONDS`, `OTP_MAX_VERIFY_ATTEMPTS`); the app will derive ms values from them if the ms-based vars are unset.
 
 Email delivery (OTP):
 
 - If SMTP is configured (`SMTP_HOST`, `SMTP_PORT`, etc.), OTP will be sent by email.
 - If SMTP is NOT configured, the backend will print OTP codes to backend logs (development convenience).
+
+Login vs signup rules:
+
+- Login OTP can only be requested for existing accounts.
+- Signup OTP requires an unused email; verifying the signup OTP creates the account and signs the user in.
 
 #### Recommended: Mailpit (local SMTP + inbox)
 

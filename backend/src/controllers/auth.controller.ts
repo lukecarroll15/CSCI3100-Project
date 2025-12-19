@@ -1,42 +1,57 @@
-import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { requestOtp, verifyOtp } from '../services/auth.service';
-import { setSessionCookie, clearSessionCookie } from '../middleware/auth';
+import type { NextFunction, Request, Response } from 'express';
+import { requestOtp, verifyOtp, type OtpPurpose } from '../services/auth.service';
+import { clearSessionCookie, setSessionCookie } from '../middleware/auth';
 
-const RequestOtpSchema = z.object({ email: z.string().email() });
-const VerifyOtpSchema = z.object({ email: z.string().email(), code: z.string().min(4).max(10) });
+const PurposeSchema = z.enum(['login', 'signup']).default('login');
 
-export async function postRequestOtp(req: Request, res: Response, next: NextFunction) {
+const RequestOtpSchema = z.object({
+  email: z.string().email(),
+  purpose: PurposeSchema.optional(),
+});
+
+const VerifyOtpSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(4).max(10),
+  purpose: PurposeSchema.optional(),
+  displayName: z.string().trim().min(1).max(50).optional(),
+});
+
+export async function handleRequestOtp(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email } = RequestOtpSchema.parse(req.body);
-    await requestOtp(email);
-    res.json({ message: 'OTP sent' });
-  } catch (e) {
-    next(e);
+    const { email, purpose } = RequestOtpSchema.parse(req.body);
+    await requestOtp(email, (purpose ?? 'login') as OtpPurpose);
+    res.json({ message: 'If eligible, a code has been sent.' });
+  } catch (err) {
+    next(err);
   }
 }
 
-export async function postVerifyOtp(req: Request, res: Response, next: NextFunction) {
+export async function handleVerifyOtp(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, code } = VerifyOtpSchema.parse(req.body);
-    const user = await verifyOtp(email, code);
+    const { email, code, purpose, displayName } = VerifyOtpSchema.parse(req.body);
+    const user = await verifyOtp(email, code, (purpose ?? 'login') as OtpPurpose, displayName);
 
-    setSessionCookie(res, { userId: user._id.toString(), email: user.email });
+    setSessionCookie(res, { userId: String(user._id), email: user.email });
 
     res.json({
       user: {
-        id: user._id.toString(),
+        id: String(user._id),
         email: user.email,
         displayName: user.displayName,
         role: user.role,
       },
     });
-  } catch (e) {
-    next(e);
+  } catch (err) {
+    next(err);
   }
 }
 
-export function postLogout(_req: Request, res: Response) {
-  clearSessionCookie(res);
-  res.json({ message: 'Logged out' });
+export async function handleLogout(_req: Request, res: Response, next: NextFunction) {
+  try {
+    clearSessionCookie(res);
+    res.json({ message: 'Logged out' });
+  } catch (err) {
+    next(err);
+  }
 }

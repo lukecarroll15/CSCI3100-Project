@@ -22,8 +22,15 @@ const EnvSchema = z.object({
 
   OTP_LENGTH: z.coerce.number().int().min(4).max(10).default(6),
   OTP_TTL_SECONDS: z.coerce.number().int().positive().default(600),
+  OTP_EXPIRES_MS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().nonnegative().default(30),
+  OTP_RESEND_COOLDOWN_MS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().nonnegative().optional()
+  ),
   OTP_MAX_VERIFY_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  OTP_MAX_ATTEMPTS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  OTP_BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
 
   EMAIL_FROM: z.string().default('no-reply@taskflow.local'),
 
@@ -39,4 +46,12 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 
-export const env = EnvSchema.parse(process.env);
+const parsed = EnvSchema.parse(process.env);
+
+export const env = {
+  ...parsed,
+  OTP_EXPIRES_MS: parsed.OTP_EXPIRES_MS ?? parsed.OTP_TTL_SECONDS * 1000,
+  OTP_RESEND_COOLDOWN_MS:
+    parsed.OTP_RESEND_COOLDOWN_MS ?? parsed.OTP_RESEND_COOLDOWN_SECONDS * 1000,
+  OTP_MAX_ATTEMPTS: parsed.OTP_MAX_ATTEMPTS ?? parsed.OTP_MAX_VERIFY_ATTEMPTS,
+};

@@ -10,12 +10,20 @@ export class ApiRequestError extends Error {
   status: number;
   code: string;
   details?: unknown;
+  payload?: ApiErrorPayload;
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+    payload?: ApiErrorPayload
+  ) {
     super(message);
     this.status = status;
     this.code = code;
     this.details = details;
+    this.payload = payload;
   }
 }
 
@@ -51,7 +59,7 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
   const message = payload?.error?.message ?? `Request failed with status ${res.status}`;
   const details = payload?.error?.details;
 
-  throw new ApiRequestError(res.status, code, message, details);
+  throw new ApiRequestError(res.status, code, message, details, payload);
 }
 
 export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
@@ -60,4 +68,8 @@ export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+export function apiGet<T>(path: string): Promise<T> {
+  return apiJson<T>(path, { method: 'GET' });
 }

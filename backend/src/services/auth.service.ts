@@ -6,70 +6,137 @@ import { OtpModel } from '../models/Otp';
 import { UserModel } from '../models/User';
 import { sendOtpEmail } from './email.service';
 
-function generateNumericCode(length: number): string {
+export type OtpPurpose = 'login' | 'signup';
+
+function generateNumericOtp(length: number): string {
+  const digits = '0123456789';
+  const buf = crypto.randomBytes(length);
   let out = '';
-  for (let i = 0; i < length; i++) out += crypto.randomInt(0, 10).toString();
+  for (let i = 0; i < length; i++) out += digits[buf[i] % digits.length];
   return out;
 }
 
-export async function requestOtp(emailRaw: string): Promise<void> {
-  const email = emailRaw.trim().toLowerCase();
+function normalizeEmail(emailRaw: string): string {
+  return emailRaw.trim().toLowerCase();
+}
 
-  // Cooldown: prevent spam
-  const last = await OtpModel.findOne({ email }).sort({ createdAt: -1 }).lean();
+async function assertLoginEmailExists(email: string): Promise<void> {
+  const exists = await UserModel.exists({ email });
+  if (!exists) {
+    throw new AppError(404, 'ACCOUNT_NOT_FOUND', 'Account not found. Please sign up first.');
+  }
+}
+
+async function assertSignupEmailAvailable(email: string): Promise<void> {
+  const exists = await UserModel.exists({ email });
+  if (exists) {
+    throw new AppError(409, 'ACCOUNT_EXISTS', 'Email is already registered. Please log in.');
+  }
+}
+
+export async function requestOtp(emailRaw: string, purpose: OtpPurpose = 'login'): Promise<void> {
+  const email = normalizeEmail(emailRaw);
+
+  if (purpose === 'login') await assertLoginEmailExists(email);
+  if (purpose === 'signup') await assertSignupEmailAvailable(email);
+
+  const last = await OtpModel.findOne({ email, purpose }).sort({ createdAt: -1 }).lean();
   if (last) {
-    const secondsSinceLast =
-      (Date.now() - new Date(last.createdAt as unknown as string).getTime()) / 1000;
-    if (secondsSinceLast < env.OTP_RESEND_COOLDOWN_SECONDS) {
-      throw new AppError(429, 'OTP_COOLDOWN', 'Please wait before requesting another code.');
+    const ageMs = Date.now() - new Date(last.createdAt).getTime();
+    if (ageMs < env.OTP_RESEND_COOLDOWN_MS) {
+      const seconds = Math.ceil((env.OTP_RESEND_COOLDOWN_MS - ageMs) / 1000);
+      throw new AppError(
+        429,
+        'OTP_COOLDOWN',
+        `Please wait ${seconds}s before requesting another code.`
+      );
     }
   }
 
-  // Invalidate any previous unused OTPs (only latest should work)
-  await OtpModel.updateMany({ email, usedAt: null }, { $set: { usedAt: new Date() } });
+  const codePlain = generateNumericOtp(env.OTP_LENGTH);
+  const codeHash = await bcrypt.hash(codePlain, env.OTP_BCRYPT_ROUNDS);
 
-  const code = generateNumericCode(env.OTP_LENGTH);
-  const codeHash = await bcrypt.hash(code, 10);
+  // Invalidate older unused codes for the same purpose (keeps “latest wins” semantics).
+  await OtpModel.updateMany({ email, purpose, usedAt: null }, { $set: { usedAt: new Date() } });
 
-  const expiresAt = new Date(Date.now() + env.OTP_TTL_SECONDS * 1000);
+  const expiresAt = new Date(Date.now() + env.OTP_EXPIRES_MS);
+  await OtpModel.create({ email, purpose, codeHash, expiresAt, attempts: 0 });
 
-  await OtpModel.create({ email, codeHash, expiresAt });
-
-  await sendOtpEmail(email, code);
+  await sendOtpEmail(email, codePlain, env.OTP_EXPIRES_MS);
 }
 
-export async function verifyOtp(emailRaw: string, code: string) {
-  const email = emailRaw.trim().toLowerCase();
+export async function verifyOtp(
+  emailRaw: string,
+  code: string,
+  purpose: OtpPurpose = 'login',
+  displayNameRaw?: string
+) {
+  const email = normalizeEmail(emailRaw);
+
+  if (purpose === 'login') await assertLoginEmailExists(email);
+  if (purpose === 'signup') await assertSignupEmailAvailable(email);
 
   const otp = await OtpModel.findOne({
     email,
+    purpose,
     usedAt: null,
     expiresAt: { $gt: new Date() },
   }).sort({ createdAt: -1 });
 
-  if (!otp) throw new AppError(400, 'OTP_INVALID', 'Invalid or expired code.');
+  if (!otp) {
+    throw new AppError(400, 'OTP_NOT_FOUND', 'No active code found. Please request a new one.');
+  }
 
-  if (otp.attempts >= env.OTP_MAX_VERIFY_ATTEMPTS) {
+  if (otp.attempts >= env.OTP_MAX_ATTEMPTS) {
     otp.usedAt = new Date();
     await otp.save();
-    throw new AppError(429, 'OTP_LOCKED', 'Too many attempts. Request a new code.');
+    throw new AppError(429, 'OTP_LOCKED', 'Too many attempts. Please request a new code.');
   }
 
   const ok = await bcrypt.compare(code, otp.codeHash);
+  otp.attempts += 1;
+
   if (!ok) {
-    otp.attempts += 1;
     await otp.save();
-    throw new AppError(400, 'OTP_INVALID', 'Invalid or expired code.');
+    throw new AppError(400, 'OTP_INVALID', 'Incorrect code.');
   }
 
-  // Mark as used (single-use)
   otp.usedAt = new Date();
   await otp.save();
 
-  // Auto-create user on first login (FR-UM-6)
-  const user =
-    (await UserModel.findOne({ email })) ??
-    (await UserModel.create({ email, displayName: '', role: 'user' }));
+  let user = await UserModel.findOne({ email });
+
+  if (!user && purpose === 'signup') {
+    const displayName = (displayNameRaw ?? '').trim();
+    try {
+      user = await UserModel.create({
+        email,
+        displayName: displayName.length > 0 ? displayName : email.split('@')[0],
+        role: 'user',
+      });
+    } catch (err: unknown) {
+      // Race condition: another request created the user after validation.
+      if (isDuplicateKeyError(err)) {
+        user = await UserModel.findOne({ email });
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (!user) {
+    // Defensive guard (should not happen due to checks above).
+    throw new AppError(500, 'AUTH_STATE_INVALID', 'Authentication state invalid. Please retry.');
+  }
 
   return user;
+}
+
+function isDuplicateKeyError(err: unknown): err is { code: number } {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: number }).code === 11000
+  );
 }
