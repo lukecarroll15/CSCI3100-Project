@@ -6,7 +6,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(5000),
+  PORT: z.coerce.number().int().positive().default(5001),
   API_PREFIX: z.string().default('/api'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   MONGO_URI: z.string(),

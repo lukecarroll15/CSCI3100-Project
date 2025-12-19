@@ -30,7 +30,7 @@ cp backend/.env.example backend/.env
 
 Minimum fields to check in `backend/.env`:
 
-- `PORT` (default `5000`)
+- `PORT` (default `5001`)
 - `CORS_ORIGIN` (default `http://localhost:5173`)
 - `MONGO_URI` (MongoDB connection string)
 - `SESSION_SECRET` (long random string, >= 20 chars)
@@ -56,20 +56,20 @@ npm run dev
 ```
 
 Frontend: `http://localhost:5173`
-Backend: `http://localhost:5000`
+Backend: `http://localhost:5001`
 
 ## 5) Health checks
 
 Base API prefix is `/api/v1`.
 
-- Liveness: `GET http://localhost:5000/api/v1/health/live`
-- Readiness: `GET http://localhost:5000/api/v1/health/ready`
+- Liveness: `GET http://localhost:5001/api/v1/health/live`
+- Readiness: `GET http://localhost:5001/api/v1/health/ready`
 
 ## 6) SF-UM API endpoints (backend)
 
 ### Request OTP
 
-`POST http://localhost:5000/api/v1/auth/request-otp`
+`POST http://localhost:5001/api/v1/auth/request-otp`
 
 Body:
 
@@ -79,7 +79,7 @@ Body:
 
 ### Verify OTP (creates session cookie)
 
-`POST http://localhost:5000/api/v1/auth/verify-otp`
+`POST http://localhost:5001/api/v1/auth/verify-otp`
 
 Body:
 
@@ -89,18 +89,18 @@ Body:
 
 ### Current user (requires cookie session)
 
-`GET http://localhost:5000/api/v1/users/me`
+`GET http://localhost:5001/api/v1/users/me`
 
 ### Logout
 
-`POST http://localhost:5000/api/v1/auth/logout`
+`POST http://localhost:5001/api/v1/auth/logout`
 
 ## 7) Troubleshooting
 
-### EADDRINUSE (port 5000 already in use)
+### EADDRINUSE (port 5001 already in use)
 
 ```bash
-lsof -i :5000
+lsof -i :5001
 kill -9 <PID>
 ```
 

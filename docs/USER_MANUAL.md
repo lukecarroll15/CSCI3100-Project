@@ -3,7 +3,7 @@
 ## 1) Accessing the system
 
 - Frontend URL (dev): `http://localhost:5173`
-- Backend URL (dev): `http://localhost:5000`
+- Backend URL (dev): `http://localhost:5001`
 
 ## 2) Log in (OTP)
 
