@@ -16,77 +16,107 @@ type ActivityGroupData = {
   items: ActivityItemData[];
 };
 
-const activityData: { today: ActivityGroupData; yesterday: ActivityGroupData } = {
-  today: {
-    date: 'Today - November 17, 2025',
-    items: [
-      {
-        time: '2:45 PM',
-        icon: '📅',
-        title: 'Submit Final Tender',
-        description: 'New task added to calendar',
-        priority: 'high',
-        meta: ['Added by Sarah Chen', 'Due: Nov 20, 2025'],
-      },
-      {
-        time: '1:30 PM',
-        icon: '📁',
-        title: 'Q4_Budget_Report.xlsx',
-        description: 'File uploaded to shared folder',
-        meta: ['Uploaded by Michael Torres', 'Finance Folder'],
-      },
-      {
-        time: '11:15 AM',
-        icon: '💬',
-        title: 'New post in Marketing Channel',
-        description: 'Discussion: Campaign ideas for product launch',
-        meta: ['Posted by Emma Wilson', '5 replies'],
-      },
-      {
-        time: '9:00 AM',
-        icon: '📅',
-        title: 'Team Standup Meeting',
-        description: 'Task marked as complete',
-        priority: 'medium',
-        meta: ['Completed by John Smith'],
-      },
-      {
-        time: '8:30 AM',
-        icon: '✉️',
-        title: 'New message from David Park',
-        description: 'You have 3 unread messages',
-        meta: ['Click to view messages'],
-      },
-    ],
-  },
-  yesterday: {
-    date: 'Yesterday - November 16, 2025',
-    items: [
-      {
-        time: '4:20 PM',
-        icon: '📁',
-        title: 'Project_Proposal_v3.pdf',
-        description: 'File modified',
-        meta: ['Modified by Sarah Chen', 'Projects Folder'],
-      },
-      {
-        time: '2:10 PM',
-        icon: '📅',
-        title: 'Review client feedback',
-        description: 'Task updated - deadline extended',
-        priority: 'low',
-        meta: ['Updated by Emma Wilson', 'New due: Nov 18, 2025'],
-      },
-      {
-        time: '10:00 AM',
-        icon: '💬',
-        title: 'New post in Engineering Channel',
-        description: 'Discussion: Code review best practices',
-        meta: ['Posted by David Park', '12 replies'],
-      },
-    ],
-  },
-};
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getActivityData(): { today: ActivityGroupData; yesterday: ActivityGroupData } {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+  const tomorrowDate = new Date(today);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+  return {
+    today: {
+      date: `Today - ${formatDate(today)}`,
+      items: [
+        {
+          time: '2:45 PM',
+          icon: '📅',
+          title: 'Submit Final Tender',
+          description: 'New task added to calendar',
+          priority: 'high',
+          meta: ['Added by Sarah Chen', `Due: ${formatShortDate(threeDaysFromNow)}`],
+        },
+        {
+          time: '1:30 PM',
+          icon: '📁',
+          title: 'Q4_Budget_Report.xlsx',
+          description: 'File uploaded to shared folder',
+          meta: ['Uploaded by Michael Torres', 'Finance Folder'],
+        },
+        {
+          time: '11:15 AM',
+          icon: '💬',
+          title: 'New post in Marketing Channel',
+          description: 'Discussion: Campaign ideas for product launch',
+          meta: ['Posted by Emma Wilson', '5 replies'],
+        },
+        {
+          time: '9:00 AM',
+          icon: '📅',
+          title: 'Team Standup Meeting',
+          description: 'Task marked as complete',
+          priority: 'medium',
+          meta: ['Completed by John Smith'],
+        },
+        {
+          time: '8:30 AM',
+          icon: '✉️',
+          title: 'New message from David Park',
+          description: 'You have 3 unread messages',
+          meta: ['Click to view messages'],
+        },
+      ],
+    },
+    yesterday: {
+      date: `Yesterday - ${formatDate(yesterday)}`,
+      items: [
+        {
+          time: '4:20 PM',
+          icon: '📁',
+          title: 'Project_Proposal_v3.pdf',
+          description: 'File modified',
+          meta: ['Modified by Sarah Chen', 'Projects Folder'],
+        },
+        {
+          time: '2:10 PM',
+          icon: '📅',
+          title: 'Review client feedback',
+          description: 'Task updated - deadline extended',
+          priority: 'low',
+          meta: ['Updated by Emma Wilson', `New due: ${formatShortDate(tomorrowDate)}`],
+        },
+        {
+          time: '10:00 AM',
+          icon: '💬',
+          title: 'New post in Engineering Channel',
+          description: 'Discussion: Code review best practices',
+          meta: ['Posted by David Park', '12 replies'],
+        },
+      ],
+    },
+  };
+}
+
+const activityData = getActivityData();
 
 function ActivityItem({ time, icon, title, description, priority, meta }: ActivityItemData) {
   const handleClick = () => {
