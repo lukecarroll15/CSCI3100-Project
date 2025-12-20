@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout: async () => {
         await authApi.logout();
         setUser(null);
+        localStorage.removeItem('isAdmin');
       },
     }),
     [user, loading]

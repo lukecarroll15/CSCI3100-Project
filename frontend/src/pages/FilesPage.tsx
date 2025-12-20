@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { useAuth } from '../auth/useAuth';
 
 type Folder = { name: string; icon: string; sub: boolean };
 type FileType = 'Document' | 'Spreadsheet' | 'PDF' | 'Image';
@@ -171,7 +172,7 @@ function FileGrid({ files, isAdmin }: { files: FileCollection; isAdmin: boolean 
           <div className="text-xs text-gray-500">{file.size}</div>
           <div className="text-xs text-gray-500">{file.date}</div>
           <div className="text-xs text-gray-500">{file.author}</div>
-          {file.adminOnly && <Badge variant="admin">🔒 Admin Only</Badge>}
+          {file.adminOnly && <Badge variant={isAdmin ? 'low' : 'high'}>🔒 Admin Only</Badge>}
         </div>
       ))}
     </div>
@@ -215,7 +216,7 @@ function FileList({ files, isAdmin }: { files: FileCollection; isAdmin: boolean 
             <td className="border-2 border-gray-300 p-4 text-sm">{file.author}</td>
             <td className="border-2 border-gray-300 p-4 text-sm">{file.date}</td>
             <td className="border-2 border-gray-300 p-4 text-sm">
-              {file.adminOnly ? <Badge variant="admin">🔒 Admin Only</Badge> : 'Everyone'}
+              {file.adminOnly ? <Badge variant={isAdmin ? 'low' : 'high'}>🔒 Admin Only</Badge> : 'Everyone'}
             </td>
           </tr>
         ))}
@@ -229,17 +230,9 @@ export default function FilesPage() {
   const [activeFolder, setActiveFolder] = useState('All Files');
   const [typeFilter, setTypeFilter] = useState<'All' | FileType>('All');
   const [deptFilter, setDeptFilter] = useState<'All' | Department>('All');
-  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setIsAdmin(Boolean(detail));
-    };
-    window.addEventListener('admin-change', handler as EventListener);
-    return () => window.removeEventListener('admin-change', handler as EventListener);
-  }, []);
-
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  
   const visibleFiles = useMemo(() => {
     return files.filter((file) => {
       const typeMatches = typeFilter === 'All' || file.type === typeFilter;

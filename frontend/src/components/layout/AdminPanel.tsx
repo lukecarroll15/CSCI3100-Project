@@ -2,10 +2,18 @@ import { useEffect, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import { activateLicense } from '../../api/admin';
+import { useAuth } from '../../auth/useAuth';
 
 export default function AdminPanel() {
   const [adminKey, setAdminKey] = useState('');
-  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(user?.role === 'admin');
+  }, [user]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -26,14 +34,26 @@ export default function AdminPanel() {
     setAdminKey(formatted);
   };
 
-  const handleActivate = () => {
-    if (adminKey.length === 14) {
+  const handleActivate = async () => {
+    if (adminKey.length !== 14) {
+      alert('Please enter a valid admin key in the format: AAAA-BBBB-CCCC');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await activateLicense(adminKey);
+      // success: backend upgraded user's role
       localStorage.setItem('isAdmin', 'true');
       setIsAdmin(true);
       window.dispatchEvent(new CustomEvent('admin-change', { detail: true }));
-      alert('Admin access activated! You can now access restricted files.');
-    } else {
-      alert('Please enter a valid admin key in the format: AAAA-BBBB-CCCC');
+      alert('Admin access activated!');
+      // reload to refresh AuthProvider and TopBar with updated role
+      window.location.reload();
+    } catch (err: any) {
+      alert(err?.message || 'Activation failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,14 +79,13 @@ export default function AdminPanel() {
         onClick={handleActivate}
         variant="outline"
         className="w-full border-2 border-gray-800 text-sm font-bold hover:bg-gray-100"
+        disabled={loading}
       >
-        Activate
+        {loading ? 'Activating…' : 'Activate'}
       </Button>
       <div
         className={`mt-3 rounded-md border-2 p-2 text-center text-xs font-bold ${
-          isAdmin
-            ? 'border-green-600 bg-green-100 text-green-600'
-            : 'border-red-600 bg-red-100 text-red-600'
+          isAdmin ? 'border-green-600 bg-green-100 text-green-600' : 'border-red-600 bg-red-100 text-red-600'
         }`}
       >
         {isAdmin ? '✓ Admin Access: Active' : '❌ Admin Access: Inactive'}

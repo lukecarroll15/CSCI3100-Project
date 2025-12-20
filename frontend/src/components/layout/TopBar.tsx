@@ -1,18 +1,27 @@
+import Badge from '../ui/Badge';
+
 type Props = {
   userName?: string;
+  userRole?: 'user' | 'admin';
   companyName?: string;
   onLogout: () => void;
 };
 
-export default function TopBar({ userName = 'User', companyName = 'TaskFlow', onLogout }: Props) {
+export default function TopBar({
+  userName = 'User',
+  userRole = 'user',
+  companyName = 'TaskFlow',
+  onLogout,
+}: Props) {
   return (
     <header className="flex h-[70px] items-center border-b-2 border-gray-800 bg-white px-8">
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-gray-800 bg-gray-100 text-xs">
           U
         </div>
-        <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base">
+        <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base flex items-center gap-2">
           {userName}
+          {userRole === 'admin' && <Badge variant="admin">ADMIN</Badge>}
         </div>
       </div>
 
