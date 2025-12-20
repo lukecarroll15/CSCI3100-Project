@@ -6,6 +6,7 @@ import Input from '../components/ui/Input';
 import { ApiRequestError } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import type { OtpPurpose } from '../api/auth';
+import { githubOAuthUrl } from '../config/env';
 
 type Step = 'details' | 'code';
 
@@ -18,6 +19,8 @@ function getErrorMessage(err: unknown): string {
 export default function LoginPage() {
   const auth = useAuth();
   const navigate = useNavigate();
+
+  const githubAuthHref = githubOAuthUrl;
 
   const [purpose, setPurpose] = useState<OtpPurpose>('login');
   const [step, setStep] = useState<Step>('details');
@@ -40,6 +43,25 @@ export default function LoginPage() {
     setCode('');
     setMessage(null);
   }, [purpose]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    const msg = params.get('message');
+    if (!error) return;
+
+    const defaultMsgMap: Record<string, string> = {
+      GITHUB_NOT_CONFIGURED: 'GitHub login is not configured for this environment.',
+      OAUTH_STATE_INVALID: 'GitHub login failed. Please try again.',
+      GITHUB_EMAIL_UNAVAILABLE: 'GitHub email is unavailable. Please use OTP login.',
+      ACCOUNT_NOT_FOUND: 'No TaskFlow account found. Please sign up first, then log in.',
+      GITHUB_TOKEN_EXCHANGE_FAILED: 'GitHub login failed during token exchange. Please retry.',
+      GITHUB_API_FAILED: 'GitHub login failed while reading your profile. Please retry.',
+    };
+
+    setMessage(msg ?? defaultMsgMap[error] ?? `Login failed: ${error}`);
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
 
   async function onSendCode() {
     setMessage(null);
@@ -67,9 +89,6 @@ export default function LoginPage() {
       setBusy(false);
     }
   }
-
-  // Optional: if you already have a GitHub OAuth endpoint, set VITE_GITHUB_OAUTH_URL.
-  const githubAuthHref = import.meta.env.VITE_GITHUB_OAUTH_URL ?? '/api/v1/auth/github';
 
   const wireframeBgStyle = useMemo(() => {
     // Subtle “wireframe” overlay (no asset needed)
@@ -149,9 +168,7 @@ export default function LoginPage() {
                     className="h-12 w-full justify-center gap-2"
                     disabled={busy}
                     // Use href for a standard OAuth redirect flow.
-                    onClick={() => {
-                      window.location.href = githubAuthHref;
-                    }}
+                    onClick={() => window.location.assign(githubAuthHref)}
                   >
                     <svg
                       aria-hidden="true"

@@ -132,6 +132,89 @@ export async function verifyOtp(
   return user;
 }
 
+type GithubIdentity = {
+  email: string;
+  githubId: string;
+  githubUsername: string;
+  displayName?: string | null;
+};
+
+export async function findOrCreateGithubUser(identity: GithubIdentity) {
+  const email = normalizeEmail(identity.email);
+  const githubId = identity.githubId.trim();
+  const githubUsername = identity.githubUsername.trim();
+  const displayNameRaw = (identity.displayName ?? '').trim();
+  const displayNameCandidate = (
+    displayNameRaw.length > 0 ? displayNameRaw : githubUsername || email.split('@')[0]
+  ).slice(0, 50);
+
+  if (!githubId) {
+    throw new AppError(401, 'GITHUB_PROFILE_INVALID', 'GitHub profile missing ID.');
+  }
+
+  let user = await UserModel.findOne({ githubId });
+  let matchedByEmail = false;
+
+  if (!user) {
+    user = await UserModel.findOne({ email });
+    matchedByEmail = Boolean(user);
+  }
+
+  if (matchedByEmail && user?.githubId && user.githubId !== githubId) {
+    throw new AppError(
+      409,
+      'ACCOUNT_CONFLICT',
+      'This email is already linked to another GitHub account. Please use OTP login.'
+    );
+  }
+
+  if (!user) {
+    try {
+      user = await UserModel.create({
+        email,
+        displayName: displayNameCandidate,
+        role: 'user',
+        githubId,
+        githubUsername,
+      });
+    } catch (err: unknown) {
+      if (isDuplicateKeyError(err)) {
+        user = await UserModel.findOne({ githubId });
+        if (!user) user = await UserModel.findOne({ email });
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (!user) {
+    throw new AppError(500, 'AUTH_STATE_INVALID', 'Authentication state invalid. Please retry.');
+  }
+
+  let needsSave = false;
+
+  if (!user.githubId || user.githubId !== githubId) {
+    user.githubId = githubId;
+    needsSave = true;
+  }
+
+  if ((user.githubUsername ?? '') !== githubUsername) {
+    user.githubUsername = githubUsername;
+    needsSave = true;
+  }
+
+  if (!user.displayName || user.displayName.trim().length === 0) {
+    if (displayNameCandidate.length > 0) {
+      user.displayName = displayNameCandidate;
+      needsSave = true;
+    }
+  }
+
+  if (needsSave) await user.save();
+
+  return user;
+}
+
 function isDuplicateKeyError(err: unknown): err is { code: number } {
   return (
     typeof err === 'object' &&
