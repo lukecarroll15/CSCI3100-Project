@@ -4,6 +4,32 @@ import { UserModel } from '../models/User';
 import { AuditLogModel } from '../models/AuditLogs';
 import { AppError } from '../errors/AppError';
 import { Types } from 'mongoose';
+import { randomBytes } from 'crypto';
+
+
+  function formatKey12(raw: string): string {
+    const val = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
+    return `${val.slice(0, 4)}-${val.slice(4, 8)}-${val.slice(8, 12)}`;
+  }
+  
+ async function generateUniqueLicenceKey(): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const raw = randomBytes(9).toString('base64url');
+    const code = formatKey12(raw);
+    const exists = await LicenceKeyModel.exists({ key: code });
+    if (!exists) {
+      await LicenceKeyModel.create({
+        key: code,
+        redeemed: false,
+        usesCount: 0,
+        maxUses: 5,
+        revoked: false,
+      });
+      return code;
+    }
+  }
+  throw new Error('FAILED_TO_GENERATE_UNIQUE_KEY');
+}
 
 export async function handleActivateLicence(req: Request, res: Response, next: NextFunction) {
   try {
@@ -19,6 +45,14 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
       throw new AppError(400, 'INVALID_CODE', 'Invalid activation code');
     }
 
+    if (key.revoked) {
+      throw new AppError(400, 'KEY_REVOKED', 'This activation code has been revoked or exhausted');
+    }
+    const limit = typeof key.maxUses === 'number' && key.maxUses > 0 ? key.maxUses : 1;
+    if (key.redeemed || key.usesCount >= limit) {
+      throw new AppError(400, 'MAX_USES_REACHED', 'This activation code has reached its maximum usage');
+    }
+
     if (key.redeemed) {
       throw new AppError(400, 'ALREADY_REDEEMED', 'This activation code has already been used');
     }
@@ -28,10 +62,23 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
 
-    // mark redeemed
-    key.redeemed = true;
+    // increment usage for this activation
+    key.usesCount += 1;
     key.usedBy = new Types.ObjectId(auth.userId);
     key.usedAt = new Date();
+
+    // When reaching max uses, exhaust this key (and generate the next key)
+    if (key.usesCount >= limit) {
+      key.redeemed = true;
+      key.revoked = true;
+      const nextKey = await generateUniqueLicenceKey();
+      await AuditLogModel.create({
+        action: 'licence_key_generated',
+        userId: auth.userId,
+        ip: req.ip,
+        meta: { nextKey },
+      });
+    }
     await key.save();
 
     // upgrade user role to admin
