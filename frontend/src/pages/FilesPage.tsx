@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { listFiles, uploadFile, getDownloadUrl, type FileItem } from '../api/files';
 import Button from '../components/ui/Button';
-import { useAuth } from '../auth/useAuth';
 
 export default function FilesPage() {
-  const { user } = useAuth();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);

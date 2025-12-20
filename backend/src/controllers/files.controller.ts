@@ -64,7 +64,7 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
     const user = await UserModel.findById(userId);
     const isAdmin = user?.role === 'admin';
     
-    const query: any = {};
+    const query: { isAdminOnly?: boolean } = {};
     if (!isAdmin) {
       query.isAdminOnly = false;
     }

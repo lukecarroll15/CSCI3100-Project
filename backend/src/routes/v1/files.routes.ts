@@ -7,5 +7,6 @@ export const filesRouter = Router();
 filesRouter.use(requireAuth);
 
 filesRouter.get('/', handleListFiles);
-filesRouter.post('/', upload.single('file'), handleUploadFile);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+filesRouter.post('/', upload.single('file') as any, handleUploadFile);
 filesRouter.get('/:fileId/download', handleDownloadFile);
