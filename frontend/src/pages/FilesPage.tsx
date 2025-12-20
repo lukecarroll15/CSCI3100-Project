@@ -1,393 +1,167 @@
-import { useMemo, useState } from 'react';
-import type { ChangeEvent } from 'react';
-import Badge from '../components/ui/Badge';
+import React, { useEffect, useState } from 'react';
+import { listFiles, uploadFile, getDownloadUrl, type FileItem } from '../api/files';
 import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-
-type Folder = { name: string; icon: string; sub: boolean };
-type FileType = 'Document' | 'Spreadsheet' | 'PDF' | 'Image';
-type Department = 'Sales' | 'IT' | 'Finance' | 'Marketing' | 'HR' | 'Shared';
-type ViewMode = 'grid' | 'list';
-
-type FileItem = {
-  name: string;
-  type: FileType;
-  icon: string;
-  size: string;
-  date: string;
-  author: string;
-  department: Department;
-  adminOnly: boolean;
-};
-
-type FileCollection = FileItem[];
-
-const folders: Folder[] = [
-  { name: 'All Files', icon: '📁', sub: false },
-  { name: 'Sales', icon: '📁', sub: false },
-  { name: 'Proposals', icon: '📂', sub: true },
-  { name: 'Contracts', icon: '📂', sub: true },
-  { name: 'IT', icon: '📁', sub: false },
-  { name: 'Finance', icon: '📁', sub: false },
-  { name: 'Marketing', icon: '📁', sub: false },
-  { name: 'HR', icon: '📁', sub: false },
-  { name: 'Shared', icon: '📁', sub: false },
-];
-
-const files: FileCollection = [
-  {
-    name: 'Q4_Budget_Report.xlsx',
-    type: 'Spreadsheet',
-    icon: '📄 DOC',
-    size: '2.3 MB',
-    date: 'Nov 17, 2025',
-    author: 'Michael Torres',
-    department: 'Finance',
-    adminOnly: false,
-  },
-  {
-    name: 'Project_Proposal_v3.pdf',
-    type: 'PDF',
-    icon: '📄 PDF',
-    size: '1.8 MB',
-    date: 'Nov 16, 2025',
-    author: 'Sarah Chen',
-    department: 'Sales',
-    adminOnly: false,
-  },
-  {
-    name: 'Sales_Strategy_2025.docx',
-    type: 'Document',
-    icon: '📄 DOC',
-    size: '890 KB',
-    date: 'Nov 15, 2025',
-    author: 'Emma Wilson',
-    department: 'Sales',
-    adminOnly: true,
-  },
-  {
-    name: 'Campaign_Banner.png',
-    type: 'Image',
-    icon: '🖼️ IMG',
-    size: '3.5 MB',
-    date: 'Nov 14, 2025',
-    author: 'David Park',
-    department: 'Marketing',
-    adminOnly: false,
-  },
-  {
-    name: 'Employee_Schedule.xlsx',
-    type: 'Spreadsheet',
-    icon: '📊 XLS',
-    size: '456 KB',
-    date: 'Nov 13, 2025',
-    author: 'John Smith',
-    department: 'HR',
-    adminOnly: false,
-  },
-  {
-    name: 'Security_Audit_Report.pdf',
-    type: 'PDF',
-    icon: '📄 PDF',
-    size: '2.1 MB',
-    date: 'Nov 12, 2025',
-    author: 'David Park',
-    department: 'IT',
-    adminOnly: true,
-  },
-];
-
-const fileTypeFilters: Array<{ label: string; value: 'All' | FileType }> = [
-  { label: 'All', value: 'All' },
-  { label: 'Documents', value: 'Document' },
-  { label: 'Spreadsheets', value: 'Spreadsheet' },
-  { label: 'PDFs', value: 'PDF' },
-  { label: 'Images', value: 'Image' },
-];
-const departments: Array<'All' | Department> = [
-  'All',
-  'Sales',
-  'IT',
-  'Finance',
-  'Marketing',
-  'Shared',
-];
-
-function AdminPanel({
-  isAdmin,
-  onActivate,
-}: {
-  isAdmin: boolean;
-  onActivate: (active: boolean) => void;
-}) {
-  const [adminKey, setAdminKey] = useState('');
-
-  const handleKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    let formatted = '';
-    for (let i = 0; i < value.length && i < 12; i++) {
-      if (i > 0 && i % 4 === 0) formatted += '-';
-      formatted += value[i];
-    }
-    setAdminKey(formatted);
-  };
-
-  const handleActivate = () => {
-    if (adminKey.length === 14) {
-      onActivate(true);
-      alert('Admin access activated! You can now access restricted files.');
-    } else {
-      alert('Please enter a valid admin key in the format: AAAA-BBBB-CCCC');
-    }
-  };
-
-  return (
-    <div className="mx-5 mb-5 rounded-lg border-2 border-gray-800 bg-white p-5">
-      <div className="mb-3 border-b-2 border-gray-800 pb-2 text-center text-sm font-bold">
-        Admin Access
-      </div>
-      <div className="mb-3">
-        <label className="mb-1 block rounded border border-gray-500 bg-gray-50 p-1 text-xs">
-          Admin Key (AAAA-BBBB-CCCC)
-        </label>
-        <Input
-          type="text"
-          placeholder="Enter admin key"
-          maxLength={14}
-          value={adminKey}
-          onChange={handleKeyChange}
-          className="w-full"
-        />
-      </div>
-      <Button
-        onClick={handleActivate}
-        variant="outline"
-        className="w-full border-2 border-gray-800 text-sm font-bold hover:bg-gray-100"
-      >
-        Activate
-      </Button>
-      <div
-        className={`mt-3 rounded-md border-2 p-2 text-center text-xs font-bold ${
-          isAdmin
-            ? 'border-green-600 bg-green-100 text-green-600'
-            : 'border-red-600 bg-red-100 text-red-600'
-        }`}
-      >
-        {isAdmin ? '✓ Admin Access: Active' : '❌ Admin Access: Inactive'}
-      </div>
-    </div>
-  );
-}
-
-function FolderTree({
-  activeFolder,
-  onSelect,
-}: {
-  activeFolder: string;
-  onSelect: (folder: string) => void;
-}) {
-  return (
-    <div className="w-72 overflow-y-auto border-r-2 border-gray-800 bg-gray-50 p-6">
-      <div className="mb-5 rounded-md border-2 border-gray-800 bg-white p-3 text-lg font-bold">
-        My Files
-      </div>
-      {folders.map((folder) => (
-        <div
-          key={folder.name}
-          onClick={() => onSelect(folder.name)}
-          className={`my-2 flex cursor-pointer items-center gap-2 rounded-md border-2 p-3 transition-colors ${
-            folder.sub ? 'ml-5 text-sm' : ''
-          } ${
-            activeFolder === folder.name
-              ? 'border-gray-800 bg-gray-800 text-white'
-              : 'border-gray-500 bg-white hover:bg-gray-200'
-          }`}
-        >
-          {folder.icon} {folder.name}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FileGrid({ files, isAdmin }: { files: FileCollection; isAdmin: boolean }) {
-  const handleClick = (file: FileItem) => {
-    if (file.adminOnly && !isAdmin) {
-      alert('Access Denied: This file requires admin privileges.');
-    } else {
-      alert('Would open file preview/download');
-    }
-  };
-
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-5">
-      {files.map((file) => (
-        <div
-          key={file.name}
-          onClick={() => handleClick(file)}
-          className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 p-5 transition-colors ${
-            file.adminOnly && !isAdmin
-              ? 'cursor-not-allowed border-gray-500 opacity-60'
-              : 'border-gray-500 hover:border-gray-800 hover:bg-gray-50'
-          }`}
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-gray-500 bg-gray-100 text-sm">
-            {file.icon}
-          </div>
-          <div className="break-words text-center text-sm font-bold">{file.name}</div>
-          <div className="text-xs text-gray-500">{file.size}</div>
-          <div className="text-xs text-gray-500">{file.date}</div>
-          <div className="text-xs text-gray-500">{file.author}</div>
-          {file.adminOnly && <Badge variant="admin">🔒 Admin Only</Badge>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FileList({ files, isAdmin }: { files: FileCollection; isAdmin: boolean }) {
-  const handleClick = (file: FileItem) => {
-    if (file.adminOnly && !isAdmin) {
-      alert('Access Denied: This file requires admin privileges.');
-    } else {
-      alert('Would open file preview/download');
-    }
-  };
-
-  return (
-    <table className="w-full border-collapse overflow-hidden rounded-lg border-2 border-gray-800">
-      <thead className="bg-gray-100">
-        <tr>
-          {['Name', 'Type', 'Size', 'Uploaded By', 'Date', 'Access'].map((h) => (
-            <th key={h} className="border-2 border-gray-500 p-4 text-left text-sm font-bold">
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {files.map((file) => (
-          <tr
-            key={file.name}
-            onClick={() => handleClick(file)}
-            className={`cursor-pointer ${
-              file.adminOnly && !isAdmin ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
-            }`}
-          >
-            <td className="border-2 border-gray-300 p-4 text-sm">
-              {file.icon.split(' ')[0]} {file.name}
-            </td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.type}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.size}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.author}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.date}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">
-              {file.adminOnly ? <Badge variant="admin">🔒 Admin Only</Badge> : 'Everyone'}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
+import { useAuth } from '../auth/useAuth';
 
 export default function FilesPage() {
-  const [view, setView] = useState<ViewMode>('grid');
-  const [activeFolder, setActiveFolder] = useState('All Files');
-  const [typeFilter, setTypeFilter] = useState<'All' | FileType>('All');
-  const [deptFilter, setDeptFilter] = useState<'All' | Department>('All');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [isAdminOnly, setIsAdminOnly] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const visibleFiles = useMemo(() => {
-    return files.filter((file) => {
-      const typeMatches = typeFilter === 'All' || file.type === typeFilter;
-      const deptMatches = deptFilter === 'All' || file.department === deptFilter;
-      return typeMatches && deptMatches;
-    });
-  }, [typeFilter, deptFilter]);
+  useEffect(() => {
+    loadFiles();
+  }, []);
+
+  async function loadFiles() {
+    try {
+      setLoading(true);
+      const data = await listFiles();
+      setFiles(data);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      setError(null);
+      setNotice(null);
+
+      console.log('Uploading file:', { name: file.name, size: file.size, type: file.type, isAdminOnly });
+      await uploadFile(file, isAdminOnly);
+      await loadFiles();
+      // Reset input
+      e.target.value = '';
+
+      if (isAdminOnly) {
+        setNotice('Uploaded. Admin-only files are hidden unless you are an admin.');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to upload file';
+      setError(`Upload failed: ${msg}`);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
-    <div className="-m-10 flex h-full">
-      {/* Folder Tree */}
-      <FolderTree activeFolder={activeFolder} onSelect={setActiveFolder} />
+    <div className="p-8">
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">Files</h1>
+          <p className="text-neutral-500">Manage your project attachments.</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-neutral-700">
+            <input 
+              type="checkbox" 
+              checked={isAdminOnly} 
+              onChange={e => setIsAdminOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-300"
+            />
+            Admin Access Only
+          </label>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-8">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between border-b-2 border-gray-800 pb-4">
-          <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base text-gray-500">
-            Home &gt; {activeFolder}
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant={view === 'grid' ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setView('grid')}
-            >
-              Grid View
-            </Button>
-            <Button
-              variant={view === 'list' ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setView('list')}
-            >
-              List View
+          <div className="relative">
+            <input
+              type="file"
+              className="absolute inset-0 cursor-pointer opacity-0"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+            <Button disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Upload File'}
             </Button>
           </div>
         </div>
+      </header>
 
-        {/* Filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border-2 border-gray-500 bg-gray-50 p-4">
-          <div className="border-r-2 border-gray-400 pr-4 text-sm font-bold">File Type:</div>
-          {fileTypeFilters.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => setTypeFilter(value)}
-              className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
-                typeFilter === value
-                  ? 'border-gray-800 bg-gray-800 text-white'
-                  : 'border-gray-500 bg-white hover:bg-gray-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          <div className="ml-4 border-r-2 border-gray-400 pr-4 text-sm font-bold">Department:</div>
-          {departments.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDeptFilter(d)}
-              className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
-                deptFilter === d
-                  ? 'border-gray-800 bg-gray-800 text-white'
-                  : 'border-gray-500 bg-white hover:bg-gray-100'
-              }`}
-            >
-              {d}
-            </button>
-          ))}
+      {error && (
+        <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600">
+          {error}
         </div>
+      )}
 
-        {/* File Views */}
-        {view === 'grid' ? (
-          <FileGrid files={visibleFiles} isAdmin={isAdmin} />
-        ) : (
-          <FileList files={visibleFiles} isAdmin={isAdmin} />
-        )}
-      </div>
+      {notice && (
+        <div className="mb-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
+          {notice}
+        </div>
+      )}
 
-      {/* Admin Panel (floating) */}
-      <div className="fixed bottom-20 left-64 z-50">
-        <AdminPanel isAdmin={isAdmin} onActivate={setIsAdmin} />
-      </div>
-
-      {/* Upload Button */}
-      <button
-        onClick={() => alert('Would open file upload dialog')}
-        className="fixed bottom-12 right-12 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-gray-800 bg-white text-3xl shadow-lg transition-colors hover:bg-gray-100"
-      >
-        +
-      </button>
+      {loading ? (
+        <div className="py-12 text-center text-neutral-500">Loading files...</div>
+      ) : files.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-neutral-200 py-12 text-center">
+          <p className="text-neutral-500">No files uploaded yet.</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-neutral-50 text-neutral-500">
+              <tr>
+                <th className="px-6 py-3 font-medium">Name</th>
+                <th className="px-6 py-3 font-medium">Size</th>
+                <th className="px-6 py-3 font-medium">Uploaded By</th>
+                <th className="px-6 py-3 font-medium">Access</th>
+                <th className="px-6 py-3 font-medium">Date</th>
+                <th className="px-6 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {files.map((file) => (
+                <tr key={file._id} className="group hover:bg-neutral-50">
+                  <td className="px-6 py-4 font-medium text-neutral-900">
+                    {file.originalName}
+                  </td>
+                  <td className="px-6 py-4 text-neutral-500">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </td>
+                  <td className="px-6 py-4 text-neutral-500">
+                    {file.uploadedBy?.displayName || file.uploadedBy?.email || 'Unknown'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {file.isAdminOnly ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                        Admin Only
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                        Public
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-neutral-500">
+                    {new Date(file.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <a
+                      href={getDownloadUrl(file._id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-neutral-900 hover:underline"
+                    >
+                      Download
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
