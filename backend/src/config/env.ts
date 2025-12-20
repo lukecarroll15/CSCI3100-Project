@@ -11,6 +11,8 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(5001),
   API_PREFIX: z.string().default('/api'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().default('http://localhost:5173'),
+
   MONGO_URI: z.string(),
 
   SESSION_SECRET: z.string().min(20, 'SESSION_SECRET must be at least 20 characters'),
@@ -39,6 +41,14 @@ const EnvSchema = z.object({
   SMTP_SECURE: z.preprocess(emptyToUndefined, z.string().optional()).transform((v) => v === 'true'),
   SMTP_USER: z.preprocess(emptyToUndefined, z.string().optional()),
   SMTP_PASS: z.preprocess(emptyToUndefined, z.string().optional()),
+
+  // GitHub OAuth (optional)
+  GITHUB_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  GITHUB_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  GITHUB_CALLBACK_URL: z
+    .preprocess(emptyToUndefined, z.string().url().optional())
+    .default('http://localhost:5001/api/v1/auth/github/callback'),
+  GITHUB_SCOPES: z.string().default('read:user user:email'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
