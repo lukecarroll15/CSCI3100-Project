@@ -1,60 +1,72 @@
 # User Manual (SC3)
 
-## 1) Accessing the system
+## Document control
 
-- Frontend URL (dev): `http://localhost:5173`
-- Backend URL (dev): `http://localhost:5001`
+- Document: USER_MANUAL
+- Version: 0.1
+- Status: Draft
+- Last updated: 2025-12-21
+- Owner: Group 02
 
-## 2) Log in (OTP)
+## 1) Audience
 
-TaskFlow uses email-based one-time password (OTP) login.
+This manual is for end users who want to access TaskFlow in the current release (authentication only).
 
-### Sign up (first-time users)
+## 2) System requirements
 
-1. Choose **Sign up**.
-2. Enter your email (and optional display name) and request a code.
-3. Enter the OTP from email/Mailpit.
-4. Submit to create the account and sign in.
+- Modern web browser (Chrome, Edge, Firefox, Safari)
+- Internet access
+- For local development: http://localhost:5173
 
-### Intended UI flow (frontend)
+## 3) Accessing the system
 
-1. Choose **Log in** (for existing accounts) or **Sign up** (new users).
-2. Enter your email and click “Send code”.
-3. Enter the OTP from email.
-4. Click “Log in” (existing) or “Create Account” (signup).
+- Web URL (dev): http://localhost:5173
 
-### Developer note (when SMTP is not configured)
+## 4) Sign up (Email OTP)
 
-If SMTP is not configured, OTP codes are printed to backend logs for development/testing.
+1. Click **Sign up**.
+2. Enter your email and optional display name.
+3. Click **Send code**.
+4. Check your email inbox for the OTP.
+   - In local development, OTP emails may be delivered to Mailpit.
+5. Enter the OTP and submit.
 
-### Developer note (recommended for local testing): Mailpit
+Expected result: your account is created and you are signed in.
 
-When running locally, you can use Mailpit to capture outgoing OTP emails in a local inbox:
+## 5) Log in (Email OTP)
 
-1. Start Mailpit:
+1. Click **Log in**.
+2. Enter the email you used to sign up.
+3. Click **Send code**.
+4. Enter the OTP and submit.
 
-```bash
-docker compose -f docker-compose.mailpit.yml up -d
-```
+Expected result: you are signed in.
 
-2. Open the inbox UI:
+## 6) Log in (GitHub)
 
-- http://localhost:8025
+If "Continue with GitHub" is available:
 
-3. Configure backend SMTP (`backend/.env`) to use Mailpit:
+1. Click **Continue with GitHub**.
+2. Approve the OAuth request in GitHub.
+3. You are redirected back to TaskFlow and signed in.
 
-- `SMTP_HOST=127.0.0.1`
-- `SMTP_PORT=1025`
+If GitHub login is not configured, the UI shows an error and you can use OTP instead.
 
-## 3) Log out
+## 7) Log out
 
-Click “Log out” in the UI (to be connected), which calls:
+Click **Log out** in the UI.
 
-- `POST /api/v1/auth/logout`
+Expected result: your session ends and you return to the login screen.
 
-## 4) Troubleshooting
+## 8) Troubleshooting
 
-- If login fails, request a new OTP and retry.
-- If the backend is not ready, check:
-  - `GET /api/v1/health/ready`
-  - MongoDB connection string in `backend/.env`
+- **No OTP received:** request a new code and check spam. In local dev, check Mailpit.
+- **OTP expired:** request a new code and retry.
+- **GitHub login failed:** retry; if the issue persists, use OTP login.
+
+## 9) Planned features (not in current release)
+
+- License management
+- Project and task management
+- Kanban, calendar, timeline views
+- Attachments and dashboard
