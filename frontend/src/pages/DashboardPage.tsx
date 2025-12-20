@@ -1,4 +1,5 @@
 import Badge from '../components/ui/Badge';
+import { useAuth } from '../auth/useAuth';
 
 type Priority = 'high' | 'medium' | 'low';
 
@@ -162,10 +163,53 @@ function ActivityGroup({ date, items }: ActivityGroupData) {
   );
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function WelcomeHeader({ displayName }: { displayName: string }) {
+  const tasksDueToday = activityData.today.items.filter((item) => item.icon === '📅').length;
+  const unreadMessages = 3;
+  const pendingFiles = activityData.today.items.filter((item) => item.icon === '📁').length;
+
+  return (
+    <div className="mb-8 rounded-lg border-2 border-gray-800 bg-gradient-to-r from-gray-50 to-white p-6">
+      <h1 className="mb-2 text-2xl font-bold">
+        {getGreeting()}, {displayName}!
+      </h1>
+      <p className="mb-4 text-gray-600">Here&apos;s what&apos;s happening today</p>
+      <div className="flex flex-wrap gap-4">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2">
+          <span className="text-lg">📅</span>
+          <span className="font-medium">{tasksDueToday} tasks</span>
+          <span className="text-gray-500">due today</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2">
+          <span className="text-lg">✉️</span>
+          <span className="font-medium">{unreadMessages} messages</span>
+          <span className="text-gray-500">unread</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2">
+          <span className="text-lg">📁</span>
+          <span className="font-medium">{pendingFiles} files</span>
+          <span className="text-gray-500">updated</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const displayName = user?.displayName ?? 'there';
+
   return (
     <div>
-      <h1 className="mb-8 border-b-2 border-gray-800 pb-4 text-3xl">Activity Feed</h1>
+      <WelcomeHeader displayName={displayName} />
+      <h2 className="mb-6 border-b-2 border-gray-800 pb-4 text-2xl font-bold">Activity Feed</h2>
       <ActivityGroup {...activityData.today} />
       <ActivityGroup {...activityData.yesterday} />
     </div>
