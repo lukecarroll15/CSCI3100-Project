@@ -1,3 +1,5 @@
+import { apiBaseUrl } from '../config/env';
+
 export type ApiErrorPayload = {
   error?: {
     code?: string;
@@ -27,13 +29,11 @@ export class ApiRequestError extends Error {
   }
 }
 
-const rawBase =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:5001/api/v1';
-const baseUrl = rawBase.replace(/\/$/, '');
+export { apiBaseUrl };
 
 function joinUrl(path: string) {
   const p = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${p}`;
+  return `${apiBaseUrl}${p}`;
 }
 
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
