@@ -1,34 +1,85 @@
 # Testing Document (SC3)
 
-This document records automated and manual testing performed for TaskFlow.
+## Document control
 
-## 1) Test scope
+- Document: TESTING
+- Version: 0.1
+- Status: Draft
+- Last updated: 2025-12-21
+- Owner: Group 02
 
-### Backend (covered)
+## 1) Test objectives
+
+- Verify core authentication workflows (OTP and GitHub OAuth)
+- Validate error handling and session behavior
+- Provide evidence for the course audit trail
+
+## 2) Scope
+
+In scope (current release):
 
 - Health endpoints
-- SF-UM OTP auth APIs (manual test cases listed below)
+- OTP auth APIs: `/auth/request-otp`, `/auth/verify-otp`, `/auth/logout`
 - Session cookie behavior
+- GitHub OAuth endpoints (manual)
+- Frontend login UI flows
 
-### Frontend (in progress)
+Out of scope (not implemented yet):
 
-- UI pages and flows will be tested after frontend implementation is complete.
+- License management
+- Project/task management
+- Boards, attachments, dashboards
 
-## 2) Test environment
+## 3) Test strategy
 
-- OS: macOS
+- Automated tests for backend logic and API responses
+- Manual tests for end-to-end auth flows
+- Negative tests for invalid/expired OTP and OAuth state
+
+## 4) Test environment
+
+- OS: macOS / Windows / Linux
 - Node: 20.x
 - Database: MongoDB (local or hosted)
 - Tools:
   - Terminal
   - Postman (manual API testing)
-  - Mailpit (optional, for OTP email inbox)
+  - Mailpit (optional, OTP inbox)
 
-## 3) Automated tests
+## 5) Test data
 
-### Run backend tests
+- Test email: `new@example.com`
+- Display name: `Test User`
+- OTP code: generated during test
 
-From repo root:
+## 6) Entry and exit criteria
+
+Entry criteria:
+
+- Backend and frontend running
+- MongoDB accessible
+- `.env` configured
+
+Exit criteria:
+
+- All test cases executed
+- Failures recorded with evidence
+- Traceability updated
+
+## 7) Traceability (requirements -> tests)
+
+| Requirement ID | Description                        | Test case IDs                |
+| -------------- | ---------------------------------- | ---------------------------- |
+| FR-UM-1        | Sign up with OTP                   | TC-UM-01, TC-UM-02           |
+| FR-UM-2        | Login and logout                   | TC-UM-03, TC-UM-04, TC-UM-05 |
+| NFR-SEC-1      | Session security (httpOnly cookie) | TC-UM-04, TC-UM-05           |
+| NFR-SEC-2      | OTP invalid/expired handling       | TC-UM-06                     |
+| FR-OAUTH-1     | GitHub OAuth login                 | TC-OAUTH-02                  |
+| NFR-SEC-3      | OAuth state protection             | TC-OAUTH-03                  |
+
+## 8) Automated tests
+
+Run backend tests:
 
 ```bash
 npm run test:backend
@@ -36,78 +87,120 @@ npm run test:backend
 
 Current automated coverage:
 
-- `GET /api/v1/health/live` returns HTTP 200 with status OK
+- `GET /api/v1/health/live` returns HTTP 200
+- OTP validation and error handling (see `backend/src/test/*.test.ts`)
 
-## 4) Manual API test cases (SF-UM)
+## 9) Manual test cases
 
-Note: OTP delivery depends on SMTP configuration.
+### OTP delivery note
 
-- With **Mailpit** (recommended for local testing), OTP is delivered to the Mailpit inbox:
+- With Mailpit:
   - Start: `docker compose -f docker-compose.mailpit.yml up -d`
   - UI: http://localhost:8025
   - SMTP: localhost:1025
-- Without SMTP, OTP codes are printed to backend logs (development convenience).
+- Without SMTP, OTP codes are printed to backend logs (development only).
 
-- Login OTP can only be requested for existing emails.
-- Signup OTP is for new emails and will create the user after successful verification.
+### TC-UM-01 Request OTP (signup)
 
-### TC-UM-01 Request OTP
-
-- Precondition: backend running
+- Preconditions: backend running; email not registered
 - Steps:
-  1. `POST /api/v1/auth/request-otp` with `{ "email": "user@example.com" }`
-
+  1. `POST /api/v1/auth/request-otp` with `{ "email": "new@example.com", "purpose": "signup" }`
 - Expected:
   - HTTP 200
-  - Server logs an OTP (dev mode without SMTP) OR email is delivered (SMTP configured)
+  - OTP appears in Mailpit or backend logs
 
-### TC-UM-02 Verify OTP (successful login)
+### TC-UM-02 Verify OTP (signup creates account)
 
-- Precondition: OTP requested for the email
+- Preconditions: TC-UM-01 completed
 - Steps:
-  1. `POST /api/v1/auth/verify-otp` with `{ "email": "user@example.com", "code": "<otp>" }`
-
+  1. `POST /api/v1/auth/verify-otp` with `{ "email": "new@example.com", "code": "<otp>", "purpose": "signup", "displayName": "Test User" }`
 - Expected:
   - HTTP 200
   - Response includes `user`
-  - Session cookie is set (httpOnly cookie)
+  - Session cookie set (httpOnly)
 
-### TC-UM-03 Current user (authenticated)
+### TC-UM-03 Request OTP (login)
 
-- Precondition: TC-UM-02 completed; client keeps cookies
+- Preconditions: account exists (created by TC-UM-02)
 - Steps:
-  1. `GET /api/v1/users/me`
-
+  1. `POST /api/v1/auth/request-otp` with `{ "email": "new@example.com", "purpose": "login" }`
 - Expected:
   - HTTP 200
-  - Returns current user payload
 
-### TC-UM-04 Verify OTP (invalid/expired)
+### TC-UM-04 Verify OTP (login success)
 
-- Precondition: OTP is wrong or expired
+- Preconditions: TC-UM-03 completed
 - Steps:
-  1. `POST /api/v1/auth/verify-otp` with an incorrect code
+  1. `POST /api/v1/auth/verify-otp` with `{ "email": "new@example.com", "code": "<otp>", "purpose": "login" }`
+- Expected:
+  - HTTP 200
+  - Session cookie set
 
+### TC-UM-05 Current user + logout
+
+- Preconditions: TC-UM-04 completed; client keeps cookies
+- Steps:
+  1. `GET /api/v1/users/me`
+  2. `POST /api/v1/auth/logout`
+  3. `GET /api/v1/users/me`
+- Expected:
+  - Step 1: HTTP 200
+  - Step 2: HTTP 200
+  - Step 3: HTTP 401
+
+### TC-UM-06 Verify OTP (invalid/expired)
+
+- Steps:
+  1. `POST /api/v1/auth/verify-otp` with wrong/expired code
 - Expected:
   - HTTP 400 with error message
 
-### TC-UM-05 Logout
+## 10) GitHub OAuth manual tests
 
-- Precondition: user is logged in (session cookie exists)
+### TC-OAUTH-01 Start OAuth (not configured)
+
+- Preconditions: `GITHUB_CLIENT_ID` or `GITHUB_CLIENT_SECRET` not set
 - Steps:
-  1. `POST /api/v1/auth/logout`
-  2. `GET /api/v1/users/me`
-
+  1. Open `GET /api/v1/auth/github` in browser (or click "Continue with GitHub")
 - Expected:
-  - Logout returns HTTP 200
-  - `/users/me` returns HTTP 401
+  - Redirect back to `/login` with an error that GitHub is not configured
 
-## 5) Regression checklist
+### TC-OAUTH-02 GitHub login success
 
-When backend auth code changes, re-run:
+- Preconditions: GitHub OAuth configured in `backend/.env`
+- Steps:
+  1. Click "Continue with GitHub"
+  2. Approve access on GitHub
+- Expected:
+  - Redirect to frontend home page
+  - Session cookie set
+  - User record created or updated in MongoDB with `githubId`
 
-- `npm run format:check`
-- `npm run typecheck:backend`
-- `npm run lint:backend`
-- `npm run test:backend`
-- Manual TC-UM-01 to TC-UM-05
+### TC-OAUTH-03 OAuth state protection
+
+- Steps:
+  1. Start OAuth, then modify the `state` query param in callback URL
+- Expected:
+  - Redirect back to `/login` with an OAuth state error
+
+## 11) Test execution log
+
+Record executions here (fill before submission):
+
+| Date | Tester | Scope | Result | Evidence link |
+| ---- | ------ | ----- | ------ | ------------- |
+|      |        |       |        |               |
+
+## 12) Known gaps and future tests
+
+- License management tests (not implemented yet)
+- Project/task features and board views (not implemented yet)
+- Performance testing and load testing (future)
+
+## 13) Evidence storage
+
+Store evidence under `docs/process/`:
+
+- Postman screenshots or collections
+- Mailpit screenshots
+- Console logs (sanitized)
