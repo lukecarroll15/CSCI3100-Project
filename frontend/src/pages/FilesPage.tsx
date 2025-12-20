@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -112,72 +111,6 @@ const departments: Array<'All' | Department> = [
   'Marketing',
   'Shared',
 ];
-
-function AdminPanel({
-  isAdmin,
-  onActivate,
-}: {
-  isAdmin: boolean;
-  onActivate: (active: boolean) => void;
-}) {
-  const [adminKey, setAdminKey] = useState('');
-
-  const handleKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    let formatted = '';
-    for (let i = 0; i < value.length && i < 12; i++) {
-      if (i > 0 && i % 4 === 0) formatted += '-';
-      formatted += value[i];
-    }
-    setAdminKey(formatted);
-  };
-
-  const handleActivate = () => {
-    if (adminKey.length === 14) {
-      onActivate(true);
-      alert('Admin access activated! You can now access restricted files.');
-    } else {
-      alert('Please enter a valid admin key in the format: AAAA-BBBB-CCCC');
-    }
-  };
-
-  return (
-    <div className="mx-5 mb-5 rounded-lg border-2 border-gray-800 bg-white p-5">
-      <div className="mb-3 border-b-2 border-gray-800 pb-2 text-center text-sm font-bold">
-        Admin Access
-      </div>
-      <div className="mb-3">
-        <label className="mb-1 block rounded border border-gray-500 bg-gray-50 p-1 text-xs">
-          Admin Key (AAAA-BBBB-CCCC)
-        </label>
-        <Input
-          type="text"
-          placeholder="Enter admin key"
-          maxLength={14}
-          value={adminKey}
-          onChange={handleKeyChange}
-          className="w-full"
-        />
-      </div>
-      <Button
-        onClick={handleActivate}
-        variant="outline"
-        className="w-full border-2 border-gray-800 text-sm font-bold hover:bg-gray-100"
-      >
-        Activate
-      </Button>
-      <div
-        className={`mt-3 rounded-md border-2 p-2 text-center text-xs font-bold ${
-          isAdmin
-            ? 'border-green-600 bg-green-100 text-green-600'
-            : 'border-red-600 bg-red-100 text-red-600'
-        }`}
-      >
-        {isAdmin ? '✓ Admin Access: Active' : '❌ Admin Access: Inactive'}
-      </div>
-    </div>
-  );
-}
 
 function FolderTree({
   activeFolder,
@@ -296,7 +229,16 @@ export default function FilesPage() {
   const [activeFolder, setActiveFolder] = useState('All Files');
   const [typeFilter, setTypeFilter] = useState<'All' | FileType>('All');
   const [deptFilter, setDeptFilter] = useState<'All' | Department>('All');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsAdmin(Boolean(detail));
+    };
+    window.addEventListener('admin-change', handler as EventListener);
+    return () => window.removeEventListener('admin-change', handler as EventListener);
+  }, []);
 
   const visibleFiles = useMemo(() => {
     return files.filter((file) => {
@@ -374,11 +316,6 @@ export default function FilesPage() {
         ) : (
           <FileList files={visibleFiles} isAdmin={isAdmin} />
         )}
-      </div>
-
-      {/* Admin Panel (floating) */}
-      <div className="fixed bottom-20 left-64 z-50">
-        <AdminPanel isAdmin={isAdmin} onActivate={setIsAdmin} />
       </div>
 
       {/* Upload Button */}
