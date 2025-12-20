@@ -1,15 +1,19 @@
+// login-styling-and-structure-Button.tsx
 import React from 'react';
 
 const variants = {
-  primary: 'bg-gray-800 text-white border-gray-800 hover:bg-gray-700',
-  secondary: 'bg-white text-gray-800 border-gray-800 hover:bg-gray-100',
-  outline: 'bg-white text-gray-600 border-gray-500 hover:bg-gray-100',
+  primary:
+    'border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 hover:border-neutral-800 focus-visible:ring-neutral-200',
+  secondary:
+    'border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 focus-visible:ring-neutral-100',
+  outline:
+    'border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 focus-visible:ring-neutral-100',
 } as const;
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-5 py-2.5 text-base',
-  lg: 'px-6 py-3 text-lg',
+  sm: 'h-10 px-3 text-sm',
+  md: 'h-12 px-4 text-sm',
+  lg: 'h-12 px-6 text-base',
 } as const;
 
 type Variant = keyof typeof variants;
@@ -29,7 +33,15 @@ export default function Button({
 }: Props) {
   return (
     <button
-      className={`cursor-pointer rounded-lg border-2 font-bold transition-colors ${variants[variant]} ${sizes[size]} ${className}`}
+      className={[
+        'inline-flex cursor-pointer items-center justify-center rounded-lg border font-medium',
+        'transition-colors',
+        'focus-visible:outline-none focus-visible:ring-4',
+        'disabled:cursor-not-allowed disabled:opacity-60',
+        variants[variant],
+        sizes[size],
+        className,
+      ].join(' ')}
       {...props}
     >
       {children}
