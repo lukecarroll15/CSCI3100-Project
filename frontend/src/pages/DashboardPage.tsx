@@ -1,7 +1,10 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../auth/useAuth';
 
 type Priority = 'high' | 'medium' | 'low';
+type FilterType = 'all' | 'tasks' | 'files' | 'messages';
 
 type ActivityItemData = {
   time: string;
@@ -119,12 +122,32 @@ function getActivityData(): { today: ActivityGroupData; yesterday: ActivityGroup
 
 const activityData = getActivityData();
 
-function ActivityItem({ time, icon, title, description, priority, meta }: ActivityItemData) {
+function getRouteForIcon(icon: string): string {
+  switch (icon) {
+    case '📅':
+      return '/calendar';
+    case '📁':
+      return '/files';
+    case '💬':
+      return '/discussion';
+    case '✉️':
+      return '/messages';
+    default:
+      return '/';
+  }
+}
+
+function ActivityItem({
+  time,
+  icon,
+  title,
+  description,
+  priority,
+  meta,
+  onNavigate,
+}: ActivityItemData & { onNavigate: (path: string) => void }) {
   const handleClick = () => {
-    if (icon === '📅') alert('Would navigate to Calendar task');
-    else if (icon === '📁') alert('Would navigate to File');
-    else if (icon === '💬') alert('Would navigate to Discussion');
-    else if (icon === '✉️') alert('Would navigate to Messages');
+    onNavigate(getRouteForIcon(icon));
   };
 
   return (
@@ -150,14 +173,72 @@ function ActivityItem({ time, icon, title, description, priority, meta }: Activi
   );
 }
 
-function ActivityGroup({ date, items }: ActivityGroupData) {
+function ActivityGroup({
+  date,
+  items,
+  onNavigate,
+}: ActivityGroupData & { onNavigate: (path: string) => void }) {
+  if (items.length === 0) return null;
+
   return (
     <div className="mb-10">
       <div className="mb-5 rounded-lg border-2 border-gray-800 bg-gray-50 p-3 text-xl font-bold">
         {date}
       </div>
       {items.map((item, i) => (
-        <ActivityItem key={i} {...item} />
+        <ActivityItem key={i} {...item} onNavigate={onNavigate} />
+      ))}
+    </div>
+  );
+}
+
+const filterConfig: { type: FilterType; label: string; icon: string }[] = [
+  { type: 'all', label: 'All', icon: '📋' },
+  { type: 'tasks', label: 'Tasks', icon: '📅' },
+  { type: 'files', label: 'Files', icon: '📁' },
+  { type: 'messages', label: 'Messages', icon: '💬' },
+];
+
+function getIconsForFilter(filter: FilterType): string[] {
+  switch (filter) {
+    case 'tasks':
+      return ['📅'];
+    case 'files':
+      return ['📁'];
+    case 'messages':
+      return ['💬', '✉️'];
+    default:
+      return [];
+  }
+}
+
+function filterItems(items: ActivityItemData[], filter: FilterType): ActivityItemData[] {
+  if (filter === 'all') return items;
+  const icons = getIconsForFilter(filter);
+  return items.filter((item) => icons.includes(item.icon));
+}
+
+type FilterButtonsProps = {
+  activeFilter: FilterType;
+  onFilterChange: (filter: FilterType) => void;
+};
+
+function FilterButtons({ activeFilter, onFilterChange }: FilterButtonsProps) {
+  return (
+    <div className="mb-6 flex flex-wrap gap-2">
+      {filterConfig.map(({ type, label, icon }) => (
+        <button
+          key={type}
+          onClick={() => onFilterChange(type)}
+          className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 font-medium transition-colors ${
+            activeFilter === type
+              ? 'border-gray-800 bg-gray-800 text-white'
+              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-500'
+          }`}
+        >
+          <span>{icon}</span>
+          <span>{label}</span>
+        </button>
       ))}
     </div>
   );
@@ -204,14 +285,36 @@ function WelcomeHeader({ displayName }: { displayName: string }) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const displayName = user?.displayName ?? 'there';
+  const [filter, setFilter] = useState<FilterType>('all');
+
+  const filteredToday = {
+    ...activityData.today,
+    items: filterItems(activityData.today.items, filter),
+  };
+  const filteredYesterday = {
+    ...activityData.yesterday,
+    items: filterItems(activityData.yesterday.items, filter),
+  };
+
+  const hasResults = filteredToday.items.length > 0 || filteredYesterday.items.length > 0;
 
   return (
     <div>
       <WelcomeHeader displayName={displayName} />
       <h2 className="mb-6 border-b-2 border-gray-800 pb-4 text-2xl font-bold">Activity Feed</h2>
-      <ActivityGroup {...activityData.today} />
-      <ActivityGroup {...activityData.yesterday} />
+      <FilterButtons activeFilter={filter} onFilterChange={setFilter} />
+      {hasResults ? (
+        <>
+          <ActivityGroup {...filteredToday} onNavigate={navigate} />
+          <ActivityGroup {...filteredYesterday} onNavigate={navigate} />
+        </>
+      ) : (
+        <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center text-gray-500">
+          No {filter} activity found
+        </div>
+      )}
     </div>
   );
 }
