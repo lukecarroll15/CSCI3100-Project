@@ -4,16 +4,8 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CalendarPage from './pages/CalendarPage';
 import FilesPage from './pages/FilesPage';
+import CanvasPage from './pages/CanvasPage';
 import { RequireAuth } from './auth/RequireAuth';
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="py-20 text-center">
-      <h1 className="mb-4 text-3xl">{title}</h1>
-      <p className="text-gray-500">This page is under construction.</p>
-    </div>
-  );
-}
 
 export default function App() {
   return (
@@ -31,8 +23,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/files" element={<FilesPage />} />
-          <Route path="/discussion" element={<PlaceholderPage title="Discussion Board" />} />
-          <Route path="/messages" element={<PlaceholderPage title="Messages" />} />
+          <Route path="/canvas" element={<CanvasPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
