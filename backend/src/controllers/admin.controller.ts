@@ -126,3 +126,46 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
     next(err);
   }
 }
+
+export async function handleGetAdminStats(req: Request, res: Response, next: NextFunction) {
+  try {
+    const auth = req.auth;
+    if (!auth) {
+      throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
+
+    const user = await UserModel.findById(auth.userId);
+    if (!user || user.role !== 'admin') {
+      throw new AppError(403, 'FORBIDDEN', 'Only admins can access this');
+    }
+
+    // Get admin count and list
+    const admins = await UserModel.find({ role: 'admin' }, 'displayName email').lean();
+    const adminCount = admins.length;
+
+    // Get all valid activation keys with usage
+    const validKeys = await LicenceKeyModel.find(
+      { redeemed: false, revoked: false },
+      'key usesCount maxUses createdAt'
+    )
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({
+      adminCount,
+      admins: admins.map((a) => ({
+        displayName: a.displayName,
+        email: a.email,
+      })),
+      activationKeys: validKeys.map((k) => ({
+        key: k.key,
+        usesCount: k.usesCount,
+        maxUses: k.maxUses,
+        remainingUses: (k.maxUses || 1) - k.usesCount,
+        createdAt: k.createdAt,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
