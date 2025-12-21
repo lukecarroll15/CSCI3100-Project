@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: ENVIRONMENT
-- Version: 0.1
+- Version: 0.2
 - Status: Draft
-- Last updated: 2025-12-21
+- Last updated: 2025-12-22
 - Owner: Group 02
 
 ## 1) Purpose
@@ -67,6 +67,33 @@ Minimum required values in `backend/.env`:
 | OTP_RESEND_COOLDOWN_MS | 30000   | Minimum time between OTP sends |
 | OTP_MAX_ATTEMPTS       | 5       | Max invalid attempts           |
 | OTP_BCRYPT_ROUNDS      | 10      | Hash cost for OTP storage      |
+
+### Admin key policy (licence/pro lock demo)
+
+| Variable            | Default | Description                                      |
+| ------------------- | ------- | ------------------------------------------------ |
+| ADMIN_KEY_AUTO_SEED | true    | Auto-seed one key in dev if none exists          |
+| ADMIN_KEY_MAX_USES  | 5       | How many users can redeem a key                  |
+| ADMIN_KEY_TTL_DAYS  | 30      | Days until key expiry (0 disables expiry)        |
+| INITIAL_ADMIN_KEY   | unset   | If valid and no active key exists, seed this key |
+
+Provision an admin key manually (recommended for testing):
+
+```bash
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
+```
+
+Keys must match format `AAAA-BBBB-CCCC` (12 alphanumeric chars).
+
+Check a key in the database:
+
+```bash
+cd backend
+node scripts/checkLicence.mjs DEMO-KEYS-2025
+```
+
+Auto-seed runs only in non-production and only when no active key exists.
 
 ### Email delivery for OTP
 
@@ -153,6 +180,11 @@ Auth checks:
 - Request OTP: `POST /api/v1/auth/request-otp`
 - Verify OTP: `POST /api/v1/auth/verify-otp`
 - Current user: `GET /api/v1/users/me`
+
+Admin checks:
+
+- Activate key: `POST /api/v1/admin/activate`
+- Admin stats: `GET /api/v1/admin/stats`
 
 ## 9) Troubleshooting
 

@@ -2,6 +2,12 @@
 
 TaskFlow is a Jira-like web app for managing projects and tasks. This repo is the course project deliverable for CSCI3100 Software Engineering.
 
+## Why TaskFlow (differentiator)
+
+- Passwordless access with OTP and optional GitHub OAuth.
+- Explicit admin key activation with expiry/max-uses (pro lock demo).
+- Auditable testing evidence to show security and access control are real, not just UI.
+
 ## Current scope (Release 0.1)
 
 Implemented in this release:
@@ -9,12 +15,13 @@ Implemented in this release:
 - Email OTP sign up, login, logout
 - Optional GitHub OAuth login
 - Session-based authentication and current-user endpoint
+- Admin key activation (format, lookup, expiry, max uses)
+- Admin role UI indicators (badge, Admin Dashboard)
 - Health check endpoints
-- MongoDB-backed user persistence
 
 Planned (not implemented yet):
 
-- License key management (course requirement)
+- Key-file upload
 - Project and task management
 - Multi-view boards (list, kanban, calendar, timeline)
 - Attachments and dashboard features
@@ -24,14 +31,8 @@ Planned (not implemented yet):
 - Global database: MongoDB (done)
 - User interface: React UI (done for auth)
 - User management: signup/login/logout (done)
-- License management: key or key-file gating (planned)
+- License management: admin activation key (partial; key-file upload not implemented)
 - Application-specific features (n-1 features): planned for later releases
-
-## Repository structure
-
-- `frontend/` - React UI
-- `backend/` - Express API server
-- `docs/` - deliverables and developer documentation
 
 ## Quickstart (local development)
 
@@ -63,6 +64,22 @@ npm run dev
 - Backend: http://localhost:5001
 
 Full setup guide: `docs/ENVIRONMENT.md`
+
+## Testing
+
+- Full test plan and cases: `docs/TESTING.md`
+- Backend tests:
+
+```bash
+npm run test:backend
+```
+
+- Admin key provisioning (manual):
+
+```bash
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
+```
 
 ## Documentation index
 

@@ -56,6 +56,7 @@ Every PR should include:
 - [ ] Code compiles and runs locally
 - [ ] Lint/format/typecheck pass
 - [ ] Automated tests pass (or documented why none)
+- [ ] `docs/TESTING.md` updated if test policy or admin key behavior changed
 - [ ] Manual test evidence recorded (if applicable)
 - [ ] Docs updated (README, ENVIRONMENT, USER_MANUAL, RELEASE_NOTES)
 - [ ] Requirement traceability updated (see `docs/TRACEABILITY.md`)
