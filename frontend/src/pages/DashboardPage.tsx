@@ -6,7 +6,7 @@ import { useAuth } from '../auth/useAuth';
 const SEARCH_STORAGE_KEY = 'dashboard_search';
 
 type Priority = 'high' | 'medium' | 'low';
-type FilterType = 'all' | 'tasks' | 'files' | 'messages';
+type FilterType = 'all' | 'tasks' | 'files';
 
 type ActivityItemData = {
   time: string;
@@ -69,26 +69,12 @@ function getActivityData(): { today: ActivityGroupData; yesterday: ActivityGroup
           meta: ['Uploaded by Michael Torres', 'Finance Folder'],
         },
         {
-          time: '11:15 AM',
-          icon: '💬',
-          title: 'New post in Marketing Channel',
-          description: 'Discussion: Campaign ideas for product launch',
-          meta: ['Posted by Emma Wilson', '5 replies'],
-        },
-        {
           time: '9:00 AM',
           icon: '📅',
           title: 'Team Standup Meeting',
           description: 'Task marked as complete',
           priority: 'medium',
           meta: ['Completed by John Smith'],
-        },
-        {
-          time: '8:30 AM',
-          icon: '✉️',
-          title: 'New message from David Park',
-          description: 'You have 3 unread messages',
-          meta: ['Click to view messages'],
         },
       ],
     },
@@ -110,13 +96,6 @@ function getActivityData(): { today: ActivityGroupData; yesterday: ActivityGroup
           priority: 'low',
           meta: ['Updated by Emma Wilson', `New due: ${formatShortDate(tomorrowDate)}`],
         },
-        {
-          time: '10:00 AM',
-          icon: '💬',
-          title: 'New post in Engineering Channel',
-          description: 'Discussion: Code review best practices',
-          meta: ['Posted by David Park', '12 replies'],
-        },
       ],
     },
   };
@@ -130,10 +109,6 @@ function getRouteForIcon(icon: string): string {
       return '/calendar';
     case '📁':
       return '/files';
-    case '💬':
-      return '/discussion';
-    case '✉️':
-      return '/messages';
     default:
       return '/';
   }
@@ -198,7 +173,6 @@ const filterConfig: { type: FilterType; label: string; icon: string }[] = [
   { type: 'all', label: 'All', icon: '📋' },
   { type: 'tasks', label: 'Tasks', icon: '📅' },
   { type: 'files', label: 'Files', icon: '📁' },
-  { type: 'messages', label: 'Messages', icon: '💬' },
 ];
 
 function getIconsForFilter(filter: FilterType): string[] {
@@ -207,8 +181,6 @@ function getIconsForFilter(filter: FilterType): string[] {
       return ['📅'];
     case 'files':
       return ['📁'];
-    case 'messages':
-      return ['💬', '✉️'];
     default:
       return [];
   }
@@ -294,7 +266,6 @@ function getGreeting(): string {
 
 function WelcomeHeader({ displayName }: { displayName: string }) {
   const tasksDueToday = activityData.today.items.filter((item) => item.icon === '📅').length;
-  const unreadMessages = 3;
   const pendingFiles = activityData.today.items.filter((item) => item.icon === '📁').length;
 
   return (
@@ -308,11 +279,6 @@ function WelcomeHeader({ displayName }: { displayName: string }) {
           <span className="text-lg">📅</span>
           <span className="font-medium">{tasksDueToday} tasks</span>
           <span className="text-gray-500">due today</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2">
-          <span className="text-lg">✉️</span>
-          <span className="font-medium">{unreadMessages} messages</span>
-          <span className="text-gray-500">unread</span>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2">
           <span className="text-lg">📁</span>
