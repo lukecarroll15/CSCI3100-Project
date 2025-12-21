@@ -142,14 +142,53 @@ function FilterSection<T extends string>({
   );
 }
 
-function TableView({ filteredTasks }: { filteredTasks: Task[] }) {
+type SortKey = 'name' | 'date' | 'priority' | 'assignee' | 'department' | 'status';
+type SortDir = 'asc' | 'desc';
+
+function TableView({
+  filteredTasks,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  filteredTasks: Task[];
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (key: SortKey) => void;
+}) {
+  const headers: Array<{ key: SortKey; label: string }> = [
+    { key: 'name', label: 'Task Name' },
+    { key: 'date', label: 'Due Date' },
+    { key: 'priority', label: 'Priority' },
+    { key: 'assignee', label: 'Assigned To' },
+    { key: 'department', label: 'Department' },
+    { key: 'status', label: 'Status' },
+  ];
+
+  const indicator = (key: SortKey) => {
+    if (sortKey !== key) return '↕';
+    return sortDir === 'asc' ? '▲' : '▼';
+  };
+
+  const hint = (key: SortKey) => {
+    if (key === 'date') return sortDir === 'asc' ? 'Old → New' : 'New → Old';
+    if (key === 'priority') return sortDir === 'asc' ? 'High → Low' : 'Low → High';
+    return sortDir === 'asc' ? 'A → Z' : 'Z → A';
+  };
+
   return (
     <table className="w-full border-collapse overflow-hidden rounded-lg border-2 border-gray-800">
       <thead className="bg-gray-100">
         <tr>
-          {['Task Name', 'Due Date', 'Priority', 'Assigned To', 'Department', 'Status'].map((h) => (
-            <th key={h} className="border-2 border-gray-500 p-4 text-left text-base font-bold">
-              {h}
+          {headers.map(({ key, label }) => (
+            <th key={key} className="border-2 border-gray-500 p-4 text-left text-base font-bold">
+              <button
+                onClick={() => onSort(key)}
+                className="flex items-center gap-2 text-left text-sm font-bold uppercase tracking-wide"
+              >
+                <span>{label}</span>
+                <span className="text-xs text-gray-600">{indicator(key)}</span>
+              </button>
             </th>
           ))}
         </tr>
@@ -287,6 +326,8 @@ export default function CalendarPage() {
   const [view, setView] = useState<ViewMode>('calendar');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<Department | 'all'>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const filteredTasks = useMemo(
     () =>
@@ -297,6 +338,44 @@ export default function CalendarPage() {
       }),
     [priorityFilter, departmentFilter]
   );
+
+  const priorityWeight: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+
+  const sortedTasks = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const arr = [...filteredTasks];
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.name.localeCompare(b.name) * dir;
+        case 'assignee':
+          return a.assignee.localeCompare(b.assignee) * dir;
+        case 'department':
+          return a.department.localeCompare(b.department) * dir;
+        case 'status':
+          return a.status.localeCompare(b.status) * dir;
+        case 'priority':
+          return (priorityWeight[a.priority] - priorityWeight[b.priority]) * dir;
+        case 'date': {
+          const timeA = new Date(a.date).getTime();
+          const timeB = new Date(b.date).getTime();
+          return (timeA - timeB) * dir;
+        }
+        default:
+          return 0;
+      }
+    });
+    return arr;
+  }, [filteredTasks, sortDir, sortKey, priorityWeight]);
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
 
   const priorityColors = {
     high: 'border-red-600 text-red-600',
@@ -391,7 +470,12 @@ export default function CalendarPage() {
 
       {/* Views */}
       {view === 'table' ? (
-        <TableView filteredTasks={filteredTasks} />
+        <TableView
+          filteredTasks={sortedTasks}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
+        />
       ) : (
         <CalendarView filteredTasks={filteredTasks} />
       )}
@@ -399,9 +483,10 @@ export default function CalendarPage() {
       {/* Add Task Button */}
       <button
         onClick={() => alert('Would open Add New Task dialog')}
-        className="fixed bottom-12 right-12 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-gray-800 bg-white text-3xl shadow-lg transition-colors hover:bg-gray-100"
+        className="animate-pulse-soft fixed bottom-12 right-12 flex items-center gap-3 rounded-full border-2 border-gray-900 bg-white px-7 py-3 text-lg font-bold text-gray-900 shadow-xl transition-all hover:scale-105 hover:-translate-y-1 hover:shadow-2xl"
       >
-        +
+        <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-900 bg-blue-600 text-2xl text-white">+</span>
+        <span className="pr-1">Add Task</span>
       </button>
     </div>
   );
