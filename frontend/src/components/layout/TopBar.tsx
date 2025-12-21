@@ -14,7 +14,6 @@ export default function TopBar({
   companyName = 'TaskFlow',
   onLogout,
 }: Props) {
-
   const [animateAdmin, setAnimateAdmin] = useState(false);
   const previousRole = useRef(userRole);
 
@@ -35,9 +34,13 @@ export default function TopBar({
         <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-gray-800 bg-gray-100 text-xs">
           U
         </div>
-        <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base">
           {userName}
-          {userRole === 'admin' && (<Badge variant="admin" className={animateAdmin ? 'admin-badge-pop' : ''}>ADMIN</Badge>)}
+          {userRole === 'admin' && (
+            <Badge variant="admin" className={animateAdmin ? 'admin-badge-pop' : ''}>
+              ADMIN
+            </Badge>
+          )}
         </div>
       </div>
 

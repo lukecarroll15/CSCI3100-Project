@@ -216,7 +216,11 @@ function FileList({ files, isAdmin }: { files: FileCollection; isAdmin: boolean 
             <td className="border-2 border-gray-300 p-4 text-sm">{file.author}</td>
             <td className="border-2 border-gray-300 p-4 text-sm">{file.date}</td>
             <td className="border-2 border-gray-300 p-4 text-sm">
-              {file.adminOnly ? <Badge variant={isAdmin ? 'low' : 'high'}>🔒 Admin Only</Badge> : 'Everyone'}
+              {file.adminOnly ? (
+                <Badge variant={isAdmin ? 'low' : 'high'}>🔒 Admin Only</Badge>
+              ) : (
+                'Everyone'
+              )}
             </td>
           </tr>
         ))}
@@ -232,7 +236,7 @@ export default function FilesPage() {
   const [deptFilter, setDeptFilter] = useState<'All' | Department>('All');
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  
+
   const visibleFiles = useMemo(() => {
     return files.filter((file) => {
       const typeMatches = typeFilter === 'All' || file.type === typeFilter;

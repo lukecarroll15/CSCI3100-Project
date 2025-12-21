@@ -10,9 +10,12 @@ if (!keyArg) {
 const key = String(keyArg).trim().toUpperCase();
 
 function formatKey12(raw) {
-  const val = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
+  const val = raw
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 12);
   return `${val.slice(0, 4)}-${val.slice(4, 8)}-${val.slice(8, 12)}`;
- }
+}
 
 async function run() {
   await mongoose.connect(uri, {});
@@ -29,4 +32,7 @@ async function run() {
   await mongoose.disconnect();
 }
 
-run().catch((err) => { console.error(err); process.exit(1); });
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

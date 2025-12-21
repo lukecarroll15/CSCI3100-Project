@@ -60,7 +60,7 @@ export default function AdminPanel() {
       setIsAdmin(true);
       setErrorMsg('');
       window.dispatchEvent(new CustomEvent('admin-change', { detail: true }));
-      await refreshMe(); 
+      await refreshMe();
     } catch (err) {
       setErrorMsg(getErrorMessage(err));
     } finally {
@@ -77,11 +77,7 @@ export default function AdminPanel() {
         <label className="mb-1 block rounded border border-gray-500 bg-gray-50 p-1 text-xs">
           Admin Key (AAAA-BBBB-CCCC)
         </label>
-        {errorMsg && (
-          <div className="mb-2 text-xs font-semibold text-red-600">
-            {errorMsg}
-          </div>
-        )}
+        {errorMsg && <div className="mb-2 text-xs font-semibold text-red-600">{errorMsg}</div>}
         <Input
           type="text"
           placeholder="Enter admin key"
@@ -101,7 +97,9 @@ export default function AdminPanel() {
       </Button>
       <div
         className={`mt-3 rounded-md border-2 p-2 text-center text-xs font-bold ${
-          isAdmin ? 'border-green-600 bg-green-100 text-green-600' : 'border-red-600 bg-red-100 text-red-600'
+          isAdmin
+            ? 'border-green-600 bg-green-100 text-green-600'
+            : 'border-red-600 bg-red-100 text-red-600'
         }`}
       >
         {isAdmin ? '✓ Admin Access: Active' : '❌ Admin Access: Inactive'}

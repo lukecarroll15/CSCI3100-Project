@@ -4,7 +4,7 @@ import { UserModel } from '../models/User';
 import { AuditLogModel } from '../models/AuditLogs';
 import { AppError } from '../errors/AppError';
 import { Types } from 'mongoose';
-import { randomBytes, randomInt } from 'crypto';
+import { randomInt } from 'crypto';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -58,7 +58,11 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
     }
     const limit = typeof key.maxUses === 'number' && key.maxUses > 0 ? key.maxUses : 1;
     if (key.redeemed || key.usesCount >= limit) {
-      throw new AppError(400, 'MAX_USES_REACHED', 'This activation code has reached its maximum usage');
+      throw new AppError(
+        400,
+        'MAX_USES_REACHED',
+        'This activation code has reached its maximum usage'
+      );
     }
 
     if (key.redeemed) {
@@ -111,7 +115,12 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
 
     res.json({
       message: 'Activation successful',
-      user: { id: String(user._id), email: user.email, displayName: user.displayName, role: user.role },
+      user: {
+        id: String(user._id),
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+      },
     });
   } catch (err) {
     next(err);
