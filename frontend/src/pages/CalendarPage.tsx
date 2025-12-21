@@ -1,94 +1,110 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import { useAuth } from '../auth/useAuth';
 
 type Priority = 'high' | 'medium' | 'low';
 type Department = 'sales' | 'it' | 'finance' | 'marketing' | 'hr' | 'customer-service';
-type ViewMode = 'calendar' | 'table';
+type ViewMode = 'calendar' | 'table' | 'completed';
+
+type UserOption = { name: string; email: string };
 
 type Task = {
+  id: string;
   name: string;
-  date: string;
+  date: string; // any parseable date string
   priority: Priority;
   assignee: string;
   department: Department;
-  status: 'In Progress' | 'Not Started';
-  day: number | null;
+  status: 'In Progress' | 'Not Started' | 'Completed';
+  description?: string;
+  completedAt?: string;
 };
 
-const tasks: Task[] = [
+const initialTasks: Task[] = [
   {
+    id: 't1',
     name: 'Submit Final Tender',
     date: 'Nov 20, 2025',
     priority: 'high',
     assignee: 'Sarah Chen',
     department: 'sales',
     status: 'In Progress',
-    day: 20,
   },
   {
+    id: 't2',
     name: 'Complete Security Audit',
     date: 'Nov 18, 2025',
     priority: 'high',
     assignee: 'David Park',
     department: 'it',
     status: 'Not Started',
-    day: 18,
   },
   {
+    id: 't3',
     name: 'Review Q4 Budget',
     date: 'Nov 22, 2025',
     priority: 'medium',
     assignee: 'Michael Torres',
     department: 'finance',
     status: 'In Progress',
-    day: 22,
   },
   {
+    id: 't4',
     name: 'Update Marketing Materials',
     date: 'Nov 25, 2025',
     priority: 'medium',
     assignee: 'Emma Wilson',
     department: 'marketing',
     status: 'Not Started',
-    day: 25,
   },
   {
+    id: 't5',
     name: 'Review client feedback',
     date: 'Nov 18, 2025',
     priority: 'low',
     assignee: 'John Smith',
     department: 'customer-service',
     status: 'In Progress',
-    day: 18,
   },
   {
+    id: 't6',
     name: 'Organize team building event',
     date: 'Dec 1, 2025',
     priority: 'low',
     assignee: 'Sarah Chen',
     department: 'hr',
     status: 'Not Started',
-    day: null,
   },
   {
+    id: 't7',
     name: 'Deploy new software update',
     date: 'Nov 19, 2025',
     priority: 'high',
     assignee: 'David Park',
     department: 'it',
     status: 'In Progress',
-    day: 19,
   },
   {
+    id: 't8',
     name: 'Prepare client presentation',
     date: 'Nov 21, 2025',
     priority: 'medium',
     assignee: 'Emma Wilson',
     department: 'sales',
     status: 'Not Started',
-    day: 21,
   },
+];
+
+const mockUsers: UserOption[] = [
+  { name: 'David Gray', email: 'david.gray@example.com' },
+  { name: 'Sarah Chen', email: 'sarah.chen@example.com' },
+  { name: 'Emma Wilson', email: 'emma.wilson@example.com' },
+  { name: 'Michael Torres', email: 'michael.torres@example.com' },
+  { name: 'John Smith', email: 'john.smith@example.com' },
+  { name: 'Alicia Patel', email: 'alicia.patel@example.com' },
+  { name: 'Priya Kumar', email: 'priya.kumar@example.com' },
+  { name: 'David Park', email: 'david.park@example.com' },
 ];
 
 const departments: Array<Department | 'all'> = [
@@ -150,15 +166,31 @@ function TableView({
   sortKey,
   sortDir,
   onSort,
+  isAdmin,
+  onComplete,
+  showCompleteColumn = true,
+  onNonAdmin,
+  showIncompleteColumn = false,
+  onIncomplete,
+  dateLabel = 'Due Date',
+  getDate,
 }: {
   filteredTasks: Task[];
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (key: SortKey) => void;
+  isAdmin: boolean;
+  onComplete: (task: Task) => void;
+  showCompleteColumn?: boolean;
+  onNonAdmin?: () => void;
+  showIncompleteColumn?: boolean;
+  onIncomplete?: (task: Task) => void;
+  dateLabel?: string;
+  getDate?: (task: Task) => string;
 }) {
   const headers: Array<{ key: SortKey; label: string }> = [
     { key: 'name', label: 'Task Name' },
-    { key: 'date', label: 'Due Date' },
+    { key: 'date', label: dateLabel },
     { key: 'priority', label: 'Priority' },
     { key: 'assignee', label: 'Assigned To' },
     { key: 'department', label: 'Department' },
@@ -191,6 +223,12 @@ function TableView({
               </button>
             </th>
           ))}
+          {showCompleteColumn && (
+            <th className="border-2 border-gray-500 p-4 text-left text-base font-bold">Complete</th>
+          )}
+          {!showCompleteColumn && showIncompleteColumn && (
+            <th className="border-2 border-gray-500 p-4 text-left text-base font-bold">Incomplete</th>
+          )}
         </tr>
       </thead>
       <tbody>
@@ -201,7 +239,7 @@ function TableView({
             className="cursor-pointer hover:bg-gray-50"
           >
             <td className="border-2 border-gray-300 p-4 text-sm">{task.name}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{task.date}</td>
+            <td className="border-2 border-gray-300 p-4 text-sm">{getDate ? getDate(task) : task.date}</td>
             <td className="border-2 border-gray-300 p-4 text-sm">
               <Badge variant={task.priority}>{task.priority.toUpperCase()}</Badge>
             </td>
@@ -210,6 +248,54 @@ function TableView({
               {task.department.replace('-', ' ')}
             </td>
             <td className="border-2 border-gray-300 p-4 text-sm">{task.status}</td>
+            {showCompleteColumn && (
+              <td className="border-2 border-gray-300 p-4 text-sm">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isAdmin) {
+                      onNonAdmin?.();
+                      return;
+                    }
+                    onComplete(task);
+                  }}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
+                    isAdmin
+                      ? 'border-gray-400 text-gray-600 hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-colors'
+                      : 'border-gray-300 text-gray-300 cursor-not-allowed'
+                  }`}
+                  aria-label={`Mark ${task.name} complete`}
+                  aria-disabled={!isAdmin}
+                >
+                  ✓
+                </button>
+              </td>
+            )}
+            {!showCompleteColumn && showIncompleteColumn && (
+              <td className="border-2 border-gray-300 p-4 text-sm">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isAdmin) {
+                      onNonAdmin?.();
+                      return;
+                    }
+                    onIncomplete?.(task);
+                  }}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
+                    isAdmin
+                      ? 'border-gray-400 text-gray-600 hover:border-red-600 hover:text-red-600 hover:bg-red-50 transition-colors'
+                      : 'border-gray-300 text-gray-300 cursor-not-allowed'
+                  }`}
+                  aria-label={`Mark ${task.name} incomplete`}
+                  aria-disabled={!isAdmin}
+                >
+                  ✕
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>
@@ -217,7 +303,17 @@ function TableView({
   );
 }
 
-function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
+function CalendarView({
+  filteredTasks,
+  isAdmin,
+  onComplete,
+  onNonAdmin,
+}: {
+  filteredTasks: Task[];
+  isAdmin: boolean;
+  onComplete: (task: Task) => void;
+  onNonAdmin?: () => void;
+}) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -240,7 +336,16 @@ function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
     return days;
   }, [year, month]);
 
-  const getTasksForDay = (day: number) => filteredTasks.filter((t) => t.day === day);
+  const getTasksForDay = (day: number) =>
+    filteredTasks.filter((t) => {
+      const taskDate = new Date(t.date);
+      return (
+        !Number.isNaN(taskDate.getTime()) &&
+        taskDate.getFullYear() === year &&
+        taskDate.getMonth() === month &&
+        taskDate.getDate() === day
+      );
+    });
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -301,8 +406,7 @@ function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
                 {dayTasks.map((task, i) => (
                   <div
                     key={i}
-                    onClick={() => alert('Would open task details')}
-                    className={`mb-1 cursor-pointer rounded border-2 p-2 text-xs hover:bg-gray-100 ${
+                    className={`mb-1 flex items-center justify-between rounded border-2 p-2 text-xs ${
                       task.priority === 'high'
                         ? 'border-red-600'
                         : task.priority === 'medium'
@@ -310,7 +414,27 @@ function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
                           : 'border-green-600'
                     }`}
                   >
-                    {task.name.length > 15 ? task.name.slice(0, 15) + '...' : task.name}
+                    <button
+                      onClick={() => alert('Would open task details')}
+                      className="flex-1 text-left hover:bg-gray-100"
+                    >
+                      {task.name.length > 15 ? task.name.slice(0, 15) + '...' : task.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isAdmin) {
+                          onNonAdmin?.();
+                          return;
+                        }
+                        onComplete(task);
+                      }}
+                      className="ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-400 text-gray-600 hover:border-green-600 hover:text-green-600 hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300 transition-colors"
+                      aria-label={`Mark ${task.name} complete`}
+                      disabled={!isAdmin}
+                    >
+                      ✓
+                    </button>
                   </div>
                 ))}
               </div>
@@ -323,20 +447,42 @@ function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
 }
 
 export default function CalendarPage() {
+  const { user } = useAuth();
+  const [tasksState, setTasksState] = useState<Task[]>(initialTasks);
+  const [completedTasksState, setCompletedTasksState] = useState<Task[]>([]);
   const [view, setView] = useState<ViewMode>('calendar');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<Department | 'all'>('all');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [addTaskError, setAddTaskError] = useState('');
+  const [shake, setShake] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [taskName, setTaskName] = useState('');
+  const [taskPriority, setTaskPriority] = useState<Priority | ''>('');
+  const [taskDate, setTaskDate] = useState('');
+  const [taskDepartment, setTaskDepartment] = useState<Department | ''>('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskAssignee, setTaskAssignee] = useState('');
+  const [showAssigneeSuggestions, setShowAssigneeSuggestions] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const assigneeMatches = useMemo(() => {
+    const query = taskAssignee.trim().toLowerCase();
+    if (query.length < 2) return [] as UserOption[];
+    return mockUsers.filter((u) =>
+      `${u.name} ${u.email}`.toLowerCase().includes(query)
+    );
+  }, [taskAssignee]);
 
   const filteredTasks = useMemo(
     () =>
-      tasks.filter((task) => {
+      tasksState.filter((task) => {
         const priorityMatch = priorityFilter === 'all' || task.priority === priorityFilter;
         const deptMatch = departmentFilter === 'all' || task.department === departmentFilter;
         return priorityMatch && deptMatch;
       }),
-    [priorityFilter, departmentFilter]
+    [priorityFilter, departmentFilter, tasksState]
   );
 
   const priorityWeight: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -384,6 +530,112 @@ export default function CalendarPage() {
     all: '',
   } as const;
 
+  const handleAddTaskClick = () => {
+    if (user?.role === 'admin') {
+      setShowAddModal(true);
+      setAddTaskError('');
+      return;
+    }
+
+    setAddTaskError('Only admins can add tasks.');
+    setShake(true);
+
+    window.setTimeout(() => setShake(false), 450);
+    window.setTimeout(() => setAddTaskError(''), 2400);
+  };
+
+  const handleAddTaskSubmit = (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!taskName.trim() || !taskPriority || !taskDate || !taskDepartment) {
+      setFormError('Please fill in all required fields.');
+      return;
+    }
+
+    const parsedDate = new Date(taskDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      setFormError('Please provide a valid due date.');
+      return;
+    }
+
+    const formattedDate = parsedDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    const newTask: Task = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: taskName.trim(),
+      date: formattedDate,
+      priority: taskPriority,
+      assignee: taskAssignee.trim() || 'Unassigned',
+      department: taskDepartment,
+      status: 'Not Started',
+      description: taskDescription.trim() || undefined,
+    };
+
+    setTasksState((prev) => [...prev, newTask]);
+    setShowAddModal(false);
+    setTaskName('');
+    setTaskPriority('');
+    setTaskDate('');
+    setTaskDepartment('');
+    setTaskDescription('');
+    setTaskAssignee('');
+    setFormError('');
+  };
+
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
+  const [completeError, setCompleteError] = useState('');
+  const [showIncompleteModal, setShowIncompleteModal] = useState(false);
+  const [taskToRestore, setTaskToRestore] = useState<Task | null>(null);
+
+  const handleMarkComplete = (task: Task) => {
+    if (user?.role !== 'admin') return;
+    setTaskToComplete(task);
+    setShowCompleteModal(true);
+  };
+
+  const handleNonAdminAttempt = () => {
+    setCompleteError('Only admins can mark tasks complete.');
+    window.setTimeout(() => setCompleteError(''), 2200);
+  };
+
+  const confirmComplete = () => {
+    if (!taskToComplete) return;
+    const completedDate = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    setTasksState((prev) => prev.filter((t) => t.id !== taskToComplete.id));
+    setCompletedTasksState((prev) => [
+      ...prev,
+      { ...taskToComplete, status: 'Completed', completedAt: completedDate },
+    ]);
+    setTaskToComplete(null);
+    setShowCompleteModal(false);
+  };
+
+  const handleMarkIncomplete = (task: Task) => {
+    if (user?.role !== 'admin') return;
+    setTaskToRestore(task);
+    setShowIncompleteModal(true);
+  };
+
+  const confirmRestore = () => {
+    if (!taskToRestore) return;
+    setCompletedTasksState((prev) => prev.filter((t) => t.id !== taskToRestore.id));
+    setTasksState((prev) => [
+      ...prev,
+      { ...taskToRestore, status: 'Not Started' },
+    ]);
+    setTaskToRestore(null);
+    setShowIncompleteModal(false);
+  };
+
   return (
     <div>
       {/* Header */}
@@ -401,6 +653,12 @@ export default function CalendarPage() {
             onClick={() => setView('calendar')}
           >
             Calendar View
+          </Button>
+          <Button
+            variant={view === 'completed' ? 'primary' : 'outline'}
+            onClick={() => setView('completed')}
+          >
+            Completed
           </Button>
         </div>
       </div>
@@ -475,19 +733,299 @@ export default function CalendarPage() {
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
+          isAdmin={user?.role === 'admin'}
+          onComplete={handleMarkComplete}
+          onNonAdmin={handleNonAdminAttempt}
+        />
+      ) : view === 'calendar' ? (
+        <CalendarView
+          filteredTasks={filteredTasks}
+          isAdmin={user?.role === 'admin'}
+          onComplete={handleMarkComplete}
+          onNonAdmin={handleNonAdminAttempt}
         />
       ) : (
-        <CalendarView filteredTasks={filteredTasks} />
+        <TableView
+          filteredTasks={completedTasksState}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
+          isAdmin={user?.role === 'admin'}
+          onComplete={() => {}}
+          showCompleteColumn={false}
+          showIncompleteColumn={true}
+          onIncomplete={handleMarkIncomplete}
+          onNonAdmin={handleNonAdminAttempt}
+          dateLabel="Completion Date"
+          getDate={(t) => t.completedAt ?? t.date}
+        />
       )}
 
       {/* Add Task Button */}
       <button
-        onClick={() => alert('Would open Add New Task dialog')}
-        className="animate-pulse-soft fixed bottom-12 right-12 flex items-center gap-3 rounded-full border-2 border-gray-900 bg-white px-7 py-3 text-lg font-bold text-gray-900 shadow-xl transition-all hover:scale-105 hover:-translate-y-1 hover:shadow-2xl"
+        onClick={handleAddTaskClick}
+        className={`fixed bottom-12 right-12 flex items-center gap-3 rounded-full border-2 border-gray-900 bg-white px-7 py-3 text-lg font-bold text-gray-900 shadow-xl transition-all hover:scale-105 hover:-translate-y-1 hover:shadow-2xl animate-pulse-soft ${
+          shake ? 'animate-shake' : ''
+        }`}
+        aria-live="polite"
       >
         <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-900 bg-blue-600 text-2xl text-white">+</span>
         <span className="pr-1">Add Task</span>
       </button>
+      {addTaskError && (
+        <div className="fixed bottom-28 right-12 rounded-md border-2 border-red-600 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-lg">
+          {addTaskError}
+        </div>
+      )}
+      {completeError && (
+        <div className="fixed bottom-40 right-12 rounded-md border-2 border-yellow-500 bg-white px-4 py-2 text-sm font-semibold text-yellow-700 shadow-lg">
+          {completeError}
+        </div>
+      )}
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="animate-modal-in w-full max-w-lg rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">Add New Task</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="rounded-md border-2 border-gray-400 px-2 py-1 text-sm font-semibold hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTaskSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-semibold">Task Name *</label>
+                <input
+                  value={taskName}
+                  onChange={(e) => setTaskName(e.target.value)}
+                  className="w-full rounded-md border-2 border-gray-400 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                  placeholder="Enter task name"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold">Priority *</label>
+                  <div className="flex gap-2">
+                    {(['high', 'medium', 'low'] as Priority[]).map((p) => {
+                      const isActive = taskPriority === p;
+                      const styles =
+                        p === 'high'
+                          ? 'border-red-600 text-red-700 hover:bg-red-50'
+                          : p === 'medium'
+                            ? 'border-orange-500 text-orange-700 hover:bg-orange-50'
+                            : 'border-green-600 text-green-700 hover:bg-green-50';
+                      const activeBg =
+                        p === 'high'
+                          ? 'bg-red-100'
+                          : p === 'medium'
+                            ? 'bg-orange-100'
+                            : 'bg-green-100';
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setTaskPriority(p)}
+                          className={`flex-1 rounded-md border-2 px-3 py-2 text-sm font-semibold transition-colors ${styles} ${
+                            isActive ? `${activeBg} ring-2 ring-offset-1 ring-gray-700` : 'bg-white'
+                          }`}
+                          aria-pressed={isActive}
+                        >
+                          {p.charAt(0).toUpperCase() + p.slice(1)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold">Due Date *</label>
+                  <input
+                    type="date"
+                    value={taskDate}
+                    onChange={(e) => setTaskDate(e.target.value)}
+                    className="w-full rounded-md border-2 border-gray-400 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold">Department *</label>
+                <select
+                  value={taskDepartment}
+                  onChange={(e) => setTaskDepartment(e.target.value as Department | '')}
+                  className="w-full rounded-md border-2 border-gray-400 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                >
+                  <option value="">Select department</option>
+                  {departments
+                    .filter((d) => d !== 'all')
+                    .map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept.charAt(0).toUpperCase() + dept.slice(1).replace('-', ' ')}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold">Assign To (optional)</label>
+                <div className="relative">
+                  <input
+                    type="search"
+                    value={taskAssignee}
+                    onChange={(e) => {
+                      setTaskAssignee(e.target.value);
+                      setShowAssigneeSuggestions(true);
+                    }}
+                    onFocus={() => {
+                      if (taskAssignee.trim().length >= 2) setShowAssigneeSuggestions(true);
+                    }}
+                    onBlur={() => setTimeout(() => setShowAssigneeSuggestions(false), 120)}
+                    className="w-full rounded-md border-2 border-gray-400 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                    placeholder="Search or type a registered user"
+                  />
+                  {assigneeMatches.length > 0 && showAssigneeSuggestions && (
+                    <div className="absolute z-10 mt-1 w-full rounded-md border-2 border-gray-300 bg-white shadow-lg">
+                      {assigneeMatches.map((user) => (
+                        <button
+                          key={user.email}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setTaskAssignee(user.name);
+                            setShowAssigneeSuggestions(false);
+                          }}
+                          className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-gray-100"
+                        >
+                          <span className="font-semibold">{user.name}</span>
+                          <span className="text-xs text-gray-600">{user.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Leave blank to keep Unassigned.</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-semibold">Description (optional)</label>
+                <textarea
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  className="min-h-[96px] w-full rounded-md border-2 border-gray-400 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                  placeholder="Add more context, requirements, or links"
+                />
+              </div>
+
+              {formError && (
+                <div className="rounded-md border-2 border-red-600 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormError('');
+                  }}
+                  className="rounded-md border-2 border-gray-400 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md border-2 border-gray-900 bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-700"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showCompleteModal && taskToComplete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">Confirm Completion</h3>
+              <button
+                onClick={() => {
+                  setShowCompleteModal(false);
+                  setTaskToComplete(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-2 py-1 text-sm font-semibold hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-4 text-sm">
+              Are you sure you want to mark <span className="font-semibold">{taskToComplete.name}</span> as complete?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowCompleteModal(false);
+                  setTaskToComplete(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmComplete}
+                className="rounded-md border-2 border-gray-900 bg-green-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-green-700"
+              >
+                Yes, mark complete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIncompleteModal && taskToRestore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">Mark Incomplete</h3>
+              <button
+                onClick={() => {
+                  setShowIncompleteModal(false);
+                  setTaskToRestore(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-2 py-1 text-sm font-semibold hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-4 text-sm">
+              Are you sure you want to mark <span className="font-semibold">{taskToRestore.name}</span> as incomplete and restore it?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowIncompleteModal(false);
+                  setTaskToRestore(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRestore}
+                className="rounded-md border-2 border-gray-900 bg-red-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-700"
+              >
+                Yes, restore task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

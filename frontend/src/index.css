@@ -77,6 +77,21 @@
     }
   }
 
+  @keyframes button-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-6px);
+    }
+    40%,
+    80% {
+      transform: translateX(6px);
+    }
+  }
+
 @layer components {
   .ripple-dot {
     position: relative;
@@ -129,6 +144,10 @@
 
   .animate-modal-in {
     animation: modal-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-shake {
+    animation: button-shake 0.5s ease;
   }
 }
 
