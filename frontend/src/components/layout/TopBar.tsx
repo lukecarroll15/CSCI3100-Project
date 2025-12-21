@@ -24,11 +24,11 @@ function AdminDashboardModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 transition-opacity duration-400"
+      className="duration-400 fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 transition-opacity"
       onClick={onClose}
     >
       <div
-        className="max-h-[80vh] w-[600px] animate-modal-in overflow-y-auto rounded-lg border-2 border-gray-800 bg-white p-6 shadow-lg"
+        className="animate-modal-in max-h-[80vh] w-[600px] overflow-y-auto rounded-lg border-2 border-gray-800 bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-6 text-2xl font-bold">Admin Dashboard</h2>

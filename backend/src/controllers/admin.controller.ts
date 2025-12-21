@@ -64,9 +64,7 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
     }
 
     const limit =
-      typeof key.maxUses === 'number' && key.maxUses > 0
-        ? key.maxUses
-        : env.ADMIN_KEY_MAX_USES;
+      typeof key.maxUses === 'number' && key.maxUses > 0 ? key.maxUses : env.ADMIN_KEY_MAX_USES;
     const exhausted = Boolean(key.revoked) || Boolean(key.redeemed) || key.usesCount >= limit;
     if (exhausted) {
       throw new AppError(

@@ -15,6 +15,7 @@ import {
  */
 export async function seedInitialActivationKey(): Promise<void> {
   if (env.NODE_ENV === 'production') return;
+  if (!env.ADMIN_KEY_AUTO_SEED) return;
 
   const exists = await LicenceKeyModel.exists({ redeemed: false, revoked: false });
   if (exists) return;
@@ -33,6 +34,5 @@ export async function seedInitialActivationKey(): Promise<void> {
     expiresAt,
   });
 
-  // eslint-disable-next-line no-console
   console.log(`[seed] Initial activation key: ${key}`);
 }
