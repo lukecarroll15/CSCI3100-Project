@@ -17,12 +17,20 @@ export type CanvasEdge = {
   id: string;
   from: string;
   to: string;
+  kind: 'line' | 'arrow';
+};
+
+export type CanvasView = {
+  offsetX: number;
+  offsetY: number;
+  scale: number;
 };
 
 export type CanvasData = {
   version: number;
   nodes: CanvasNode[];
   edges: CanvasEdge[];
+  view?: CanvasView;
 };
 
 export async function getCanvas(): Promise<CanvasData | null> {

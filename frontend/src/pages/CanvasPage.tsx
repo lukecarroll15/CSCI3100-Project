@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import Button from '../components/ui/Button';
 import { ApiRequestError } from '../api/client';
 import {
@@ -10,8 +17,9 @@ import {
   type CanvasNodeType,
 } from '../api/canvas';
 
-type Tool = 'select' | 'pan' | 'sticky' | 'card' | 'rect' | 'diamond' | 'connect';
+type Tool = 'select' | 'sticky' | 'card' | 'rect' | 'diamond' | 'line' | 'arrow';
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
+type EdgeKind = 'line' | 'arrow';
 
 type ViewState = {
   offsetX: number;
@@ -30,37 +38,49 @@ type DragState =
   | {
       mode: 'move';
       nodeId: string;
+      startClientX: number;
+      startClientY: number;
       startX: number;
       startY: number;
       startNodeX: number;
       startNodeY: number;
       snapshot: CanvasData;
+      moved: boolean;
     }
   | {
       mode: 'resize';
       nodeId: string;
       handle: ResizeHandle;
+      startClientX: number;
+      startClientY: number;
       startX: number;
       startY: number;
       startNode: CanvasNode;
       snapshot: CanvasData;
+      moved: boolean;
     };
 
-const CANVAS_WIDTH = 3200;
-const CANVAS_HEIGHT = 2000;
+const CANVAS_WIDTH = 12000;
+const CANVAS_HEIGHT = 7500;
 const GRID_SIZE = 16;
 const HISTORY_LIMIT = 50;
+const DRAG_THRESHOLD_PX = 3;
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 2.5;
 
 const DEFAULT_BOARD: CanvasData = { version: 1, nodes: [], edges: [] };
+const DEFAULT_VIEW: ViewState = { offsetX: 0, offsetY: 0, scale: 1 };
+
+type GestureEventLike = Event & { scale?: number; clientX?: number; clientY?: number };
 
 const TOOL_LABELS: Record<Tool, string> = {
   select: 'Select',
-  pan: 'Pan',
   sticky: 'Sticky',
   card: 'Card',
   rect: 'Rectangle',
   diamond: 'Diamond',
-  connect: 'Connector',
+  line: 'Line',
+  arrow: 'Arrow',
 };
 
 const NODE_TYPES: CanvasNodeType[] = ['sticky', 'card', 'rect', 'diamond'];
@@ -72,7 +92,7 @@ const NODE_PRESETS: Record<
   sticky: {
     width: 200,
     height: 140,
-    text: 'Sticky note',
+    text: '',
     className: 'bg-amber-100 border-amber-200 text-amber-900',
     fill: '#FEF3C7',
     stroke: '#FCD34D',
@@ -80,7 +100,7 @@ const NODE_PRESETS: Record<
   card: {
     width: 240,
     height: 140,
-    text: 'Text card',
+    text: '',
     className: 'bg-white border-gray-200 text-gray-800',
     fill: '#FFFFFF',
     stroke: '#E5E7EB',
@@ -88,7 +108,7 @@ const NODE_PRESETS: Record<
   rect: {
     width: 220,
     height: 130,
-    text: 'Process',
+    text: '',
     className: 'bg-sky-50 border-sky-200 text-sky-900',
     fill: '#E0F2FE',
     stroke: '#BAE6FD',
@@ -96,7 +116,7 @@ const NODE_PRESETS: Record<
   diamond: {
     width: 200,
     height: 120,
-    text: 'Decision',
+    text: '',
     className: 'bg-slate-100 border-slate-200 text-slate-800',
     fill: '#E2E8F0',
     stroke: '#CBD5F5',
@@ -125,12 +145,31 @@ function cloneBoard(data: CanvasData): CanvasData {
   return JSON.parse(JSON.stringify(data)) as CanvasData;
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function normalizeBoard(data: CanvasData | null): CanvasData {
   if (!data || typeof data !== 'object') return DEFAULT_BOARD;
   const nodes = Array.isArray(data.nodes) ? data.nodes.filter(isCanvasNode) : [];
-  const edges = Array.isArray(data.edges) ? data.edges.filter(isCanvasEdge) : [];
+  const edges = Array.isArray(data.edges)
+    ? data.edges.filter(isCanvasEdge).map((edge) => ({
+        ...edge,
+        kind: edge.kind ?? 'arrow',
+      }))
+    : [];
   const version = typeof data.version === 'number' ? data.version : 1;
   return { version, nodes, edges };
+}
+
+function normalizeView(value: unknown): ViewState {
+  if (!value || typeof value !== 'object') return DEFAULT_VIEW;
+  const view = value as Partial<ViewState>;
+  return {
+    offsetX: isFiniteNumber(view.offsetX) ? view.offsetX : DEFAULT_VIEW.offsetX,
+    offsetY: isFiniteNumber(view.offsetY) ? view.offsetY : DEFAULT_VIEW.offsetY,
+    scale: isFiniteNumber(view.scale) ? view.scale : DEFAULT_VIEW.scale,
+  };
 }
 
 function isCanvasNode(value: unknown): value is CanvasNode {
@@ -150,7 +189,12 @@ function isCanvasNode(value: unknown): value is CanvasNode {
 function isCanvasEdge(value: unknown): value is CanvasEdge {
   if (!value || typeof value !== 'object') return false;
   const edge = value as CanvasEdge;
-  return typeof edge.id === 'string' && typeof edge.from === 'string' && typeof edge.to === 'string';
+  return (
+    typeof edge.id === 'string' &&
+    typeof edge.from === 'string' &&
+    typeof edge.to === 'string' &&
+    (edge.kind === undefined || edge.kind === 'line' || edge.kind === 'arrow')
+  );
 }
 
 function formatTime(date: Date) {
@@ -165,6 +209,44 @@ function getErrorMessage(err: unknown): string {
 
 function getNodeCenter(node: CanvasNode) {
   return { x: node.x + node.width / 2, y: node.y + node.height / 2 };
+}
+
+function getEdgePoints(from: CanvasNode, to: CanvasNode, kind: EdgeKind) {
+  const start = getNodeCenter(from);
+  const end = getNodeCenter(to);
+  if (kind !== 'arrow') return { start, end };
+
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length;
+  const uy = dy / length;
+
+  const getEdgePoint = (node: CanvasNode, dirX: number, dirY: number) => {
+    const cx = node.x + node.width / 2;
+    const cy = node.y + node.height / 2;
+    const ndx = dirX || 0.0001;
+    const ndy = dirY || 0.0001;
+    const nLen = Math.hypot(ndx, ndy) || 1;
+    const nx = ndx / nLen;
+    const ny = ndy / nLen;
+    const hw = node.width / 2;
+    const hh = node.height / 2;
+    const tx = hw / Math.abs(nx);
+    const ty = hh / Math.abs(ny);
+    const t = Math.min(tx, ty);
+    return { x: cx + nx * t, y: cy + ny * t };
+  };
+
+  const startEdge = getEdgePoint(from, dx, dy);
+  const endEdge = getEdgePoint(to, -dx, -dy);
+  const edgeDistance = Math.hypot(endEdge.x - startEdge.x, endEdge.y - startEdge.y);
+  const gap = edgeDistance > 28 ? 12 : Math.max(0, edgeDistance / 4);
+
+  return {
+    start: { x: startEdge.x + ux * gap, y: startEdge.y + uy * gap },
+    end: { x: endEdge.x - ux * gap, y: endEdge.y - uy * gap },
+  };
 }
 
 function drawWrappedText(
@@ -225,18 +307,27 @@ function isEditableTarget(target: EventTarget | null) {
 
 export default function CanvasPage() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
-  const viewRef = useRef<ViewState>({ offsetX: 120, offsetY: 120, scale: 1 });
+  const viewRef = useRef<ViewState>({ offsetX: 0, offsetY: 0, scale: 1 });
+  const gestureBaseScaleRef = useRef<number | null>(null);
+  const gestureAnchorRef = useRef<{ x: number; y: number } | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const hasLoadedRef = useRef(false);
 
   const [board, setBoard] = useState<CanvasData>(DEFAULT_BOARD);
-  const [view, setView] = useState<ViewState>({ offsetX: 120, offsetY: 120, scale: 1 });
+  const [view, setView] = useState<ViewState>({ offsetX: 0, offsetY: 0, scale: 1 });
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [activeTool, setActiveTool] = useState<Tool>('select');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; kind: EdgeKind } | null>(
+    null
+  );
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -258,12 +349,24 @@ export default function CanvasPage() {
   }, [view]);
 
   useEffect(() => {
+    const updateSize = () => {
+      const rect = viewportRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setViewportSize({ width: rect.width, height: rect.height });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     (async () => {
       try {
         const data = await getCanvas();
         if (!active) return;
         setBoard(normalizeBoard(data));
+        setView(normalizeView(data?.view));
         setSaveStatus('saved');
         historyRef.current = { past: [], future: [] };
         setHistoryTick((tick) => tick + 1);
@@ -290,14 +393,14 @@ export default function CanvasPage() {
     setSaveStatus('saving');
     saveTimerRef.current = window.setTimeout(async () => {
       try {
-        await saveCanvas(board);
+        await saveCanvas({ ...board, view });
         setSaveStatus('saved');
         setLastSavedAt(new Date());
       } catch {
         setSaveStatus('error');
       }
     }, 800);
-  }, [board, loading]);
+  }, [board, loading, view]);
 
   const nodeMap = useMemo(() => {
     const map = new Map<string, CanvasNode>();
@@ -323,27 +426,106 @@ export default function CanvasPage() {
   }, [saveStatus]);
 
   const gridBackground = useMemo(() => {
-    const size = GRID_SIZE;
+    const size = GRID_SIZE * view.scale;
     return {
       backgroundImage:
         'linear-gradient(to right, rgba(148, 163, 184, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.2) 1px, transparent 1px)',
       backgroundSize: `${size}px ${size}px`,
+      backgroundPosition: `${view.offsetX}px ${view.offsetY}px`,
     } as const;
-  }, []);
+  }, [view.offsetX, view.offsetY, view.scale]);
 
   const viewportCursor = useMemo(() => {
-    if (activeTool === 'pan') return 'cursor-grab';
-    if (activeTool === 'connect') return 'cursor-crosshair';
-    if (activeTool === 'sticky' || activeTool === 'card' || activeTool === 'rect' || activeTool === 'diamond') {
+    if (isPanning) return 'cursor-grabbing';
+    if (activeTool === 'line' || activeTool === 'arrow') return 'cursor-crosshair';
+    if (
+      activeTool === 'sticky' ||
+      activeTool === 'card' ||
+      activeTool === 'rect' ||
+      activeTool === 'diamond'
+    ) {
       return 'cursor-cell';
     }
-    return 'cursor-default';
-  }, [activeTool]);
+    return 'cursor-grab';
+  }, [activeTool, isPanning]);
 
   const setNoticeWithTimeout = useCallback((message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice(null), 3000);
   }, []);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (exportMenuRef.current && target && exportMenuRef.current.contains(target)) return;
+      setExportMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExportMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [exportMenuOpen]);
+
+  const getMinScale = useCallback(() => {
+    if (!viewportSize.width || !viewportSize.height) return MIN_SCALE;
+    return Math.max(
+      MIN_SCALE,
+      viewportSize.width / CANVAS_WIDTH,
+      viewportSize.height / CANVAS_HEIGHT
+    );
+  }, [viewportSize.height, viewportSize.width]);
+
+  const clampViewState = useCallback(
+    (nextView: ViewState) => {
+      const minScale = getMinScale();
+      const scale = clamp(nextView.scale, minScale, MAX_SCALE);
+      if (!viewportSize.width || !viewportSize.height) {
+        return { ...nextView, scale };
+      }
+
+      const boardWidth = CANVAS_WIDTH * scale;
+      const boardHeight = CANVAS_HEIGHT * scale;
+      const minOffsetX = Math.min(0, viewportSize.width - boardWidth);
+      const minOffsetY = Math.min(0, viewportSize.height - boardHeight);
+      const offsetX = clamp(nextView.offsetX, minOffsetX, 0);
+      const offsetY = clamp(nextView.offsetY, minOffsetY, 0);
+
+      return { offsetX, offsetY, scale };
+    },
+    [getMinScale, viewportSize.height, viewportSize.width]
+  );
+
+  const applyViewState = useCallback(
+    (nextView: ViewState) => {
+      const clamped = clampViewState(nextView);
+      setView((current) => {
+        if (
+          current.offsetX === clamped.offsetX &&
+          current.offsetY === clamped.offsetY &&
+          current.scale === clamped.scale
+        ) {
+          return current;
+        }
+        return clamped;
+      });
+    },
+    [clampViewState]
+  );
+
+  useEffect(() => {
+    applyViewState(view);
+  }, [applyViewState, view]);
+
+  useEffect(() => {
+    if (!viewportSize.width || !viewportSize.height) return;
+    applyViewState(viewRef.current);
+  }, [applyViewState, viewportSize.height, viewportSize.width]);
 
   const pushHistory = useCallback((snapshot: CanvasData) => {
     const past = [...historyRef.current.past, cloneBoard(snapshot)];
@@ -352,13 +534,13 @@ export default function CanvasPage() {
     setHistoryTick((tick) => tick + 1);
   }, []);
 
-  const startEditing = useCallback(
-    (node: CanvasNode, snapshot: CanvasData) => {
-      editSnapshotRef.current = { snapshot: cloneBoard(snapshot), nodeId: node.id, text: node.text };
-      setEditingNodeId(node.id);
-    },
-    []
-  );
+  const startEditing = useCallback((node: CanvasNode, snapshot: CanvasData) => {
+    editSnapshotRef.current = { snapshot: cloneBoard(snapshot), nodeId: node.id, text: node.text };
+    setEditingNodeId(node.id);
+    window.requestAnimationFrame(() => {
+      editorRef.current?.focus();
+    });
+  }, []);
 
   const finishEditing = useCallback(() => {
     const edit = editSnapshotRef.current;
@@ -483,27 +665,30 @@ export default function CanvasPage() {
   const handleNodePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>, node: CanvasNode) => {
       event.stopPropagation();
-      if (activeTool === 'connect') {
+      if (activeTool === 'line' || activeTool === 'arrow') {
+        const kind: EdgeKind = activeTool === 'line' ? 'line' : 'arrow';
         if (!connectingFrom) {
-          setConnectingFrom(node.id);
+          setConnectingFrom({ nodeId: node.id, kind });
           setSelectedNodeId(node.id);
           setSelectedEdgeId(null);
           return;
         }
-        if (connectingFrom === node.id) {
+        if (connectingFrom.nodeId === node.id) {
           setConnectingFrom(null);
           return;
         }
         const edge: CanvasEdge = {
           id: createId('edge'),
-          from: connectingFrom,
+          from: connectingFrom.nodeId,
           to: node.id,
+          kind: connectingFrom.kind,
         };
         pushHistory(board);
         setBoard((current) => ({ ...current, edges: [...current.edges, edge] }));
         setConnectingFrom(null);
         setSelectedNodeId(null);
         setSelectedEdgeId(edge.id);
+        setActiveTool('select');
         return;
       }
 
@@ -516,11 +701,14 @@ export default function CanvasPage() {
       dragRef.current = {
         mode: 'move',
         nodeId: node.id,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
         startX: start.x,
         startY: start.y,
         startNodeX: node.x,
         startNodeY: node.y,
         snapshot: cloneBoard(board),
+        moved: false,
       };
     },
     [activeTool, board, connectingFrom, editingNodeId, getBoardPoint, pushHistory]
@@ -537,10 +725,13 @@ export default function CanvasPage() {
         mode: 'resize',
         nodeId: node.id,
         handle,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
         startX: start.x,
         startY: start.y,
         startNode: { ...node },
         snapshot: cloneBoard(board),
+        moved: false,
       };
     },
     [board, finishEditing, getBoardPoint]
@@ -548,7 +739,11 @@ export default function CanvasPage() {
 
   const handleBoardPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (activeTool === 'pan') {
+      if (activeTool === 'select') {
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        finishEditing();
+        setConnectingFrom(null);
         dragRef.current = {
           mode: 'pan',
           startX: event.clientX,
@@ -556,6 +751,7 @@ export default function CanvasPage() {
           startOffsetX: viewRef.current.offsetX,
           startOffsetY: viewRef.current.offsetY,
         };
+        setIsPanning(true);
         return;
       }
 
@@ -569,6 +765,8 @@ export default function CanvasPage() {
         const x = snapEnabled ? snap(point.x, GRID_SIZE) : point.x;
         const y = snapEnabled ? snap(point.y, GRID_SIZE) : point.y;
         addNode(activeTool, x, y);
+        setActiveTool('select');
+        setConnectingFrom(null);
         return;
       }
 
@@ -588,7 +786,7 @@ export default function CanvasPage() {
       if (drag.mode === 'pan') {
         const dx = event.clientX - drag.startX;
         const dy = event.clientY - drag.startY;
-        setView({
+        applyViewState({
           offsetX: drag.startOffsetX + dx,
           offsetY: drag.startOffsetY + dy,
           scale: viewRef.current.scale,
@@ -597,6 +795,14 @@ export default function CanvasPage() {
       }
 
       if (drag.mode === 'move') {
+        if (!drag.moved) {
+          const deltaX = Math.abs(event.clientX - drag.startClientX);
+          const deltaY = Math.abs(event.clientY - drag.startClientY);
+          if (Math.max(deltaX, deltaY) < DRAG_THRESHOLD_PX) {
+            return;
+          }
+          drag.moved = true;
+        }
         const point = getBoardPoint(event.clientX, event.clientY);
         const dx = point.x - drag.startX;
         const dy = point.y - drag.startY;
@@ -613,6 +819,14 @@ export default function CanvasPage() {
       }
 
       if (drag.mode === 'resize') {
+        if (!drag.moved) {
+          const deltaX = Math.abs(event.clientX - drag.startClientX);
+          const deltaY = Math.abs(event.clientY - drag.startClientY);
+          if (Math.max(deltaX, deltaY) < DRAG_THRESHOLD_PX) {
+            return;
+          }
+          drag.moved = true;
+        }
         const point = getBoardPoint(event.clientX, event.clientY);
         const dx = point.x - drag.startX;
         const dy = point.y - drag.startY;
@@ -650,17 +864,33 @@ export default function CanvasPage() {
         }));
       }
     },
-    [getBoardPoint, snapEnabled, updateNode]
+    [applyViewState, getBoardPoint, snapEnabled, updateNode]
   );
 
   const handlePointerUp = useCallback(() => {
     const drag = dragRef.current;
     if (!drag) return;
-    if (drag.mode === 'move' || drag.mode === 'resize') {
+
+    if (drag.mode === 'move') {
+      if (drag.moved) {
+        pushHistory(drag.snapshot);
+      } else if (activeTool === 'select') {
+        const node = board.nodes.find((item) => item.id === drag.nodeId);
+        if (node) {
+          startEditing(node, board);
+        }
+      }
+    }
+
+    if (drag.mode === 'resize' && drag.moved) {
       pushHistory(drag.snapshot);
     }
+
+    if (drag.mode === 'pan') {
+      setIsPanning(false);
+    }
     dragRef.current = null;
-  }, [pushHistory]);
+  }, [activeTool, board, pushHistory, startEditing]);
 
   useEffect(() => {
     window.addEventListener('pointermove', handlePointerMove);
@@ -705,35 +935,117 @@ export default function CanvasPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [deleteSelection, finishEditing, redo, undo]);
 
-  const applyZoom = useCallback((nextScale: number, anchorX: number, anchorY: number) => {
-    const { offsetX, offsetY, scale } = viewRef.current;
-    const worldX = (anchorX - offsetX) / scale;
-    const worldY = (anchorY - offsetY) / scale;
-    const nextOffsetX = anchorX - worldX * nextScale;
-    const nextOffsetY = anchorY - worldY * nextScale;
-    setView({ offsetX: nextOffsetX, offsetY: nextOffsetY, scale: nextScale });
-  }, []);
+  const applyZoom = useCallback(
+    (nextScale: number, anchorX: number, anchorY: number) => {
+      const { offsetX, offsetY, scale } = viewRef.current;
+      const worldX = (anchorX - offsetX) / scale;
+      const worldY = (anchorY - offsetY) / scale;
+      const nextOffsetX = anchorX - worldX * nextScale;
+      const nextOffsetY = anchorY - worldY * nextScale;
+      applyViewState({ offsetX: nextOffsetX, offsetY: nextOffsetY, scale: nextScale });
+    },
+    [applyViewState]
+  );
 
   const zoomBy = useCallback(
     (delta: number) => {
       const rect = viewportRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const nextScale = clamp(viewRef.current.scale + delta, 0.5, 2.5);
+      const minScale = getMinScale();
+      const nextScale = clamp(viewRef.current.scale + delta, minScale, MAX_SCALE);
       applyZoom(nextScale, rect.width / 2, rect.height / 2);
     },
-    [applyZoom]
+    [applyZoom, getMinScale]
   );
 
-  const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const rect = viewportRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-    const delta = event.deltaY * -0.0012;
-    const nextScale = clamp(viewRef.current.scale + delta, 0.5, 2.5);
-    applyZoom(nextScale, mouseX, mouseY);
-  }, [applyZoom]);
+  const handleWheel = useCallback(
+    (event: WheelEvent) => {
+      if (event.cancelable) event.preventDefault();
+      const rect = viewportRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const panMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1;
+      const zoomMultiplier = event.deltaMode === 1 ? 12 : event.deltaMode === 2 ? 120 : 1;
+
+      if (event.ctrlKey || event.metaKey) {
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        const minScale = getMinScale();
+        const zoomFactor = Math.exp(-(event.deltaY * zoomMultiplier) * 0.01);
+        const nextScale = clamp(viewRef.current.scale * zoomFactor, minScale, MAX_SCALE);
+        applyZoom(nextScale, mouseX, mouseY);
+        return;
+      }
+
+      const nextOffsetX = viewRef.current.offsetX - event.deltaX * panMultiplier;
+      const nextOffsetY = viewRef.current.offsetY - event.deltaY * panMultiplier;
+      applyViewState({
+        offsetX: nextOffsetX,
+        offsetY: nextOffsetY,
+        scale: viewRef.current.scale,
+      });
+    },
+    [applyViewState, applyZoom, getMinScale]
+  );
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const wheelListener = (event: WheelEvent) => handleWheel(event);
+    viewport.addEventListener('wheel', wheelListener, { passive: false });
+    return () => {
+      viewport.removeEventListener('wheel', wheelListener);
+    };
+  }, [handleWheel]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleGestureStart = (event: GestureEventLike) => {
+      if (event.cancelable) event.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      gestureBaseScaleRef.current = viewRef.current.scale;
+      const clientX =
+        typeof event.clientX === 'number' ? event.clientX : rect.left + rect.width / 2;
+      const clientY =
+        typeof event.clientY === 'number' ? event.clientY : rect.top + rect.height / 2;
+      gestureAnchorRef.current = { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const handleGestureChange = (event: GestureEventLike) => {
+      if (event.cancelable) event.preventDefault();
+      const baseScale = gestureBaseScaleRef.current ?? viewRef.current.scale;
+      const scaleDelta = typeof event.scale === 'number' ? event.scale : 1;
+      const minScale = getMinScale();
+      const nextScale = clamp(baseScale * scaleDelta, minScale, MAX_SCALE);
+      const rect = viewport.getBoundingClientRect();
+      const anchor = gestureAnchorRef.current ?? { x: rect.width / 2, y: rect.height / 2 };
+      applyZoom(nextScale, anchor.x, anchor.y);
+    };
+
+    const handleGestureEnd = (event: GestureEventLike) => {
+      if (event.cancelable) event.preventDefault();
+      gestureBaseScaleRef.current = null;
+      gestureAnchorRef.current = null;
+    };
+
+    // Safari trackpad pinch zoom emits gesture events.
+    viewport.addEventListener('gesturestart', handleGestureStart as EventListener, {
+      passive: false,
+    });
+    viewport.addEventListener('gesturechange', handleGestureChange as EventListener, {
+      passive: false,
+    });
+    viewport.addEventListener('gestureend', handleGestureEnd as EventListener, {
+      passive: false,
+    });
+    return () => {
+      viewport.removeEventListener('gesturestart', handleGestureStart as EventListener);
+      viewport.removeEventListener('gesturechange', handleGestureChange as EventListener);
+      viewport.removeEventListener('gestureend', handleGestureEnd as EventListener);
+    };
+  }, [applyZoom, getMinScale]);
 
   const handleExport = useCallback(
     (type: 'png' | 'pdf') => {
@@ -769,26 +1081,33 @@ export default function CanvasPage() {
         const from = nodeById.get(edge.from);
         const to = nodeById.get(edge.to);
         if (!from || !to) return;
-        const start = getNodeCenter(from);
-        const end = getNodeCenter(to);
-        const startX = start.x - minX;
-        const startY = start.y - minY;
-        const endX = end.x - minX;
-        const endY = end.y - minY;
+        const points = getEdgePoints(from, to, edge.kind);
+        const startX = points.start.x - minX;
+        const startY = points.start.y - minY;
+        const endX = points.end.x - minX;
+        const endY = points.end.y - minY;
 
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        const angle = Math.atan2(endY - startY, endX - startX);
-        const size = 10;
-        ctx.beginPath();
-        ctx.moveTo(endX, endY);
-        ctx.lineTo(endX - size * Math.cos(angle - Math.PI / 6), endY - size * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(endX - size * Math.cos(angle + Math.PI / 6), endY - size * Math.sin(angle + Math.PI / 6));
-        ctx.closePath();
-        ctx.fill();
+        if (edge.kind === 'arrow') {
+          const angle = Math.atan2(endY - startY, endX - startX);
+          const size = 10;
+          ctx.beginPath();
+          ctx.moveTo(endX, endY);
+          ctx.lineTo(
+            endX - size * Math.cos(angle - Math.PI / 6),
+            endY - size * Math.sin(angle - Math.PI / 6)
+          );
+          ctx.lineTo(
+            endX - size * Math.cos(angle + Math.PI / 6),
+            endY - size * Math.sin(angle + Math.PI / 6)
+          );
+          ctx.closePath();
+          ctx.fill();
+        }
       });
 
       board.nodes.forEach((node) => {
@@ -871,223 +1190,321 @@ export default function CanvasPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Canvas</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">Canvas</h1>
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600">
+              <span className={`h-2 w-2 rounded-full ${statusDotClass}`} />
+              <span>{statusLabel}</span>
+              {lastSavedAt ? (
+                <span className="text-gray-400">/ {formatTime(lastSavedAt)}</span>
+              ) : null}
+            </div>
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             Sketch ideas, connect flows, and keep a personal board saved to your account.
           </p>
           {loadError ? <p className="mt-2 text-sm text-rose-600">{loadError}</p> : null}
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600">
-          <span className={`h-2 w-2 rounded-full ${statusDotClass}`} />
-          <span>{statusLabel}</span>
-          {lastSavedAt ? <span className="text-gray-400">/ {formatTime(lastSavedAt)}</span> : null}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {(Object.keys(TOOL_LABELS) as Tool[]).map((tool) => (
-            <button
-              key={tool}
-              type="button"
-              onClick={() => {
-                setActiveTool(tool);
-                setConnectingFrom(null);
-              }}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                activeTool === tool
-                  ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
+        <div ref={exportMenuRef} className="relative z-30">
+          <Button
+            variant="primary"
+            size="sm"
+            className="border-blue-900 bg-blue-900 text-white hover:border-blue-800 hover:bg-blue-800 focus-visible:ring-blue-200"
+            onClick={() => setExportMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={exportMenuOpen}
+          >
+            Export
+          </Button>
+          {exportMenuOpen ? (
+            <div
+              role="menu"
+              className="absolute right-0 z-50 mt-2 w-40 rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-lg"
             >
-              {TOOL_LABELS[tool]}
-            </button>
-          ))}
-        </div>
-        <div className="h-8 w-px bg-gray-200" />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={undo} disabled={!canUndo}>
-            Undo
-          </Button>
-          <Button variant="outline" size="sm" onClick={redo} disabled={!canRedo}>
-            Redo
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSnapEnabled((prev) => !prev)}
-          >
-            Snap: {snapEnabled ? 'On' : 'Off'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => zoomBy(-0.1)}>
-            Zoom -
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => zoomBy(0.1)}>
-            Zoom +
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setView({ offsetX: 120, offsetY: 120, scale: 1 })}
-          >
-            Reset view
-          </Button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleExport('png')}>
-            Export PNG
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-            Export PDF
-          </Button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleExport('png');
+                  setExportMenuOpen(false);
+                }}
+                className="flex w-full cursor-pointer items-center px-3 py-2 text-gray-700 hover:bg-gray-50"
+              >
+                Export PNG
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleExport('pdf');
+                  setExportMenuOpen(false);
+                }}
+                className="flex w-full cursor-pointer items-center px-3 py-2 text-gray-700 hover:bg-gray-50"
+              >
+                Export PDF
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {notice ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
-          {notice}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {(Object.keys(TOOL_LABELS) as Tool[]).map((tool) => (
+              <button
+                key={tool}
+                type="button"
+                onClick={() => {
+                  setActiveTool(tool);
+                  setConnectingFrom(null);
+                }}
+                className={`cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium transition-colors transition-opacity ${
+                  activeTool === tool
+                    ? 'border-gray-900 bg-gray-900 text-white opacity-100 hover:border-gray-800 hover:bg-gray-800'
+                    : 'border-gray-200 bg-white text-gray-700 opacity-90 hover:border-slate-300 hover:bg-slate-100 hover:text-gray-900 hover:opacity-100'
+                }`}
+              >
+                {TOOL_LABELS[tool]}
+              </button>
+            ))}
+          </div>
+          <div className="h-8 w-px bg-gray-200" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={undo}
+              disabled={!canUndo}
+              className="opacity-80 transition-opacity hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:opacity-95"
+            >
+              Undo
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={redo}
+              disabled={!canRedo}
+              className="opacity-80 transition-opacity hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:opacity-95"
+            >
+              Redo
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSnapEnabled((prev) => !prev)}
+              className="opacity-80 transition-opacity hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:opacity-95"
+            >
+              Snap: {snapEnabled ? 'On' : 'Off'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => zoomBy(-0.1)}
+              className="opacity-80 transition-opacity hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:opacity-95"
+            >
+              Zoom -
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => zoomBy(0.1)}
+              className="opacity-80 transition-opacity hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:opacity-95"
+            >
+              Zoom +
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => applyViewState(DEFAULT_VIEW)}
+              className="opacity-80 transition-opacity hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 hover:opacity-95"
+            >
+              Reset view
+            </Button>
+          </div>
         </div>
-      ) : null}
 
-      <div className="rounded-2xl border-2 border-gray-800 bg-white p-4">
-        <div
-          ref={viewportRef}
-          className={`relative h-[640px] w-full overflow-hidden rounded-xl border border-gray-200 ${viewportCursor}`}
-          onPointerDown={handleBoardPointerDown}
-          onWheel={handleWheel}
-        >
+        {notice ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700">
+            {notice}
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl border-2 border-gray-800 bg-white p-4">
           <div
-            className="absolute left-0 top-0 origin-top-left"
-            style={{
-              width: CANVAS_WIDTH,
-              height: CANVAS_HEIGHT,
-              transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})`,
-            }}
+            ref={viewportRef}
+            className={`relative h-[640px] w-full overflow-hidden overscroll-contain rounded-xl border border-gray-200 bg-white ${viewportCursor}`}
+            onPointerDown={handleBoardPointerDown}
+            style={gridBackground}
           >
-            <div className="absolute inset-0" style={gridBackground} />
-            <svg
-              className="absolute inset-0"
-              width={CANVAS_WIDTH}
-              height={CANVAS_HEIGHT}
-              viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+            <div
+              className="absolute left-0 top-0 origin-top-left"
+              style={{
+                width: CANVAS_WIDTH,
+                height: CANVAS_HEIGHT,
+                transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})`,
+              }}
             >
-              <defs>
-                <marker
-                  id="arrow-head"
-                  markerWidth="8"
-                  markerHeight="8"
-                  refX="6"
-                  refY="3.5"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 7 3.5, 0 7" fill="#111827" />
-                </marker>
-              </defs>
-              {board.edges.map((edge) => {
-                const from = nodeMap.get(edge.from);
-                const to = nodeMap.get(edge.to);
-                if (!from || !to) return null;
-                const start = getNodeCenter(from);
-                const end = getNodeCenter(to);
-                const isSelected = edge.id === selectedEdgeId;
+              <svg
+                className="absolute inset-0"
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+              >
+                <defs>
+                  <marker
+                    id="arrow-head"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6"
+                    refY="3.5"
+                    orient="auto"
+                  >
+                    <polygon points="0 0, 7 3.5, 0 7" fill="#111827" />
+                  </marker>
+                </defs>
+                {board.edges.map((edge) => {
+                  const from = nodeMap.get(edge.from);
+                  const to = nodeMap.get(edge.to);
+                  if (!from || !to) return null;
+                  const points = getEdgePoints(from, to, edge.kind);
+                  const isSelected = edge.id === selectedEdgeId;
+                  const isArrow = edge.kind === 'arrow';
+                  return (
+                    <line
+                      key={edge.id}
+                      x1={points.start.x}
+                      y1={points.start.y}
+                      x2={points.end.x}
+                      y2={points.end.y}
+                      stroke={isSelected ? '#111827' : '#9CA3AF'}
+                      strokeWidth={isSelected ? 2.5 : 2}
+                      markerEnd={isArrow ? 'url(#arrow-head)' : undefined}
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        setSelectedEdgeId(edge.id);
+                        setSelectedNodeId(null);
+                        finishEditing();
+                      }}
+                    />
+                  );
+                })}
+              </svg>
+
+              {board.nodes.map((node) => {
+                const preset = NODE_PRESETS[node.type];
+                const isSelected = node.id === selectedNodeId;
+                const isEditing = node.id === editingNodeId;
+                const isCentered = node.type === 'rect' || node.type === 'diamond';
+                const hasText = node.text.trim().length > 0;
+                const diamondClip =
+                  node.type === 'diamond'
+                    ? { clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }
+                    : undefined;
+
                 return (
-                  <line
-                    key={edge.id}
-                    x1={start.x}
-                    y1={start.y}
-                    x2={end.x}
-                    y2={end.y}
-                    stroke={isSelected ? '#111827' : '#9CA3AF'}
-                    strokeWidth={isSelected ? 2.5 : 2}
-                    markerEnd="url(#arrow-head)"
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      setSelectedEdgeId(edge.id);
-                      setSelectedNodeId(null);
-                      finishEditing();
+                  <div
+                    key={node.id}
+                    onPointerDown={(event) => handleNodePointerDown(event, node)}
+                    onDoubleClick={() => {
+                      setSelectedNodeId(node.id);
+                      setSelectedEdgeId(null);
+                      startEditing(node, board);
                     }}
-                  />
+                    className={`absolute rounded-xl border-2 px-3 py-3 text-sm shadow-[0_4px_10px_rgba(148,163,184,0.3)] transition-colors ${
+                      preset.className
+                    } ${isSelected ? 'ring-2 ring-gray-900' : ''}`}
+                    style={{
+                      left: node.x,
+                      top: node.y,
+                      width: node.width,
+                      height: node.height,
+                      ...diamondClip,
+                    }}
+                  >
+                    {isEditing ? (
+                      <textarea
+                        ref={isEditing ? editorRef : null}
+                        value={node.text}
+                        onChange={(event) =>
+                          updateNode(node.id, (curr) => ({ ...curr, text: event.target.value }))
+                        }
+                        onBlur={finishEditing}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') finishEditing();
+                          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                            finishEditing();
+                          }
+                        }}
+                        className={[
+                          'h-full w-full resize-none bg-transparent text-sm text-gray-800 outline-none',
+                          'overflow-hidden whitespace-pre-wrap break-words',
+                          isCentered ? 'text-center' : 'text-left',
+                        ].join(' ')}
+                        autoFocus
+                      />
+                    ) : (
+                      <div
+                        className={[
+                          'h-full w-full overflow-hidden whitespace-pre-wrap break-words text-sm text-gray-800',
+                          isCentered ? 'flex items-center justify-center text-center' : 'text-left',
+                        ].join(' ')}
+                      >
+                        {hasText ? (
+                          <span>{node.text}</span>
+                        ) : (
+                          <span className="block h-0.5 w-16 animate-pulse rounded bg-gray-300/80" />
+                        )}
+                      </div>
+                    )}
+
+                    {isSelected && activeTool === 'select' ? (
+                      <>
+                        {(['nw', 'ne', 'sw', 'se'] as ResizeHandle[]).map((handle) => {
+                          const positionClass =
+                            handle === 'nw'
+                              ? 'left-1 top-1'
+                              : handle === 'ne'
+                                ? 'right-1 top-1'
+                                : handle === 'sw'
+                                  ? 'left-1 bottom-1'
+                                  : 'right-1 bottom-1';
+                          const cursorClass =
+                            handle === 'nw' || handle === 'se'
+                              ? 'cursor-nwse-resize'
+                              : 'cursor-nesw-resize';
+                          return (
+                            <button
+                              key={handle}
+                              type="button"
+                              onPointerDown={(event) =>
+                                handleResizePointerDown(event, node, handle)
+                              }
+                              className={`absolute ${positionClass} ${cursorClass} h-3 w-3 rounded-full border border-gray-600 bg-white`}
+                            />
+                          );
+                        })}
+                      </>
+                    ) : null}
+                  </div>
                 );
               })}
-            </svg>
-
-            {board.nodes.map((node) => {
-              const preset = NODE_PRESETS[node.type];
-              const isSelected = node.id === selectedNodeId;
-              const isEditing = node.id === editingNodeId;
-              const diamondClip =
-                node.type === 'diamond'
-                  ? { clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }
-                  : undefined;
-
-              return (
-                <div
-                  key={node.id}
-                  onPointerDown={(event) => handleNodePointerDown(event, node)}
-                  onDoubleClick={() => {
-                    setSelectedNodeId(node.id);
-                    setSelectedEdgeId(null);
-                    startEditing(node, board);
-                  }}
-                  className={`absolute rounded-xl border-2 px-3 py-3 text-sm shadow-sm transition-colors ${
-                    preset.className
-                  } ${isSelected ? 'ring-2 ring-gray-900' : ''}`}
-                  style={{ left: node.x, top: node.y, width: node.width, height: node.height, ...diamondClip }}
-                >
-                  {isEditing ? (
-                    <textarea
-                      value={node.text}
-                      onChange={(event) => updateNode(node.id, (curr) => ({ ...curr, text: event.target.value }))}
-                      onBlur={finishEditing}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') finishEditing();
-                        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                          finishEditing();
-                        }
-                      }}
-                      className="h-full w-full resize-none bg-transparent text-sm text-gray-800 outline-none"
-                    />
-                  ) : (
-                    <div className="h-full w-full whitespace-pre-wrap text-sm text-gray-800">
-                      {node.text || 'Untitled'}
-                    </div>
-                  )}
-
-                  {isSelected && activeTool === 'select' ? (
-                    <>
-                      {(['nw', 'ne', 'sw', 'se'] as ResizeHandle[]).map((handle) => {
-                        const positionClass =
-                          handle === 'nw'
-                            ? 'left-1 top-1'
-                            : handle === 'ne'
-                              ? 'right-1 top-1'
-                              : handle === 'sw'
-                                ? 'left-1 bottom-1'
-                                : 'right-1 bottom-1';
-                        return (
-                          <button
-                            key={handle}
-                            type="button"
-                            onPointerDown={(event) => handleResizePointerDown(event, node, handle)}
-                            className={`absolute ${positionClass} h-3 w-3 rounded-full border border-gray-600 bg-white`}
-                          />
-                        );
-                      })}
-                    </>
-                  ) : null}
-                </div>
-              );
-            })}
+            </div>
           </div>
-        </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
-          <div>
-            Tip: double-click a node to edit text. Use Delete/Backspace to remove selections.
-          </div>
-          <div className="flex items-center gap-3">
-            {connectingFrom ? <span>Connecting: select another node</span> : null}
-            <span>Zoom {Math.round(view.scale * 100)}%</span>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
+            <div>
+              Tip: drag or scroll to pan, pinch or ctrl+scroll to zoom, click a node to edit text.
+            </div>
+            <div className="flex items-center gap-3">
+              {connectingFrom ? (
+                <span>
+                  Connecting {connectingFrom.kind === 'arrow' ? 'arrow' : 'line'}: select another
+                  node
+                </span>
+              ) : null}
+              <span>Zoom {Math.round(view.scale * 100)}%</span>
+            </div>
           </div>
         </div>
       </div>

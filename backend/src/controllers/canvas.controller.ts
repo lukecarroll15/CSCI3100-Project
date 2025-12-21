@@ -28,11 +28,7 @@ function ensureSizeWithinLimit(data: unknown) {
   const raw = JSON.stringify(data);
   const bytes = Buffer.byteLength(raw, 'utf8');
   if (bytes > MAX_CANVAS_BYTES) {
-    throw new AppError(
-      413,
-      'CANVAS_TOO_LARGE',
-      `Canvas payload exceeds ${MAX_CANVAS_BYTES} bytes`
-    );
+    throw new AppError(413, 'CANVAS_TOO_LARGE', `Canvas payload exceeds ${MAX_CANVAS_BYTES} bytes`);
   }
 }
 
