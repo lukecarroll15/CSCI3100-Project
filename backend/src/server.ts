@@ -3,9 +3,11 @@ import mongoose from 'mongoose';
 import { createApp } from './app';
 import { env } from './config/env';
 import { connectDb } from './config/db';
+import { seedInitialActivationKey } from './config/seed';
 
 async function start() {
   await connectDb();
+  await seedInitialActivationKey();
 
   const app = createApp();
   const server = http.createServer(app);

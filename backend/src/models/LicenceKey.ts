@@ -9,6 +9,7 @@ const LicenceKeySchema = new Schema(
     maxUses: { type: Number, default: 5 },
     usesCount: { type: Number, default: 0 },
     revoked: { type: Boolean, default: false },
+    expiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

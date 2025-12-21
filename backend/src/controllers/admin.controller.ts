@@ -1,37 +1,35 @@
 import type { NextFunction, Request, Response } from 'express';
+import { z } from 'zod';
 import { LicenceKeyModel } from '../models/LicenceKey';
 import { UserModel } from '../models/User';
 import { AuditLogModel } from '../models/AuditLogs';
 import { AppError } from '../errors/AppError';
 import { Types } from 'mongoose';
-import { randomInt } from 'crypto';
+import { env } from '../config/env';
+import {
+  generateRandomAdminKey12,
+  getAdminKeyExpiryDate,
+  isValidAdminKeyFormat,
+  normalizeAdminKey,
+} from '../utils/adminKey';
 
-const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function formatKey12(raw: string): string {
-  const val = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  return `${val.slice(0, 4)}-${val.slice(4, 8)}-${val.slice(8, 12)}`;
-}
-
-function generateRandomKey12(): string {
-  let raw = '';
-  for (let i = 0; i < 12; i++) {
-    raw += ALPHABET[randomInt(ALPHABET.length)];
-  }
-  return formatKey12(raw);
-}
+const ActivateLicenceBodySchema = z.object({
+  code: z.string().trim().min(1, 'Missing activation code'),
+});
 
 async function generateUniqueLicenceKey(): Promise<string> {
   for (let i = 0; i < 5; i++) {
-    const code = generateRandomKey12();
+    const code = generateRandomAdminKey12();
     const exists = await LicenceKeyModel.exists({ key: code });
     if (!exists) {
+      const expiresAt = getAdminKeyExpiryDate(env.ADMIN_KEY_TTL_DAYS);
       await LicenceKeyModel.create({
         key: code,
         redeemed: false,
         usesCount: 0,
-        maxUses: 5,
+        maxUses: env.ADMIN_KEY_MAX_USES,
         revoked: false,
+        expiresAt,
       });
       return code;
     }
@@ -41,32 +39,41 @@ async function generateUniqueLicenceKey(): Promise<string> {
 
 export async function handleActivateLicence(req: Request, res: Response, next: NextFunction) {
   try {
-    const { code } = req.body as { code?: string };
-    if (!code || typeof code !== 'string') {
-      throw new AppError(400, 'INVALID_REQUEST', 'Missing activation code');
+    const parsed = ActivateLicenceBodySchema.parse(req.body);
+    const normalized = normalizeAdminKey(parsed.code);
+
+    // Strictly enforce the required format: AAAA-BBBB-CCCC
+    if (!isValidAdminKeyFormat(normalized)) {
+      throw new AppError(
+        400,
+        'INVALID_CODE_FORMAT',
+        'Admin key must match the format: AAAA-BBBB-CCCC'
+      );
     }
 
-    const normalized = code.trim().toUpperCase();
     const key = await LicenceKeyModel.findOne({ key: normalized });
 
     if (!key) {
       throw new AppError(400, 'INVALID_CODE', 'Invalid activation code');
     }
 
-    if (key.revoked) {
-      throw new AppError(400, 'KEY_REVOKED', 'This activation code has been revoked or exhausted');
-    }
-    const limit = typeof key.maxUses === 'number' && key.maxUses > 0 ? key.maxUses : 1;
-    if (key.redeemed || key.usesCount >= limit) {
-      throw new AppError(
-        400,
-        'MAX_USES_REACHED',
-        'This activation code has reached its maximum usage'
-      );
+    if (key.expiresAt && key.expiresAt.getTime() <= Date.now()) {
+      key.revoked = true;
+      await key.save();
+      throw new AppError(400, 'KEY_EXPIRED', 'This activation code has expired');
     }
 
-    if (key.redeemed) {
-      throw new AppError(400, 'ALREADY_REDEEMED', 'This activation code has already been used');
+    const limit =
+      typeof key.maxUses === 'number' && key.maxUses > 0
+        ? key.maxUses
+        : env.ADMIN_KEY_MAX_USES;
+    const exhausted = Boolean(key.revoked) || Boolean(key.redeemed) || key.usesCount >= limit;
+    if (exhausted) {
+      throw new AppError(
+        400,
+        'KEY_EXHAUSTED',
+        'This activation code has been revoked or exhausted'
+      );
     }
 
     const auth = req.auth;
@@ -139,13 +146,12 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
       throw new AppError(403, 'FORBIDDEN', 'Only admins can access this');
     }
 
-    // Get admin count and list
     const admins = await UserModel.find({ role: 'admin' }, 'displayName email').lean();
     const adminCount = admins.length;
 
-    // Get all valid activation keys with usage
+    const now = new Date();
     const validKeys = await LicenceKeyModel.find(
-      { redeemed: false, revoked: false },
+      { redeemed: false, revoked: false, $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
       'key usesCount maxUses createdAt'
     )
       .sort({ createdAt: -1 })
@@ -157,13 +163,18 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
         displayName: a.displayName,
         email: a.email,
       })),
-      activationKeys: validKeys.map((k) => ({
-        key: k.key,
-        usesCount: k.usesCount,
-        maxUses: k.maxUses,
-        remainingUses: (k.maxUses || 1) - k.usesCount,
-        createdAt: k.createdAt,
-      })),
+      activationKeys: validKeys.map((k) => {
+        const maxUses =
+          typeof k.maxUses === 'number' && k.maxUses > 0 ? k.maxUses : env.ADMIN_KEY_MAX_USES;
+        const usesCount = typeof k.usesCount === 'number' ? k.usesCount : 0;
+        return {
+          key: k.key,
+          usesCount,
+          maxUses,
+          remainingUses: Math.max(0, maxUses - usesCount),
+          createdAt: k.createdAt,
+        };
+      }),
     });
   } catch (err) {
     next(err);
