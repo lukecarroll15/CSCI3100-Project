@@ -36,6 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         localStorage.removeItem('isAdmin');
       },
+      refreshMe: async () => {
+        try {
+          const me = await authApi.getMe();
+          setUser(me);
+        } catch {
+          setUser(null);
+        }
+      },
     }),
     [user, loading]
   );

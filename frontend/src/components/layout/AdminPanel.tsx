@@ -4,11 +4,19 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { activateLicense } from '../../api/admin';
 import { useAuth } from '../../auth/useAuth';
+import { ApiRequestError } from '../../api/client';
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof ApiRequestError) return err.payload?.error?.message ?? err.message;
+  if (err instanceof Error) return err.message;
+  return 'Activation failed';
+}
 
 export default function AdminPanel() {
   const [adminKey, setAdminKey] = useState('');
-  const { user } = useAuth();
+  const { user, refreshMe } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     setIsAdmin(user?.role === 'admin');
@@ -32,26 +40,29 @@ export default function AdminPanel() {
       formatted += value[i];
     }
     setAdminKey(formatted);
+    // Clear any previous error when user edits the input
+    if (errorMsg) setErrorMsg('');
   };
 
   const handleActivate = async () => {
-    if (adminKey.length !== 14) {
-      alert('Please enter a valid admin key in the format: AAAA-BBBB-CCCC');
+    const codeToSubmit = adminKey;
+    if (codeToSubmit.length !== 14) {
+      setErrorMsg('Please enter a valid admin key in the format: AAAA-BBBB-CCCC');
       return;
     }
 
     setLoading(true);
+    // Clear input immediately so user can type a new key
+    setAdminKey('');
     try {
-      await activateLicense(adminKey);
-      // success: backend upgraded user's role
+      await activateLicense(codeToSubmit);
       localStorage.setItem('isAdmin', 'true');
       setIsAdmin(true);
+      setErrorMsg('');
       window.dispatchEvent(new CustomEvent('admin-change', { detail: true }));
-      alert('Admin access activated!');
-      // reload to refresh AuthProvider and TopBar with updated role
-      window.location.reload();
-    } catch (err: any) {
-      alert(err?.message || 'Activation failed');
+      await refreshMe(); 
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -66,6 +77,11 @@ export default function AdminPanel() {
         <label className="mb-1 block rounded border border-gray-500 bg-gray-50 p-1 text-xs">
           Admin Key (AAAA-BBBB-CCCC)
         </label>
+        {errorMsg && (
+          <div className="mb-2 text-xs font-semibold text-red-600">
+            {errorMsg}
+          </div>
+        )}
         <Input
           type="text"
           placeholder="Enter admin key"
