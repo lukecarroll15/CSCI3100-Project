@@ -3,187 +3,234 @@
 ## Document control
 
 - Document: TESTING
-- Version: 0.1
+- Version: 0.2
 - Status: Draft
-- Last updated: 2025-12-21
+- Last updated: 2025-12-22
 - Owner: Group 02
 
-## 1) Test objectives
+## 0) Quickstart (local)
 
-- Verify core authentication workflows (OTP and GitHub OAuth)
-- Validate error handling and session behavior
-- Provide evidence for the course audit trail
+1. Provision an admin key (recommended manual provisioning)
 
-## 2) Scope
+- Set in `backend/.env`: `ADMIN_KEY_AUTO_SEED=false`
+- Generate a key:
 
-In scope (current release):
+```bash
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
+```
 
-- Health endpoints
-- OTP auth APIs: `/auth/request-otp`, `/auth/verify-otp`, `/auth/logout`
-- Session cookie behavior
-- GitHub OAuth endpoints (manual)
-- Frontend login UI flows
-
-Out of scope (not implemented yet):
-
-- License management
-- Project/task management
-- Boards, attachments, dashboards
-
-## 3) Test strategy
-
-- Automated tests for backend logic and API responses
-- Manual tests for end-to-end auth flows
-- Negative tests for invalid/expired OTP and OAuth state
-
-## 4) Test environment
-
-- OS: macOS / Windows / Linux
-- Node: 20.x
-- Database: MongoDB (local or hosted)
-- Tools:
-  - Terminal
-  - Postman (manual API testing)
-  - Mailpit (optional, OTP inbox)
-
-## 5) Test data
-
-- Test email: `new@example.com`
-- Display name: `Test User`
-- OTP code: generated during test
-
-## 6) Entry and exit criteria
-
-Entry criteria:
-
-- Backend and frontend running
-- MongoDB accessible
-- `.env` configured
-
-Exit criteria:
-
-- All test cases executed
-- Failures recorded with evidence
-- Traceability updated
-
-## 7) Traceability (requirements -> tests)
-
-| Requirement ID | Description                        | Test case IDs                |
-| -------------- | ---------------------------------- | ---------------------------- |
-| FR-UM-1        | Sign up with OTP                   | TC-UM-01, TC-UM-02           |
-| FR-UM-2        | Login and logout                   | TC-UM-03, TC-UM-04, TC-UM-05 |
-| NFR-SEC-1      | Session security (httpOnly cookie) | TC-UM-04, TC-UM-05           |
-| NFR-SEC-2      | OTP invalid/expired handling       | TC-UM-06                     |
-| FR-OAUTH-1     | GitHub OAuth login                 | TC-OAUTH-02                  |
-| NFR-SEC-3      | OAuth state protection             | TC-OAUTH-03                  |
-
-## 8) Automated tests
-
-Run backend tests:
+2. Run automated tests
 
 ```bash
 npm run test:backend
 ```
 
-Current automated coverage:
+3. Run UI smoke tests
 
-- `GET /api/v1/health/live` returns HTTP 200
-- OTP validation and error handling (see `backend/src/test/*.test.ts`)
+```bash
+npm run dev
+```
 
-## 9) Manual test cases
+- Log in with OTP
+- Open **Admin Access**
+- Try invalid format -> expect format error
+- Try unknown key -> expect invalid key error
+- Try valid key -> expect Admin badge + Admin Dashboard button
 
-### OTP delivery note
+## 1) Test plan
 
-- With Mailpit:
-  - Start: `docker compose -f docker-compose.mailpit.yml up -d`
-  - UI: http://localhost:8025
-  - SMTP: localhost:1025
-- Without SMTP, OTP codes are printed to backend logs (development only).
+### 1.1 Objectives
 
-### TC-UM-01 Request OTP (signup)
+- Verify OTP and GitHub authentication flows.
+- Verify admin key activation policy (format, lookup, expiry, max uses).
+- Show server-side enforcement so UI bypasses do not grant admin.
+- Provide auditable evidence for course requirements.
+- Ensure documentation steps match observable behavior (docs are testable deliverables).
 
-- Preconditions: backend running; email not registered
-- Steps:
-  1. `POST /api/v1/auth/request-otp` with `{ "email": "new@example.com", "purpose": "signup" }`
-- Expected:
-  - HTTP 200
-  - OTP appears in Mailpit or backend logs
+### 1.2 Scope
 
-### TC-UM-02 Verify OTP (signup creates account)
+In scope (current release):
 
-- Preconditions: TC-UM-01 completed
-- Steps:
-  1. `POST /api/v1/auth/verify-otp` with `{ "email": "new@example.com", "code": "<otp>", "purpose": "signup", "displayName": "Test User" }`
-- Expected:
-  - HTTP 200
-  - Response includes `user`
-  - Session cookie set (httpOnly)
+- OTP auth APIs: `/auth/request-otp`, `/auth/verify-otp`, `/auth/logout`
+- GitHub OAuth login (manual)
+- Admin key activation and admin stats
+- Admin role UI indicators (badge, Admin Dashboard)
+- Health endpoints
 
-### TC-UM-03 Request OTP (login)
+Out of scope (not implemented yet):
 
-- Preconditions: account exists (created by TC-UM-02)
-- Steps:
-  1. `POST /api/v1/auth/request-otp` with `{ "email": "new@example.com", "purpose": "login" }`
-- Expected:
-  - HTTP 200
+- Key-file upload
+- Project/task management and board views
+- Attachments and dashboard data services
+- Attachment encryption at rest
+- Performance/load testing
 
-### TC-UM-04 Verify OTP (login success)
+### 1.3 Test levels and strategy
 
-- Preconditions: TC-UM-03 completed
-- Steps:
-  1. `POST /api/v1/auth/verify-otp` with `{ "email": "new@example.com", "code": "<otp>", "purpose": "login" }`
-- Expected:
-  - HTTP 200
-  - Session cookie set
+- Unit: validate admin key formatting and helper logic.
+- Integration: API endpoints with MongoDB (OTP + admin key endpoints).
+- System/UI: manual flows through the frontend.
+- Black-box tests for requirement behavior, white-box tests for edge cases.
 
-### TC-UM-05 Current user + logout
+### 1.4 Test design techniques
 
-- Preconditions: TC-UM-04 completed; client keeps cookies
-- Steps:
-  1. `GET /api/v1/users/me`
-  2. `POST /api/v1/auth/logout`
-  3. `GET /api/v1/users/me`
-- Expected:
-  - Step 1: HTTP 200
-  - Step 2: HTTP 200
-  - Step 3: HTTP 401
+- Equivalence classes (valid format vs invalid format vs unknown key).
+- Boundary values (empty input, max uses, expiry time).
+- Negative tests (invalid OTP, expired key, already admin).
+- Regression tests added when bugs are fixed.
 
-### TC-UM-06 Verify OTP (invalid/expired)
+### 1.5 Entry and exit criteria
 
-- Steps:
-  1. `POST /api/v1/auth/verify-otp` with wrong/expired code
-- Expected:
-  - HTTP 400 with error message
+Entry criteria:
 
-## 10) GitHub OAuth manual tests
+- Backend and frontend run locally.
+- MongoDB is reachable.
+- `.env` files are configured.
 
-### TC-OAUTH-01 Start OAuth (not configured)
+Exit criteria:
 
-- Preconditions: `GITHUB_CLIENT_ID` or `GITHUB_CLIENT_SECRET` not set
-- Steps:
-  1. Open `GET /api/v1/auth/github` in browser (or click "Continue with GitHub")
-- Expected:
-  - Redirect back to `/login` with an error that GitHub is not configured
+- All representative test cases executed.
+- Critical failures recorded with evidence.
+- Traceability updated.
 
-### TC-OAUTH-02 GitHub login success
+### 1.6 Tools
 
-- Preconditions: GitHub OAuth configured in `backend/.env`
-- Steps:
-  1. Click "Continue with GitHub"
-  2. Approve access on GitHub
-- Expected:
-  - Redirect to frontend home page
-  - Session cookie set
-  - User record created or updated in MongoDB with `githubId`
+- Automated: Node test runner + Supertest (backend tests).
+- Manual: browser + Mailpit (optional for OTP).
 
-### TC-OAUTH-03 OAuth state protection
+### 1.7 Schedule and resources
 
-- Steps:
-  1. Start OAuth, then modify the `state` query param in callback URL
-- Expected:
-  - Redirect back to `/login` with an OAuth state error
+- Run automated tests on every PR and before release.
+- Run UI smoke tests for admin access after key-policy changes.
 
-## 11) Test execution log
+## 2) Environment and test data
+
+- OS: macOS / Windows / Linux
+- Node: 20.x
+- Database: MongoDB (local or hosted)
+- Optional: Mailpit for OTP inbox
+
+Test users:
+
+- UserA: normal user
+- UserB: normal user, activates admin key
+
+Test admin key:
+
+- Example: `DEMO-KEYS-2025` (must match format `AAAA-BBBB-CCCC`)
+
+## 3) Admin key policy (source of truth)
+
+- Format: `AAAA-BBBB-CCCC` (12 alphanumeric characters, uppercased).
+- Max uses: `ADMIN_KEY_MAX_USES` (default 5).
+- Expiry: `ADMIN_KEY_TTL_DAYS` (default 30). Use `0` to disable expiry.
+- Auto-seed: `ADMIN_KEY_AUTO_SEED` (default true in dev). Runs only in non-production and only when no active key exists.
+- Manual provisioning:
+
+```bash
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
+```
+
+- Check a key in MongoDB:
+
+```bash
+cd backend
+node scripts/checkLicence.mjs DEMO-KEYS-2025
+```
+
+## 4) Coverage summary (course requirement)
+
+| Component                        | Covered? | How tested                                  | Notes                               |
+| -------------------------------- | -------- | ------------------------------------------- | ----------------------------------- |
+| OTP auth (request/verify/logout) | Yes      | `backend/src/test/auth.test.ts` + manual UI | Core auth path                      |
+| GitHub OAuth                     | Partial  | Manual tests in browser                     | Requires OAuth config               |
+| Admin key activation             | Yes      | `backend/src/test/admin.test.ts` + UI smoke | Format, unknown, expired, exhausted |
+| Admin role UI indicators         | Partial  | Manual UI tests                             | Server-side resource gating TBD     |
+| Key-file upload                  | No       | Not implemented                             | Future work                         |
+| Projects/tasks/boards            | No       | Not implemented                             | Future work                         |
+| Attachments + encryption         | No       | Not implemented                             | Future work                         |
+| Performance testing              | No       | Not implemented                             | Future work                         |
+
+## 5) Automated tests
+
+Run backend tests from repo root:
+
+```bash
+npm run test:backend
+```
+
+Test files:
+
+- `backend/src/test/admin.test.ts`
+- `backend/src/test/auth.test.ts`
+- `backend/src/test/health.test.ts`
+
+Note: tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
+
+## 6) Representative test cases
+
+### Admin key activation (licence/pro lock demo)
+
+| ID        | Type     | Steps                         | Expected                |
+| --------- | -------- | ----------------------------- | ----------------------- |
+| TC-LIC-01 | Positive | Submit valid key              | 200, user becomes admin |
+| TC-LIC-02 | Negative | Submit invalid format         | 400 INVALID_CODE_FORMAT |
+| TC-LIC-03 | Negative | Submit unknown key            | 400 INVALID_CODE        |
+| TC-LIC-04 | Negative | Submit expired key            | 400 KEY_EXPIRED         |
+| TC-LIC-05 | Negative | Submit exhausted key          | 400 KEY_EXHAUSTED       |
+| TC-LIC-06 | Negative | Submit key when already admin | 400 ALREADY_ADMIN       |
+| TC-LIC-07 | Security | GET admin stats as user       | 403 FORBIDDEN           |
+| TC-LIC-08 | Positive | GET admin stats as admin      | 200 with admin data     |
+
+### OTP authentication
+
+| ID       | Type     | Steps                    | Expected         |
+| -------- | -------- | ------------------------ | ---------------- |
+| TC-UM-01 | Positive | Request OTP (signup)     | 200 OTP issued   |
+| TC-UM-02 | Positive | Verify OTP (signup)      | 200 user created |
+| TC-UM-03 | Positive | Request OTP (login)      | 200 OTP issued   |
+| TC-UM-04 | Positive | Verify OTP (login)       | 200 session set  |
+| TC-UM-05 | Positive | Current user + logout    | 200 then 401     |
+| TC-UM-06 | Negative | Verify OTP wrong/expired | 400 OTP error    |
+
+### GitHub OAuth
+
+| ID          | Type     | Steps                      | Expected            |
+| ----------- | -------- | -------------------------- | ------------------- |
+| TC-OAUTH-01 | Negative | Start OAuth without config | Redirect with error |
+| TC-OAUTH-02 | Positive | OAuth login success        | Redirect to app     |
+| TC-OAUTH-03 | Security | Tamper OAuth state         | Redirect with error |
+
+## 7) Manual UI tests (end-to-end)
+
+UI-ADMIN-01 Admin Access UI:
+
+1. Log in as a normal user.
+2. Open **Admin Access** panel.
+3. Enter `ABC123` -> expect format error.
+4. Enter `AAAA-BBBB-CCCC` (unknown) -> expect invalid key error.
+5. Enter a valid key -> expect Admin badge and Admin Dashboard button.
+
+OTP UI:
+
+1. Sign up with OTP.
+2. Log out and log in again with OTP.
+3. Verify the session badge and access to protected pages.
+
+## 8) Troubleshooting
+
+- Key not accepted:
+  - Check format is `AAAA-BBBB-CCCC`.
+  - Use `node scripts/checkLicence.mjs <KEY>` to verify it exists.
+  - Ensure key is not revoked/exhausted/expired.
+- OTP not received:
+  - Start Mailpit or check backend logs in dev.
+- Tests failing with DB drop errors:
+  - Confirm backend test command uses `--test-concurrency=1`.
+
+## 9) Test execution log
 
 Record executions here (fill before submission):
 
@@ -191,16 +238,6 @@ Record executions here (fill before submission):
 | ---- | ------ | ----- | ------ | ------------- |
 |      |        |       |        |               |
 
-## 12) Known gaps and future tests
+## 10) Evidence storage
 
-- License management tests (not implemented yet)
-- Project/task features and board views (not implemented yet)
-- Performance testing and load testing (future)
-
-## 13) Evidence storage
-
-Store evidence under `docs/process/`:
-
-- Postman screenshots or collections
-- Mailpit screenshots
-- Console logs (sanitized)
+Store evidence under `docs/process/` and register it in `docs/process/EVIDENCE_INDEX.md`.

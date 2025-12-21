@@ -3,14 +3,14 @@
 ## Document control
 
 - Document: USER_MANUAL
-- Version: 0.1
+- Version: 0.2
 - Status: Draft
-- Last updated: 2025-12-21
+- Last updated: 2025-12-22
 - Owner: Group 02
 
 ## 1) Audience
 
-This manual is for end users who want to access TaskFlow in the current release (authentication only).
+This manual is for end users who want to access TaskFlow in the current release (authentication + admin access demo).
 
 ## 2) System requirements
 
@@ -52,21 +52,43 @@ If "Continue with GitHub" is available:
 
 If GitHub login is not configured, the UI shows an error and you can use OTP instead.
 
-## 7) Log out
+## 7) Admin Access (Activation Key)
+
+Admin access is enabled by entering a valid activation key.
+
+1. Sign in with OTP or GitHub.
+2. Open the **Admin Access** panel in the sidebar.
+3. Enter your activation key in the format `AAAA-BBBB-CCCC`.
+4. Click **Activate**.
+
+Expected result:
+
+- The Admin badge appears next to your name.
+- The Admin Dashboard button becomes available.
+
+For local testing, ask a maintainer for a key or generate one using the CLI:
+
+```bash
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
+```
+
+## 8) Log out
 
 Click **Log out** in the UI.
 
 Expected result: your session ends and you return to the login screen.
 
-## 8) Troubleshooting
+## 9) Troubleshooting
 
 - **No OTP received:** request a new code and check spam. In local dev, check Mailpit.
 - **OTP expired:** request a new code and retry.
 - **GitHub login failed:** retry; if the issue persists, use OTP login.
+- **Admin key rejected:** check the key format and ask for a valid key.
 
-## 9) Planned features (not in current release)
+## 10) Planned features (not in current release)
 
-- License management
+- Key-file upload
 - Project and task management
 - Kanban, calendar, timeline views
 - Attachments and dashboard
