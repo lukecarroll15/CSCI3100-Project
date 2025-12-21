@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "cross-env NODE_ENV=test MONGO_URI=mongodb://127.0.0.1:27017/taskflow_test SESSION_SECRET=test_secret_test_secret_test tsx --test --test-concurrency=1 src/test/*.test.ts",
-    "admin:key:generate": "node scripts/generateAdminKey.mjs"
+    "admin:key:generate": "node scripts/generateAdminKey.mjs",
+    "seed:tasks": "node scripts/seedTasks.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

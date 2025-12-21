@@ -315,22 +315,24 @@ export default function DashboardPage() {
   const hasResults = filteredToday.items.length > 0 || filteredYesterday.items.length > 0;
 
   return (
-    <div>
+    <div className="flex h-full flex-col overflow-hidden">
       <WelcomeHeader displayName={displayName} />
       <h2 className="mb-6 border-b-2 border-gray-800 pb-4 text-2xl font-bold">Activity Feed</h2>
       <SearchBar value={search} onChange={setSearch} />
       <FilterButtons activeFilter={filter} onFilterChange={setFilter} />
-      {hasResults ? (
-        <>
-          <ActivityGroup {...filteredToday} onNavigate={navigate} />
-          <ActivityGroup {...filteredYesterday} onNavigate={navigate} />
-        </>
-      ) : (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center text-gray-500">
-          No {filter === 'all' ? '' : filter + ' '}activity found
-          {search && ` matching "${search}"`}
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto">
+        {hasResults ? (
+          <>
+            <ActivityGroup {...filteredToday} onNavigate={navigate} />
+            <ActivityGroup {...filteredYesterday} onNavigate={navigate} />
+          </>
+        ) : (
+          <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center text-gray-500">
+            No {filter === 'all' ? '' : filter + ' '}activity found
+            {search && ` matching "${search}"`}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

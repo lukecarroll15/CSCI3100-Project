@@ -1,7 +1,8 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, useEffect } from 'react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import { useAuth } from '../auth/useAuth';
+import * as tasksApi from '../api/tasks';
 
 type Priority = 'high' | 'medium' | 'low';
 type Department = 'sales' | 'it' | 'finance' | 'marketing' | 'hr' | 'customer-service';
@@ -174,6 +175,7 @@ function TableView({
   onIncomplete,
   dateLabel = 'Due Date',
   getDate,
+  onOpenDetails,
 }: {
   filteredTasks: Task[];
   sortKey: SortKey;
@@ -187,6 +189,7 @@ function TableView({
   onIncomplete?: (task: Task) => void;
   dateLabel?: string;
   getDate?: (task: Task) => string;
+  onOpenDetails: (task: Task) => void;
 }) {
   const headers: Array<{ key: SortKey; label: string }> = [
     { key: 'name', label: 'Task Name' },
@@ -235,7 +238,7 @@ function TableView({
         {filteredTasks.map((task, i) => (
           <tr
             key={i}
-            onClick={() => alert('Would open task details')}
+            onClick={() => onOpenDetails(task)}
             className="cursor-pointer hover:bg-gray-50"
           >
             <td className="border-2 border-gray-300 p-4 text-sm">{task.name}</td>
@@ -308,11 +311,13 @@ function CalendarView({
   isAdmin,
   onComplete,
   onNonAdmin,
+  onOpenDetails,
 }: {
   filteredTasks: Task[];
   isAdmin: boolean;
   onComplete: (task: Task) => void;
   onNonAdmin?: () => void;
+  onOpenDetails: (task: Task) => void;
 }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -415,7 +420,7 @@ function CalendarView({
                     }`}
                   >
                     <button
-                      onClick={() => alert('Would open task details')}
+                      onClick={() => onOpenDetails(task)}
                       className="flex-1 text-left hover:bg-gray-100"
                     >
                       {task.name.length > 15 ? task.name.slice(0, 15) + '...' : task.name}
@@ -448,8 +453,10 @@ function CalendarView({
 
 export default function CalendarPage() {
   const { user } = useAuth();
-  const [tasksState, setTasksState] = useState<Task[]>(initialTasks);
-  const [completedTasksState, setCompletedTasksState] = useState<Task[]>([]);
+  const [tasksState, setTasksState] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [view, setView] = useState<ViewMode>('calendar');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<Department | 'all'>('all');
@@ -467,6 +474,43 @@ export default function CalendarPage() {
   const [showAssigneeSuggestions, setShowAssigneeSuggestions] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Load tasks from API
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const apiTasks = await tasksApi.getTasks();
+        // Map API tasks to our frontend format
+        const mapped: Task[] = apiTasks.map((t) => ({
+          id: t._id,
+          name: t.name,
+          date: new Date(t.dueDate).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+          priority: t.priority,
+          assignee: t.assignee,
+          department: t.department,
+          status: t.status,
+          description: t.description || undefined,
+          completedAt: t.completedAt
+            ? new Date(t.completedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : undefined,
+        }));
+        setTasksState(mapped);
+      } catch (err) {
+        console.error('Failed to load tasks:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTasks();
+  }, []);
+
   const assigneeMatches = useMemo(() => {
     const query = taskAssignee.trim().toLowerCase();
     if (query.length < 2) return [] as UserOption[];
@@ -480,9 +524,15 @@ export default function CalendarPage() {
       tasksState.filter((task) => {
         const priorityMatch = priorityFilter === 'all' || task.priority === priorityFilter;
         const deptMatch = departmentFilter === 'all' || task.department === departmentFilter;
-        return priorityMatch && deptMatch;
+        const isActive = task.status !== 'Completed';
+        return priorityMatch && deptMatch && isActive;
       }),
     [priorityFilter, departmentFilter, tasksState]
+  );
+
+  const completedTasks = useMemo(
+    () => tasksState.filter((task) => task.status === 'Completed'),
+    [tasksState]
   );
 
   const priorityWeight: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -544,7 +594,7 @@ export default function CalendarPage() {
     window.setTimeout(() => setAddTaskError(''), 2400);
   };
 
-  const handleAddTaskSubmit = (e: FormEvent) => {
+  const handleAddTaskSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!taskName.trim() || !taskPriority || !taskDate || !taskDepartment) {
@@ -558,32 +608,46 @@ export default function CalendarPage() {
       return;
     }
 
-    const formattedDate = parsedDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    try {
+      const newTask = await tasksApi.createTask({
+        name: taskName.trim(),
+        description: taskDescription.trim() || undefined,
+        priority: taskPriority,
+        department: taskDepartment,
+        assignee: taskAssignee.trim() || undefined,
+        dueDate: parsedDate.toISOString(),
+      });
 
-    const newTask: Task = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: taskName.trim(),
-      date: formattedDate,
-      priority: taskPriority,
-      assignee: taskAssignee.trim() || 'Unassigned',
-      department: taskDepartment,
-      status: 'Not Started',
-      description: taskDescription.trim() || undefined,
-    };
+      const formattedDate = new Date(newTask.dueDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
 
-    setTasksState((prev) => [...prev, newTask]);
-    setShowAddModal(false);
-    setTaskName('');
-    setTaskPriority('');
-    setTaskDate('');
-    setTaskDepartment('');
-    setTaskDescription('');
-    setTaskAssignee('');
-    setFormError('');
+      const mappedTask: Task = {
+        id: newTask._id,
+        name: newTask.name,
+        date: formattedDate,
+        priority: newTask.priority,
+        assignee: newTask.assignee,
+        department: newTask.department,
+        status: newTask.status,
+        description: newTask.description || undefined,
+      };
+
+      setTasksState((prev) => [...prev, mappedTask]);
+      setShowAddModal(false);
+      setTaskName('');
+      setTaskPriority('');
+      setTaskDate('');
+      setTaskDepartment('');
+      setTaskDescription('');
+      setTaskAssignee('');
+      setFormError('');
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      setFormError('Failed to create task. Please try again.');
+    }
   };
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -591,6 +655,8 @@ export default function CalendarPage() {
   const [completeError, setCompleteError] = useState('');
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [taskToRestore, setTaskToRestore] = useState<Task | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
   const handleMarkComplete = (task: Task) => {
     if (user?.role !== 'admin') return;
@@ -603,20 +669,32 @@ export default function CalendarPage() {
     window.setTimeout(() => setCompleteError(''), 2200);
   };
 
-  const confirmComplete = () => {
+  const confirmComplete = async () => {
     if (!taskToComplete) return;
-    const completedDate = new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    setTasksState((prev) => prev.filter((t) => t.id !== taskToComplete.id));
-    setCompletedTasksState((prev) => [
-      ...prev,
-      { ...taskToComplete, status: 'Completed', completedAt: completedDate },
-    ]);
-    setTaskToComplete(null);
-    setShowCompleteModal(false);
+
+    try {
+      await tasksApi.updateTask(taskToComplete.id, { status: 'Completed' });
+
+      const completedDate = new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      setTasksState((prev) =>
+        prev.map((t) =>
+          t.id === taskToComplete.id
+            ? { ...t, status: 'Completed' as const, completedAt: completedDate }
+            : t
+        )
+      );
+      setTaskToComplete(null);
+      setShowCompleteModal(false);
+    } catch (err) {
+      console.error('Failed to complete task:', err);
+      setCompleteError('Failed to mark task as complete. Please try again.');
+      window.setTimeout(() => setCompleteError(''), 2200);
+    }
   };
 
   const handleMarkIncomplete = (task: Task) => {
@@ -625,19 +703,53 @@ export default function CalendarPage() {
     setShowIncompleteModal(true);
   };
 
-  const confirmRestore = () => {
+  const confirmRestore = async () => {
     if (!taskToRestore) return;
-    setCompletedTasksState((prev) => prev.filter((t) => t.id !== taskToRestore.id));
-    setTasksState((prev) => [
-      ...prev,
-      { ...taskToRestore, status: 'Not Started' },
-    ]);
-    setTaskToRestore(null);
-    setShowIncompleteModal(false);
+
+    try {
+      await tasksApi.updateTask(taskToRestore.id, { status: 'Not Started' });
+
+      setTasksState((prev) =>
+        prev.map((t) =>
+          t.id === taskToRestore.id
+            ? { ...t, status: 'Not Started' as const, completedAt: undefined }
+            : t
+        )
+      );
+      setTaskToRestore(null);
+      setShowIncompleteModal(false);
+    } catch (err) {
+      console.error('Failed to restore task:', err);
+      setCompleteError('Failed to restore task. Please try again.');
+      window.setTimeout(() => setCompleteError(''), 2200);
+    }
+  };
+
+  const handleDeleteTask = (task: Task) => {
+    if (user?.role !== 'admin') return;
+    setTaskToDelete(task);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      await tasksApi.deleteTask(taskToDelete.id);
+      setTasksState((prev) => prev.filter((t) => t.id !== taskToDelete.id));
+      setTaskToDelete(null);
+      setShowDeleteModal(false);
+      setShowTaskModal(false);
+      setSelectedTask(null);
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      setCompleteError('Failed to delete task. Please try again.');
+      window.setTimeout(() => setCompleteError(''), 2200);
+    }
   };
 
   return (
-    <div>
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between border-b-2 border-gray-800 pb-4">
         <h1 className="text-3xl">Calendar & Tasks</h1>
@@ -726,8 +838,9 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Views */}
-      {view === 'table' ? (
+      {/* Views - Scrollable Container */}
+      <div className="flex-1 overflow-y-auto">
+        {view === 'table' ? (
         <TableView
           filteredTasks={sortedTasks}
           sortKey={sortKey}
@@ -736,6 +849,10 @@ export default function CalendarPage() {
           isAdmin={user?.role === 'admin'}
           onComplete={handleMarkComplete}
           onNonAdmin={handleNonAdminAttempt}
+          onOpenDetails={(task) => {
+            setSelectedTask(task);
+            setShowTaskModal(true);
+          }}
         />
       ) : view === 'calendar' ? (
         <CalendarView
@@ -743,10 +860,14 @@ export default function CalendarPage() {
           isAdmin={user?.role === 'admin'}
           onComplete={handleMarkComplete}
           onNonAdmin={handleNonAdminAttempt}
+          onOpenDetails={(task) => {
+            setSelectedTask(task);
+            setShowTaskModal(true);
+          }}
         />
       ) : (
         <TableView
-          filteredTasks={completedTasksState}
+          filteredTasks={completedTasks}
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
@@ -758,8 +879,19 @@ export default function CalendarPage() {
           onNonAdmin={handleNonAdminAttempt}
           dateLabel="Completion Date"
           getDate={(t) => t.completedAt ?? t.date}
+          onOpenDetails={(task) => {
+            setSelectedTask(task);
+            setShowTaskModal(true);
+          }}
         />
       )}
+
+      {loading && (
+        <div className="flex items-center justify-center p-8">
+          <div className="text-lg text-gray-600">Loading tasks...</div>
+        </div>
+      )}
+      </div>
 
       {/* Add Task Button */}
       <button
@@ -780,6 +912,97 @@ export default function CalendarPage() {
       {completeError && (
         <div className="fixed bottom-40 right-12 rounded-md border-2 border-yellow-500 bg-white px-4 py-2 text-sm font-semibold text-yellow-700 shadow-lg">
           {completeError}
+        </div>
+      )}
+
+      {showTaskModal && selectedTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="animate-modal-in w-full max-w-xl rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">Task Details</h3>
+              <button
+                onClick={() => {
+                  setShowTaskModal(false);
+                  setSelectedTask(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-2 py-1 text-sm font-semibold hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="font-semibold">Task Name</div>
+                  <div>{selectedTask.name}</div>
+                </div>
+                <div>
+                  <div className="font-semibold">{selectedTask.status === 'Completed' ? 'Completion Date' : 'Due Date'}</div>
+                  <div>{selectedTask.status === 'Completed' ? selectedTask.completedAt ?? selectedTask.date : selectedTask.date}</div>
+                </div>
+                <div>
+                  <div className="font-semibold">Priority</div>
+                  <div>
+                    <Badge variant={selectedTask.priority}>{selectedTask.priority.toUpperCase()}</Badge>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold">Department</div>
+                  <div className="capitalize">{selectedTask.department.replace('-', ' ')}</div>
+                </div>
+                <div>
+                  <div className="font-semibold">Assigned To</div>
+                  <div>{selectedTask.assignee}</div>
+                </div>
+                <div>
+                  <div className="font-semibold">Status</div>
+                  <div>{selectedTask.status}</div>
+                </div>
+              </div>
+              {selectedTask.description && (
+                <div>
+                  <div className="mb-1 font-semibold">Description</div>
+                  <div className="whitespace-pre-wrap break-words text-gray-700">
+                    {selectedTask.description}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    handleDeleteTask(selectedTask);
+                  }}
+                  className="mr-auto rounded-md border-2 border-red-600 bg-red-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-700"
+                >
+                  Delete Task
+                </button>
+              )}
+              {user?.role === 'admin' && selectedTask.status !== 'Completed' && (
+                <button
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    setTaskToComplete(selectedTask);
+                    setShowCompleteModal(true);
+                  }}
+                  className="rounded-md border-2 border-gray-900 bg-green-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-green-700"
+                >
+                  Mark Complete
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowTaskModal(false);
+                  setSelectedTask(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -992,7 +1215,7 @@ export default function CalendarPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold">Mark Incomplete</h3>
+              <h3 className="text-xl font-bold">Revert Completion</h3>
               <button
                 onClick={() => {
                   setShowIncompleteModal(false);
@@ -1004,7 +1227,7 @@ export default function CalendarPage() {
               </button>
             </div>
             <p className="mb-4 text-sm">
-              Are you sure you want to mark <span className="font-semibold">{taskToRestore.name}</span> as incomplete and restore it?
+              Are you sure you want to revert the completion of <span className="font-semibold">{taskToRestore.name}</span>?
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -1020,7 +1243,46 @@ export default function CalendarPage() {
                 onClick={confirmRestore}
                 className="rounded-md border-2 border-gray-900 bg-red-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-700"
               >
-                Yes, restore task
+                Yes, revert completion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && taskToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">Delete Task</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setTaskToDelete(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-2 py-1 text-sm font-semibold hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+            <p className="mb-4 text-sm">
+              Are you sure you want to permanently delete <span className="font-semibold">{taskToDelete.name}</span>? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setTaskToDelete(null);
+                }}
+                className="rounded-md border-2 border-gray-400 px-4 py-2 text-sm font-semibold hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="rounded-md border-2 border-red-600 bg-red-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-700"
+              >
+                Yes, delete task
               </button>
             </div>
           </div>
