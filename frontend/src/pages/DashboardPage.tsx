@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../auth/useAuth';
+
+const SEARCH_STORAGE_KEY = 'dashboard_search';
 
 type Priority = 'high' | 'medium' | 'low';
 type FilterType = 'all' | 'tasks' | 'files' | 'messages';
@@ -218,6 +220,45 @@ function filterItems(items: ActivityItemData[], filter: FilterType): ActivityIte
   return items.filter((item) => icons.includes(item.icon));
 }
 
+function searchItems(items: ActivityItemData[], query: string): ActivityItemData[] {
+  if (!query.trim()) return items;
+  const lowerQuery = query.toLowerCase();
+  return items.filter(
+    (item) =>
+      item.title.toLowerCase().includes(lowerQuery) ||
+      item.description.toLowerCase().includes(lowerQuery) ||
+      item.meta.some((m) => m.toLowerCase().includes(lowerQuery))
+  );
+}
+
+type SearchBarProps = {
+  value: string;
+  onChange: (value: string) => void;
+};
+
+function SearchBar({ value, onChange }: SearchBarProps) {
+  return (
+    <div className="relative mb-6">
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search activities..."
+        className="w-full rounded-lg border-2 border-gray-300 bg-white py-3 pl-12 pr-4 text-base transition-colors focus:border-gray-800 focus:outline-none"
+      />
+      {value && (
+        <button
+          onClick={() => onChange('')}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
 type FilterButtonsProps = {
   activeFilter: FilterType;
   onFilterChange: (filter: FilterType) => void;
@@ -288,14 +329,21 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const displayName = user?.displayName ?? 'there';
   const [filter, setFilter] = useState<FilterType>('all');
+  const [search, setSearch] = useState(() => {
+    return localStorage.getItem(SEARCH_STORAGE_KEY) ?? '';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SEARCH_STORAGE_KEY, search);
+  }, [search]);
 
   const filteredToday = {
     ...activityData.today,
-    items: filterItems(activityData.today.items, filter),
+    items: searchItems(filterItems(activityData.today.items, filter), search),
   };
   const filteredYesterday = {
     ...activityData.yesterday,
-    items: filterItems(activityData.yesterday.items, filter),
+    items: searchItems(filterItems(activityData.yesterday.items, filter), search),
   };
 
   const hasResults = filteredToday.items.length > 0 || filteredYesterday.items.length > 0;
@@ -304,6 +352,7 @@ export default function DashboardPage() {
     <div>
       <WelcomeHeader displayName={displayName} />
       <h2 className="mb-6 border-b-2 border-gray-800 pb-4 text-2xl font-bold">Activity Feed</h2>
+      <SearchBar value={search} onChange={setSearch} />
       <FilterButtons activeFilter={filter} onFilterChange={setFilter} />
       {hasResults ? (
         <>
@@ -312,7 +361,8 @@ export default function DashboardPage() {
         </>
       ) : (
         <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center text-gray-500">
-          No {filter} activity found
+          No {filter === 'all' ? '' : filter + ' '}activity found
+          {search && ` matching "${search}"`}
         </div>
       )}
     </div>
