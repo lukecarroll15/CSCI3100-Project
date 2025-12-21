@@ -4,18 +4,26 @@ import { UserModel } from '../models/User';
 import { AuditLogModel } from '../models/AuditLogs';
 import { AppError } from '../errors/AppError';
 import { Types } from 'mongoose';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 
+const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-  function formatKey12(raw: string): string {
-    const val = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
-    return `${val.slice(0, 4)}-${val.slice(4, 8)}-${val.slice(8, 12)}`;
+function formatKey12(raw: string): string {
+  const val = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return `${val.slice(0, 4)}-${val.slice(4, 8)}-${val.slice(8, 12)}`;
+}
+
+function generateRandomKey12(): string {
+  let raw = '';
+  for (let i = 0; i < 12; i++) {
+    raw += ALPHABET[randomInt(ALPHABET.length)];
   }
-  
- async function generateUniqueLicenceKey(): Promise<string> {
+  return formatKey12(raw);
+}
+
+async function generateUniqueLicenceKey(): Promise<string> {
   for (let i = 0; i < 5; i++) {
-    const raw = randomBytes(9).toString('base64url');
-    const code = formatKey12(raw);
+    const code = generateRandomKey12();
     const exists = await LicenceKeyModel.exists({ key: code });
     if (!exists) {
       await LicenceKeyModel.create({
@@ -62,6 +70,14 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
 
+    const user = await UserModel.findById(auth.userId);
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    if (user.role === 'admin') {
+      throw new AppError(400, 'ALREADY_ADMIN', 'Account already has admin privileges');
+    }
+
     // increment usage for this activation
     key.usesCount += 1;
     key.usedBy = new Types.ObjectId(auth.userId);
@@ -82,10 +98,8 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
     await key.save();
 
     // upgrade user role to admin
-    const user = await UserModel.findByIdAndUpdate(auth.userId, { role: 'admin' }, { new: true });
-    if (!user) {
-      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    }
+    user.role = 'admin';
+    await user.save();
 
     // audit
     await AuditLogModel.create({
