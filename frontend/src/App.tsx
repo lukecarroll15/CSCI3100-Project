@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CalendarPage from './pages/CalendarPage';
 import FilesPage from './pages/FilesPage';
+import CanvasPage from './pages/CanvasPage';
 import { RequireAuth } from './auth/RequireAuth';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/files" element={<FilesPage />} />
+          <Route path="/canvas" element={<CanvasPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

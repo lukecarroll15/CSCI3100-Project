@@ -5,6 +5,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: '🏠' },
   { path: '/calendar', label: 'Calendar', icon: '📅' },
   { path: '/files', label: 'Files', icon: '📁' },
+  { path: '/canvas', label: 'Canvas', icon: '🧩' },
 ];
 
 export default function Sidebar({ children }: { children?: React.ReactNode }) {
