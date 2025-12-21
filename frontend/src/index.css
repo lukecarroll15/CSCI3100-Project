@@ -33,6 +33,17 @@
       transform: translate(-14%, -16%) scale(0.94);
     }
   }
+
+  @keyframes modal-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.9) translateY(-20px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
 }
 
 @layer components {
@@ -71,6 +82,10 @@
       radial-gradient(circle at 60% 90%, rgb(251 191 36 / 0.28), transparent 42%),
       radial-gradient(circle at 35% 60%, rgb(244 114 182 / 0.24), transparent 42%);
     animation: orbit-glow 12s ease-in-out infinite;
+  }
+
+  .animate-modal-in {
+    animation: modal-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
