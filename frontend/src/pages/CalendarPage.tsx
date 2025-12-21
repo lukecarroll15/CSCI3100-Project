@@ -179,42 +179,106 @@ function TableView({ filteredTasks }: { filteredTasks: Task[] }) {
 }
 
 function CalendarView({ filteredTasks }: { filteredTasks: Task[] }) {
-  const calendarDays = useMemo(() => Array.from({ length: 21 }, (_, i) => i + 10), []);
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+  const currentDay = today.getDate();
+
+  // Get first day of month and number of days in month
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Create array of just the days in the month (no padding)
+  const calendarDays = useMemo(() => {
+    const days: number[] = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+    return days;
+  }, [year, month]);
+
   const getTasksForDay = (day: number) => filteredTasks.filter((t) => t.day === day);
 
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
+
   return (
-    <div className="grid grid-cols-7 gap-3 rounded-lg border-2 border-gray-800 bg-gray-50 p-5">
-      {dayHeaders.map((d) => (
-        <div
-          key={d}
-          className="rounded-md border-2 border-gray-500 bg-gray-200 p-3 text-center font-bold"
+    <div className="space-y-4">
+      {/* Month Navigation */}
+      <div className="flex items-center justify-between rounded-lg border-2 border-gray-800 bg-gray-50 p-4">
+        <button
+          onClick={handlePrevMonth}
+          className="rounded-md border-2 border-gray-500 bg-white px-4 py-2 font-semibold hover:bg-gray-100"
         >
-          {d}
-        </div>
-      ))}
-      {calendarDays.map((day) => {
-        const dayTasks = getTasksForDay(day);
-        return (
-          <div key={day} className="min-h-28 rounded-lg border-2 border-gray-500 bg-white p-3">
-            <div className="mb-2 border-b-2 border-gray-300 pb-2 font-bold">{day}</div>
-            {dayTasks.map((task, i) => (
+          ← Previous
+        </button>
+        <h2 className="text-2xl font-bold">{monthName}</h2>
+        <button
+          onClick={handleNextMonth}
+          className="rounded-md border-2 border-gray-500 bg-white px-4 py-2 font-semibold hover:bg-gray-100"
+        >
+          Next →
+        </button>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="rounded-lg border-2 border-gray-800 bg-gray-50 p-5">
+        <div className="grid grid-cols-7 gap-3">
+          {calendarDays.map((day) => {
+            const isToday = isCurrentMonth && day === currentDay;
+            const dayTasks = getTasksForDay(day);
+            const dayOfWeek = new Date(year, month, day).toLocaleDateString('en-US', {
+              weekday: 'short',
+            });
+
+            return (
               <div
-                key={i}
-                onClick={() => alert('Would open task details')}
-                className={`mb-1 cursor-pointer rounded border-2 p-2 text-xs hover:bg-gray-100 ${
-                  task.priority === 'high'
-                    ? 'border-red-600'
-                    : task.priority === 'medium'
-                      ? 'border-orange-500'
-                      : 'border-green-600'
+                key={day}
+                className={`min-h-28 rounded-lg border-2 p-3 ${
+                  isToday ? 'border-blue-600 bg-blue-50' : 'border-gray-500 bg-white'
                 }`}
               >
-                {task.name.length > 15 ? task.name.slice(0, 15) + '...' : task.name}
+                <div
+                  className={`mb-2 flex items-center justify-between border-b-2 pb-2 ${
+                    isToday ? 'border-blue-600' : 'border-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`font-bold ${isToday ? 'text-blue-600' : 'text-gray-800'}`}
+                  >
+                    {day}
+                  </div>
+                  <div className="text-xs font-light text-gray-500">{dayOfWeek}</div>
+                </div>
+                {dayTasks.map((task, i) => (
+                  <div
+                    key={i}
+                    onClick={() => alert('Would open task details')}
+                    className={`mb-1 cursor-pointer rounded border-2 p-2 text-xs hover:bg-gray-100 ${
+                      task.priority === 'high'
+                        ? 'border-red-600'
+                        : task.priority === 'medium'
+                          ? 'border-orange-500'
+                          : 'border-green-600'
+                    }`}
+                  >
+                    {task.name.length > 15 ? task.name.slice(0, 15) + '...' : task.name}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -262,20 +326,68 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <FilterSection
-        label="Filter by Priority:"
-        options={priorities}
-        active={priorityFilter}
-        onChange={(value) => setPriorityFilter(value)}
-        colorMap={priorityColors}
-      />
-      <FilterSection
-        label="Filter by Department:"
-        options={departments}
-        active={departmentFilter}
-        onChange={(value) => setDepartmentFilter(value)}
-      />
+      {/* Filters - Combined on one row */}
+      <div className="mb-6 flex gap-6 rounded-lg border-2 border-gray-500 bg-gray-50 p-5">
+        {/* Priority Filter */}
+        <div className="flex flex-1 items-center gap-4">
+          <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">Filter by Priority:</div>
+          <div className="flex flex-wrap gap-2">
+            {priorities.map((opt) => {
+              const isActive = priorityFilter === opt;
+              let borderColor = 'border-gray-500';
+              let bgColor = isActive ? 'bg-gray-200' : 'bg-white hover:bg-gray-100';
+              let textColor = '';
+
+              if (opt === 'high') {
+                borderColor = 'border-red-600';
+                bgColor = isActive ? 'bg-red-100' : 'bg-white hover:bg-red-50';
+                textColor = isActive ? 'text-red-700' : 'text-red-600';
+              } else if (opt === 'medium') {
+                borderColor = 'border-orange-500';
+                bgColor = isActive ? 'bg-orange-100' : 'bg-white hover:bg-orange-50';
+                textColor = isActive ? 'text-orange-700' : 'text-orange-600';
+              } else if (opt === 'low') {
+                borderColor = 'border-green-600';
+                bgColor = isActive ? 'bg-green-100' : 'bg-white hover:bg-green-50';
+                textColor = isActive ? 'text-green-700' : 'text-green-600';
+              }
+
+              return (
+                <button
+                  key={opt}
+                  onClick={() => setPriorityFilter(opt)}
+                  className={`cursor-pointer rounded-md border-2 px-3 py-1 text-sm transition-colors ${borderColor} ${bgColor} ${textColor} ${isActive ? 'font-bold' : ''}`}
+                >
+                  {opt === 'all' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Department Filter */}
+        <div className="flex flex-1 items-center gap-4">
+          <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">Filter by Department:</div>
+          <div className="flex flex-wrap gap-2">
+            {departments.map((opt) => {
+              const isActive = departmentFilter === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => setDepartmentFilter(opt)}
+                  className={`cursor-pointer rounded-md border-2 px-3 py-1 text-sm transition-colors ${
+                    isActive
+                      ? 'border-gray-500 bg-gray-200 font-bold'
+                      : 'border-gray-500 bg-white hover:bg-gray-100'
+                  }`}
+                >
+                  {opt === 'all' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1).replace('-', ' ')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Views */}
       {view === 'table' ? (
