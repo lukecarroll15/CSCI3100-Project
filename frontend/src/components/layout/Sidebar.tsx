@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import AdminPanel from './AdminPanel';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '🏠' },
@@ -28,6 +29,7 @@ export default function Sidebar({ children }: { children?: React.ReactNode }) {
           </NavLink>
         ))}
       </nav>
+      <AdminPanel />
       {children}
     </aside>
   );
