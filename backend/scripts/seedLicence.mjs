@@ -9,17 +9,23 @@ if (!keyArg) {
 }
 const key = String(keyArg).trim().toUpperCase();
 
+function formatKey12(raw) {
+  const val = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
+  return `${val.slice(0, 4)}-${val.slice(4, 8)}-${val.slice(8, 12)}`;
+ }
+
 async function run() {
   await mongoose.connect(uri, {});
   const col = mongoose.connection.collection('licencekeys');
-  const existing = await col.findOne({ key });
+  const formatted = formatKey12(keyArg);
+  const existing = await col.findOne({ key: formatted });
   if (existing) {
     console.log('Key already exists:', key);
     await mongoose.disconnect();
     return;
   }
-  const res = await col.insertOne({ key, redeemed: false, createdAt: new Date() });
-  console.log('Inserted licence key:', key, 'id:', res.insertedId.toString());
+  const res = await col.insertOne({ key: formatted, redeemed: false, createdAt: new Date() });
+  console.log('Inserted licence key:', formatted, 'id:', res.insertedId.toString());
   await mongoose.disconnect();
 }
 
