@@ -1,95 +1,104 @@
-# CSCI3100 Project (TaskFlow) — Monorepo
+# TaskFlow (CSCI3100 Software Engineering Project)
 
-Jira-like web application for CSCI3100 Software Engineering.
+TaskFlow is a Jira-like web app for managing projects and tasks. This repo is the course project deliverable for CSCI3100 Software Engineering.
 
-## Tech Stack
+## Why TaskFlow (differentiator)
 
-- Frontend: React + Vite + Tailwind CSS (minimal shadcn/ui where helpful)
-- Backend: Node.js + Express + TypeScript
-- Database: MongoDB (local dev; hosted DB allowed for demo)
+- Passwordless access with OTP and optional GitHub OAuth.
+- Explicit admin key activation with expiry/max-uses (pro lock demo).
+- Auditable testing evidence to show security and access control are real, not just UI.
 
-## Repository Structure
+## Current scope (Release 0.1)
 
-- `frontend/` — UI
-- `backend/` — API server
-- `docs/` — course deliverables and process evidence
+Implemented in this release:
 
-## Prerequisites
+- Email OTP sign up, login, logout
+- Optional GitHub OAuth login
+- Session-based authentication and current-user endpoint
+- Admin key activation (format, lookup, expiry, max uses)
+- Admin role UI indicators (badge, Admin Dashboard)
+- Health check endpoints
 
-- Node.js 20 (see `.nvmrc`)
-- npm
-- MongoDB (local) OR MongoDB Atlas connection string
+Planned (not implemented yet):
 
-Verify:
+- Key-file upload
+- Project and task management
+- Multi-view boards (list, kanban, calendar, timeline)
+- Attachments and dashboard features
+
+## Course requirement coverage (status)
+
+- Global database: MongoDB (done)
+- User interface: React UI (done for auth)
+- User management: signup/login/logout (done)
+- License management: admin activation key (partial; key-file upload not implemented)
+- Application-specific features (n-1 features): planned for later releases
+
+## Quickstart (local development)
+
+1. Install dependencies
 
 ```bash
-node -v
-```
-
-## Setup (first time)
-
-```bash
-git clone <your-repo-url>
-cd CSCI3100-Project
 npm run install:all
 ```
 
-## Environment files
-
-Backend:
+2. Configure environment files
 
 ```bash
 cp backend/.env.example backend/.env
-```
-
-Frontend (only if your frontend requires env):
-
-```bash
 cp frontend/.env.example frontend/.env
 ```
 
-Do NOT commit `.env` files.
+3. Edit `backend/.env`
 
-## Run (development)
+- Set `MONGO_URI`
+- Set `SESSION_SECRET` (>= 20 characters)
+
+4. Run the system
 
 ```bash
 npm run dev
 ```
 
-Frontend: [http://localhost:5173](http://localhost:5173)
-Backend: [http://localhost:5001](http://localhost:5001)
+- Frontend: http://localhost:5173
+- Backend: http://localhost:5001
 
-## OTP email testing (Mailpit)
+Full setup guide: `docs/ENVIRONMENT.md`
 
-TaskFlow uses email-based OTP login. For local development, you can run **Mailpit** to capture outgoing OTP emails in a local inbox.
+## Testing
 
-Start Mailpit:
-
-```bash
-docker compose -f docker-compose.mailpit.yml up -d
-```
-
-Open the Mailpit inbox:
-
-- UI: http://localhost:8025
-- SMTP: localhost:1025
-
-Then set backend SMTP env (see `backend/.env.example`) and request a login code from the Login page.
-
-## Build
+- Full test plan and cases: `docs/TESTING.md`
+- Backend tests:
 
 ```bash
-npm run build
+npm run test:backend
 ```
 
-## Code style / quality
+- Admin key provisioning (manual):
 
 ```bash
-npm run format
-npm run format:check
-npm run lint
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
 ```
 
-## Course deliverables
+## Documentation index
 
-See `docs/DELIVERABLES.md` for how repo docs map to submission PDFs.
+- Deliverables map: `docs/DELIVERABLES.md`
+- Environment/setup: `docs/ENVIRONMENT.md`
+- Testing plan/results: `docs/TESTING.md`
+- User manual: `docs/USER_MANUAL.md`
+- Release notes: `docs/RELEASE_NOTES.md`
+- Attribution/AI usage: `docs/ATTRIBUTION.md`
+- Team and contributions: `docs/TEAM.md`
+- Process evidence: `docs/process/README.md`
+- Traceability matrix: `docs/TRACEABILITY.md`
+
+## Process and quality
+
+- Team workflow: `CONTRIBUTING.md`
+- Evidence and audit trail: `docs/process/`
+
+## Notes
+
+- Do not commit secrets. Keep `.env` files local.
+- Features listed as "planned" are documented in the SRS but not yet implemented.

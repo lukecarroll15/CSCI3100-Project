@@ -13,13 +13,14 @@ export default function AppLayout({ sidebarExtra }: { sidebarExtra?: React.React
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-100">
+    <div className="flex h-screen flex-col overflow-hidden bg-gray-100">
       <TopBar
         userName={user?.displayName || user?.email || 'User'}
+        userRole={(user?.role as 'user' | 'admin') ?? 'user'}
         companyName={(import.meta.env.VITE_APP_NAME as string | undefined) ?? 'TaskFlow'}
         onLogout={handleLogout}
       />
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar>{sidebarExtra}</Sidebar>
         <main className="flex-1 overflow-y-auto bg-white p-10">
           <Outlet />

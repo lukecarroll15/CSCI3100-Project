@@ -1,18 +1,39 @@
-# Environment Configuration
+# Environment Configuration (Developer Setup)
 
-Goal: a teammate/TA can set up and run the system from scratch.
+## Document control
 
-## 1) Node version
+- Document: ENVIRONMENT
+- Version: 0.2
+- Status: Draft
+- Last updated: 2025-12-22
+- Owner: Group 02
 
-Use Node 20 (see `.nvmrc`).
+## 1) Purpose
 
-Verify:
+This document enables a teammate or TA to set up and run TaskFlow from scratch. Follow the steps in order.
+
+## 2) Supported authentication methods
+
+- Email OTP (default)
+- GitHub OAuth (optional)
+
+## 3) Prerequisites
+
+System requirements:
+
+- OS: macOS, Windows, or Linux
+- Node.js 20.x (see `.nvmrc`)
+- npm
+- MongoDB (local) or MongoDB Atlas
+- Optional: Docker Desktop (for Mailpit)
+
+Verify Node:
 
 ```bash
 node -v
 ```
 
-## 2) Install dependencies
+## 4) Install dependencies
 
 From repo root:
 
@@ -20,7 +41,7 @@ From repo root:
 npm run install:all
 ```
 
-## 3) Backend environment
+## 5) Backend environment variables
 
 Create local backend env:
 
@@ -28,35 +49,59 @@ Create local backend env:
 cp backend/.env.example backend/.env
 ```
 
-Minimum fields to check in `backend/.env`:
+Minimum required values in `backend/.env`:
 
-- `PORT` (default `5001`)
-- `CORS_ORIGIN` (default `http://localhost:5173`)
-- `MONGO_URI` (MongoDB connection string)
-- `SESSION_SECRET` (long random string, >= 20 chars)
+| Variable       | Required | Example                            | Notes                     |
+| -------------- | -------- | ---------------------------------- | ------------------------- |
+| PORT           | no       | 5001                               | Default 5001              |
+| CORS_ORIGIN    | no       | http://localhost:5173              | Must match frontend URL   |
+| MONGO_URI      | yes      | mongodb://localhost:27017/taskflow | MongoDB connection string |
+| SESSION_SECRET | yes      | <random 20+ chars>                 | Use a long random string  |
 
-SF-UM (OTP login) settings:
+### OTP policy (optional overrides)
 
-- `OTP_LENGTH` (default `6`)
-- `OTP_EXPIRES_MS` (default `600000`)
-- `OTP_RESEND_COOLDOWN_MS` (default `30000`)
-- `OTP_MAX_ATTEMPTS` (default `5`)
-- `OTP_BCRYPT_ROUNDS` (default `10`)
-- You can also use legacy seconds-based fields (`OTP_TTL_SECONDS`, `OTP_RESEND_COOLDOWN_SECONDS`, `OTP_MAX_VERIFY_ATTEMPTS`); the app will derive ms values from them if the ms-based vars are unset.
+| Variable               | Default | Description                    |
+| ---------------------- | ------- | ------------------------------ |
+| OTP_LENGTH             | 6       | Digits in OTP code             |
+| OTP_EXPIRES_MS         | 600000  | OTP validity in ms             |
+| OTP_RESEND_COOLDOWN_MS | 30000   | Minimum time between OTP sends |
+| OTP_MAX_ATTEMPTS       | 5       | Max invalid attempts           |
+| OTP_BCRYPT_ROUNDS      | 10      | Hash cost for OTP storage      |
 
-Email delivery (OTP):
+### Admin key policy (licence/pro lock demo)
 
-- If SMTP is configured (`SMTP_HOST`, `SMTP_PORT`, etc.), OTP will be sent by email.
-- If SMTP is NOT configured, the backend will print OTP codes to backend logs (development convenience).
+| Variable            | Default | Description                                      |
+| ------------------- | ------- | ------------------------------------------------ |
+| ADMIN_KEY_AUTO_SEED | true    | Auto-seed one key in dev if none exists          |
+| ADMIN_KEY_MAX_USES  | 5       | How many users can redeem a key                  |
+| ADMIN_KEY_TTL_DAYS  | 30      | Days until key expiry (0 disables expiry)        |
+| INITIAL_ADMIN_KEY   | unset   | If valid and no active key exists, seed this key |
 
-Login vs signup rules:
+Provision an admin key manually (recommended for testing):
 
-- Login OTP can only be requested for existing accounts.
-- Signup OTP requires an unused email; verifying the signup OTP creates the account and signs the user in.
+```bash
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
+```
 
-#### Recommended: Mailpit (local SMTP + inbox)
+Keys must match format `AAAA-BBBB-CCCC` (12 alphanumeric chars).
 
-For local development/testing, we recommend using **Mailpit** so OTP emails are sent via SMTP and can be viewed in a local inbox.
+Check a key in the database:
+
+```bash
+cd backend
+node scripts/checkLicence.mjs DEMO-KEYS-2025
+```
+
+Auto-seed runs only in non-production and only when no active key exists.
+
+### Email delivery for OTP
+
+Option A: Configure SMTP (recommended)
+
+- Set `SMTP_HOST`, `SMTP_PORT`, and credentials in `backend/.env`.
+
+Option B: Mailpit (local SMTP + inbox)
 
 1. Start Mailpit:
 
@@ -68,12 +113,49 @@ docker compose -f docker-compose.mailpit.yml up -d
 
 - http://localhost:8025
 
-3. Configure backend SMTP in `backend/.env` (example values in `backend/.env.example`):
+3. Configure backend SMTP in `backend/.env`:
 
-- `SMTP_HOST=127.0.0.1`
-- `SMTP_PORT=1025`
+```
+SMTP_HOST=127.0.0.1
+SMTP_PORT=1025
+```
 
-## 4) Run (development)
+If SMTP is not configured, the backend prints OTPs to server logs (development only).
+
+### GitHub OAuth (optional)
+
+GitHub login is enabled only when these env vars are set:
+
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `GITHUB_CALLBACK_URL` (default `http://localhost:5001/api/v1/auth/github/callback`)
+- `FRONTEND_URL` (default `http://localhost:5173`)
+
+Create a local OAuth App:
+
+1. GitHub -> Settings -> Developer settings -> OAuth Apps -> New OAuth App
+2. Use:
+   - Application name: TaskFlow (Local)
+   - Homepage URL: http://localhost:5173
+   - Authorization callback URL: http://localhost:5001/api/v1/auth/github/callback
+3. Copy Client ID and Client Secret into `backend/.env`.
+
+## 6) Frontend environment variables
+
+Create local frontend env:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+Common fields:
+
+| Variable              | Required | Example                                  | Notes             |
+| --------------------- | -------- | ---------------------------------------- | ----------------- |
+| VITE_API_BASE_URL     | yes      | http://localhost:5001/api/v1             | Backend API base  |
+| VITE_GITHUB_OAUTH_URL | no       | http://localhost:5001/api/v1/auth/github | Optional override |
+
+## 7) Run the system (development)
 
 From repo root:
 
@@ -81,49 +163,32 @@ From repo root:
 npm run dev
 ```
 
-Frontend: `http://localhost:5173`
-Backend: `http://localhost:5001`
+Endpoints:
 
-## 5) Health checks
+- Frontend: http://localhost:5173
+- Backend: http://localhost:5001
 
-Base API prefix is `/api/v1`.
+## 8) Verify the system
 
-- Liveness: `GET http://localhost:5001/api/v1/health/live`
-- Readiness: `GET http://localhost:5001/api/v1/health/ready`
+Health checks:
 
-## 6) SF-UM API endpoints (backend)
+- `GET http://localhost:5001/api/v1/health/live`
+- `GET http://localhost:5001/api/v1/health/ready`
 
-### Request OTP
+Auth checks:
 
-`POST http://localhost:5001/api/v1/auth/request-otp`
+- Request OTP: `POST /api/v1/auth/request-otp`
+- Verify OTP: `POST /api/v1/auth/verify-otp`
+- Current user: `GET /api/v1/users/me`
 
-Body:
+Admin checks:
 
-```json
-{ "email": "user@example.com" }
-```
+- Activate key: `POST /api/v1/admin/activate`
+- Admin stats: `GET /api/v1/admin/stats`
 
-### Verify OTP (creates session cookie)
+## 9) Troubleshooting
 
-`POST http://localhost:5001/api/v1/auth/verify-otp`
-
-Body:
-
-```json
-{ "email": "user@example.com", "code": "123456" }
-```
-
-### Current user (requires cookie session)
-
-`GET http://localhost:5001/api/v1/users/me`
-
-### Logout
-
-`POST http://localhost:5001/api/v1/auth/logout`
-
-## 7) Troubleshooting
-
-### EADDRINUSE (port 5001 already in use)
+### Port in use (5001)
 
 ```bash
 lsof -i :5001
@@ -132,9 +197,18 @@ kill -9 <PID>
 
 Or change `PORT` in `backend/.env` and restart.
 
-### Formatting
+### CORS / cookies not working
 
-```bash
-npm run format
-npm run format:check
-```
+- Ensure `CORS_ORIGIN` matches the frontend URL
+- Ensure frontend requests send cookies (`credentials: "include"`)
+- Use `http://localhost` consistently
+
+### GitHub login shows "not configured"
+
+Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `backend/.env`.
+
+## 10) Security notes
+
+- Never commit `.env` files.
+- Rotate secrets if they leak.
+- OTP logs are for development only.

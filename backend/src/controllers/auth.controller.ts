@@ -52,7 +52,7 @@ export async function handleVerifyOtp(req: Request, res: Response, next: NextFun
     type WithId = { _id: { toString(): string } };
     const userId = (user as unknown as WithId)._id.toString();
 
-    setSessionCookie(res, { userId, email: user.email });
+    setSessionCookie(res, { userId, email: user.email, role: user.role });
     res.json({
       user: { id: userId, email: user.email, displayName: user.displayName, role: user.role },
     });
@@ -139,7 +139,7 @@ export async function handleGithubCallback(req: Request, res: Response, next: Ne
       displayName,
     });
 
-    setSessionCookie(res, { userId: String(user._id), email: user.email });
+    setSessionCookie(res, { userId: String(user._id), email: user.email, role: user.role });
 
     const okUrl = new URL('/', env.FRONTEND_URL);
     res.redirect(okUrl.toString());

@@ -14,6 +14,8 @@
   - [ ] `npm run lint`
   - [ ] `npm run test`
   - [ ] `npm run build`
+- Docs checks:
+  - [ ] `docs/TESTING.md` updated if test policy or admin key behavior changed
 - Manual checks (if applicable):
 
 ## Screenshots (UI changes)

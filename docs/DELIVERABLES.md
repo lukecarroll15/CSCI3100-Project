@@ -1,23 +1,51 @@
 # Deliverables Map (Course)
 
-This file maps repository documentation to the course submission PDFs.
+This file maps repository documents to the course submission PDFs and to the project requirements. Update this file before each submission.
 
-## Submission PDFs (place final PDFs into `docs/submission/`)
+## 1) Course deliverables (R1)
 
-- Group02_Requirements_Specification.pdf
-- Group02_Design_Implementation.pdf
-- Group02_Testing.pdf
-- Group02_Release_Notes_User_Manual.pdf
+- R1.1 Requirements Specification
+  - PDF: `docs/submission/Group02_Requirements_Specification.pdf`
+  - Source: `Project/Ref/SC2 - Requirements Specifications.md` (team master copy)
+- R1.2 Design and Implementation
+  - PDF: `docs/submission/Group02_Design_Implementation.pdf`
+  - Source: `Project/Ref/SC2 - Design Implementation.md` (team master copy)
+- R1.3 Testing
+  - PDF: `docs/submission/Group02_Testing.pdf`
+  - Source: `docs/TESTING.md`
+- R1.4 Release Notes and User Manual
+  - PDF: `docs/submission/Group02_Release_Notes_User_Manual.pdf`
+  - Source: `docs/RELEASE_NOTES.md` + `docs/USER_MANUAL.md`
 
-## Working sources (repo docs used to draft the PDFs)
+## 2) Auditable process (R5)
 
-- docs/TESTING.md → source for Group02_Testing.pdf
-- docs/RELEASE_NOTES.md + docs/USER_MANUAL.md → source for Group02_Release_Notes_User_Manual.pdf
+- Evidence location: `docs/process/`
+- Required items:
+  - Meeting minutes
+  - Decision log updates
+  - Testing evidence (screenshots/logs)
+  - Links to GitHub issues and PRs
 
-## Process evidence (recommended)
+## 3) Source control (R6)
 
-Store audit/process evidence under `docs/process/`:
+- GitHub repository with history: branches, commits, PRs
+- Release tags (recommended): `v0.1.0`, `v0.2.0`, etc.
 
-- meeting minutes
-- decision log
-- links to GitHub Issues / PRs used
+## 4) Internal supporting docs (not submitted as PDFs)
+
+- `docs/ENVIRONMENT.md`
+- `docs/ATTRIBUTION.md`
+- `docs/TEAM.md`
+- `docs/TRACEABILITY.md`
+- `docs/README.md`
+
+## 5) Final submission checklist
+
+- [ ] All PDFs are updated and named correctly in `docs/submission/`
+- [ ] Docs are accurate to the current release scope
+- [ ] Requirement IDs match the SRS
+- [ ] Tests include plan, cases, and results with evidence
+- [ ] User manual matches visible behavior of the product
+- [ ] Release notes list added/changed/fixed/known issues
+- [ ] AI usage and third-party attributions are complete
+- [ ] Process evidence is present and linked

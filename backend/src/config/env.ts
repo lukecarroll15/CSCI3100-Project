@@ -53,6 +53,13 @@ const EnvSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(1000),
 
+  ADMIN_KEY_MAX_USES: z.coerce.number().int().positive().default(5),
+  ADMIN_KEY_TTL_DAYS: z.coerce.number().int().nonnegative().default(30),
+  ADMIN_KEY_AUTO_SEED: z
+    .string()
+    .default('true')
+    .transform((v) => v === 'true'),
+
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 

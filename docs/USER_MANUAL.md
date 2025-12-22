@@ -1,60 +1,94 @@
 # User Manual (SC3)
 
-## 1) Accessing the system
+## Document control
 
-- Frontend URL (dev): `http://localhost:5173`
-- Backend URL (dev): `http://localhost:5001`
+- Document: USER_MANUAL
+- Version: 0.2
+- Status: Draft
+- Last updated: 2025-12-22
+- Owner: Group 02
 
-## 2) Log in (OTP)
+## 1) Audience
 
-TaskFlow uses email-based one-time password (OTP) login.
+This manual is for end users who want to access TaskFlow in the current release (authentication + admin access demo).
 
-### Sign up (first-time users)
+## 2) System requirements
 
-1. Choose **Sign up**.
-2. Enter your email (and optional display name) and request a code.
-3. Enter the OTP from email/Mailpit.
-4. Submit to create the account and sign in.
+- Modern web browser (Chrome, Edge, Firefox, Safari)
+- Internet access
+- For local development: http://localhost:5173
 
-### Intended UI flow (frontend)
+## 3) Accessing the system
 
-1. Choose **Log in** (for existing accounts) or **Sign up** (new users).
-2. Enter your email and click “Send code”.
-3. Enter the OTP from email.
-4. Click “Log in” (existing) or “Create Account” (signup).
+- Web URL (dev): http://localhost:5173
 
-### Developer note (when SMTP is not configured)
+## 4) Sign up (Email OTP)
 
-If SMTP is not configured, OTP codes are printed to backend logs for development/testing.
+1. Click **Sign up**.
+2. Enter your email and optional display name.
+3. Click **Send code**.
+4. Check your email inbox for the OTP.
+   - In local development, OTP emails may be delivered to Mailpit.
+5. Enter the OTP and submit.
 
-### Developer note (recommended for local testing): Mailpit
+Expected result: your account is created and you are signed in.
 
-When running locally, you can use Mailpit to capture outgoing OTP emails in a local inbox:
+## 5) Log in (Email OTP)
 
-1. Start Mailpit:
+1. Click **Log in**.
+2. Enter the email you used to sign up.
+3. Click **Send code**.
+4. Enter the OTP and submit.
+
+Expected result: you are signed in.
+
+## 6) Log in (GitHub)
+
+If "Continue with GitHub" is available:
+
+1. Click **Continue with GitHub**.
+2. Approve the OAuth request in GitHub.
+3. You are redirected back to TaskFlow and signed in.
+
+If GitHub login is not configured, the UI shows an error and you can use OTP instead.
+
+## 7) Admin Access (Activation Key)
+
+Admin access is enabled by entering a valid activation key.
+
+1. Sign in with OTP or GitHub.
+2. Open the **Admin Access** panel in the sidebar.
+3. Enter your activation key in the format `AAAA-BBBB-CCCC`.
+4. Click **Activate**.
+
+Expected result:
+
+- The Admin badge appears next to your name.
+- The Admin Dashboard button becomes available.
+
+For local testing, ask a maintainer for a key or generate one using the CLI:
 
 ```bash
-docker compose -f docker-compose.mailpit.yml up -d
+cd backend
+npm run admin:key:generate -- DEMO-KEYS-2025
 ```
 
-2. Open the inbox UI:
+## 8) Log out
 
-- http://localhost:8025
+Click **Log out** in the UI.
 
-3. Configure backend SMTP (`backend/.env`) to use Mailpit:
+Expected result: your session ends and you return to the login screen.
 
-- `SMTP_HOST=127.0.0.1`
-- `SMTP_PORT=1025`
+## 9) Troubleshooting
 
-## 3) Log out
+- **No OTP received:** request a new code and check spam. In local dev, check Mailpit.
+- **OTP expired:** request a new code and retry.
+- **GitHub login failed:** retry; if the issue persists, use OTP login.
+- **Admin key rejected:** check the key format and ask for a valid key.
 
-Click “Log out” in the UI (to be connected), which calls:
+## 10) Planned features (not in current release)
 
-- `POST /api/v1/auth/logout`
-
-## 4) Troubleshooting
-
-- If login fails, request a new OTP and retry.
-- If the backend is not ready, check:
-  - `GET /api/v1/health/ready`
-  - MongoDB connection string in `backend/.env`
+- Key-file upload
+- Project and task management
+- Kanban, calendar, timeline views
+- Attachments and dashboard

@@ -1,21 +1,41 @@
-# Meeting Minutes
+# Meeting Minutes - YYYY-MM-DD
 
-Date:
-Attendees:
-Duration:
+## Meeting info
+
+- Date:
+- Time:
+- Location/Mode:
+- Chair:
+- Note taker:
+
+## Attendees
+
+-
 
 ## Agenda
 
 -
 
-## Updates (by member)
+## Progress since last meeting
 
 -
 
-## Decisions
+## Decisions made
 
 -
 
-## Action Items
+## Blockers / risks
 
-- [ ] (Owner) Task - Due date
+-
+
+## Action items
+
+| Owner | Task | Due date | Notes |
+| ----- | ---- | -------- | ----- |
+|       |      |          |       |
+
+## Links
+
+- GitHub issues:
+- PRs:
+- Other:

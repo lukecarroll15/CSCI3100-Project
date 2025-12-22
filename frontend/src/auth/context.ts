@@ -12,6 +12,7 @@ export type AuthContextValue = {
     displayName?: string
   ) => Promise<User>;
   logout: () => Promise<void>;
+  refreshMe: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

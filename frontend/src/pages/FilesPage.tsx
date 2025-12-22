@@ -1,8 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import mammoth from 'mammoth';
 import { useAuth } from '../auth/useAuth';
 import { listFiles, uploadFile, deleteFile, getDownloadUrl, type FileItem } from '../api/files';
-import { listFolders, createFolder, deleteFolder, listAllFolders, type FolderItem } from '../api/folders';
+import {
+  listFolders,
+  createFolder,
+  deleteFolder,
+  listAllFolders,
+  type FolderItem,
+} from '../api/folders';
 import { listDepartments, createDepartment, type Department } from '../api/departments';
 import Button from '../components/ui/Button';
 import FilePreviewModal from '../components/files/FilePreviewModal';
@@ -16,15 +22,15 @@ function buildFolderTree(folders: FolderItem[]): FolderNode[] {
   const roots: FolderNode[] = [];
 
   // Initialize map
-  folders.forEach(f => {
-    map.set(f._id, { ...f, children: [] });
+  folders.forEach((folder) => {
+    map.set(folder._id, { ...folder, children: [] });
   });
 
   // Build tree
-  folders.forEach(f => {
-    const node = map.get(f._id)!;
-    if (f.parentFolder && map.has(f.parentFolder)) {
-      map.get(f.parentFolder)!.children.push(node);
+  folders.forEach((folder) => {
+    const node = map.get(folder._id)!;
+    if (folder.parentFolder && map.has(folder.parentFolder)) {
+      map.get(folder.parentFolder)!.children.push(node);
     } else {
       roots.push(node);
     }
@@ -33,14 +39,14 @@ function buildFolderTree(folders: FolderItem[]): FolderNode[] {
   return roots;
 }
 
-function FolderTreeItem({ 
-  node, 
-  currentFolderId, 
-  onSelect 
-}: { 
-  node: FolderNode; 
-  currentFolderId: string | null; 
-  onSelect: (folder: FolderNode) => void; 
+function FolderTreeItem({
+  node,
+  currentFolderId,
+  onSelect,
+}: {
+  node: FolderNode;
+  currentFolderId: string | null;
+  onSelect: (folder: FolderNode) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isSelected = currentFolderId === node._id;
@@ -48,33 +54,35 @@ function FolderTreeItem({
 
   return (
     <div className="select-none">
-      <div 
-        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors cursor-pointer ${
+      <div
+        className={`flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors ${
           isSelected ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-100'
         }`}
         onClick={() => onSelect(node)}
       >
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
             setExpanded(!expanded);
           }}
-          className={`flex h-6 w-6 items-center justify-center rounded hover:bg-neutral-200/50 ${hasChildren ? 'visible' : 'invisible'}`}
+          className={`flex h-6 w-6 items-center justify-center rounded hover:bg-neutral-200/50 ${
+            hasChildren ? 'visible' : 'invisible'
+          }`}
         >
           <span className="text-[10px]">{expanded ? '▼' : '▶'}</span>
         </button>
         <span className="text-lg">📁</span>
         <span className="truncate">{node.name}</span>
       </div>
-      
+
       {expanded && hasChildren && (
         <div className="ml-3 border-l border-neutral-200 pl-1">
-          {node.children.map(child => (
-            <FolderTreeItem 
-              key={child._id} 
-              node={child} 
-              currentFolderId={currentFolderId} 
-              onSelect={onSelect} 
+          {node.children.map((child) => (
+            <FolderTreeItem
+              key={child._id}
+              node={child}
+              currentFolderId={currentFolderId}
+              onSelect={onSelect}
             />
           ))}
         </div>
@@ -93,17 +101,20 @@ function getFileCategory(fileName: string): string {
 }
 
 function FileIcon({ fileName, isFolder }: { fileName: string; isFolder?: boolean }) {
-  if (isFolder) return <span className="text-amber-500 text-4xl">📁</span>;
+  if (isFolder) return <span className="text-4xl text-amber-500">📁</span>;
   const ext = fileName.split('.').pop()?.toLowerCase();
-  if (ext === 'pdf') return <span className="text-red-500 font-bold">PDF</span>;
-  if (['doc', 'docx'].includes(ext || '')) return <span className="text-blue-500 font-bold">DOC</span>;
-  if (['xls', 'xlsx'].includes(ext || '')) return <span className="text-green-500 font-bold">XLS</span>;
-  if (['png', 'jpg', 'jpeg'].includes(ext || '')) return <span className="text-purple-500 font-bold">IMG</span>;
-  return <span className="text-gray-500 font-bold">FILE</span>;
+  if (ext === 'pdf') return <span className="font-bold text-red-500">PDF</span>;
+  if (['doc', 'docx'].includes(ext || ''))
+    return <span className="font-bold text-blue-500">DOC</span>;
+  if (['xls', 'xlsx'].includes(ext || ''))
+    return <span className="font-bold text-green-500">XLS</span>;
+  if (['png', 'jpg', 'jpeg'].includes(ext || ''))
+    return <span className="font-bold text-purple-500">IMG</span>;
+  return <span className="font-bold text-gray-500">FILE</span>;
 }
 
 export default function FilesPage() {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [folderTree, setFolderTree] = useState<FolderNode[]>([]);
@@ -114,34 +125,71 @@ export default function FilesPage() {
   const [uploadDept, setUploadDept] = useState('General');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [typeFilter, setTypeFilter] = useState('All');
   const [deptFilter, setDeptFilter] = useState('All');
   const [selectedFolder, setSelectedFolder] = useState('All Files');
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
-  const [previewFile, setPreviewFile] = useState<{ 
-    name: string; 
-    type: 'markdown' | 'image' | 'pdf' | 'docx'; 
-    content?: string; 
-    url?: string; 
+  const [previewFile, setPreviewFile] = useState<{
+    name: string;
+    type: 'markdown' | 'image' | 'pdf' | 'docx';
+    content?: string;
+    url?: string;
   } | null>(null);
 
-  useEffect(() => {
-    loadData();
-    loadFolderTree();
-    loadDepartments();
-  }, [currentFolderId, selectedFolder]); // Reload when folder or sidebar selection changes
+  function getErrorMessage(error: unknown, fallback: string) {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return fallback;
+  }
 
-  async function loadDepartments() {
+  const loadDepartments = useCallback(async () => {
     try {
       const data = await listDepartments();
       setDepartments(data);
-    } catch (err) {
-      console.error('Failed to load departments', err);
+    } catch (error) {
+      console.error('Failed to load departments', error);
     }
-  }
+  }, []);
+
+  const loadFolderTree = useCallback(async () => {
+    try {
+      const allFolders = await listAllFolders();
+      const tree = buildFolderTree(allFolders);
+      setFolderTree(tree);
+    } catch (error) {
+      console.error('Failed to load folder tree', error);
+    }
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Pass selectedFolder as department filter if we are at root level
+      const department = selectedFolder === 'All Files' ? 'All' : selectedFolder;
+
+      const [filesData, foldersData] = await Promise.all([
+        listFiles(currentFolderId),
+        listFolders(currentFolderId, department),
+      ]);
+      setFiles(filesData);
+      setFolders(foldersData);
+    } catch (error) {
+      console.error(error);
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentFolderId, selectedFolder]);
+
+  useEffect(() => {
+    void loadData();
+    void loadFolderTree();
+    void loadDepartments();
+  }, [loadData, loadFolderTree, loadDepartments]); // Reload when folder or sidebar selection changes
 
   async function handleAddDepartment() {
     const name = prompt('Enter new department name:');
@@ -149,56 +197,26 @@ export default function FilesPage() {
     try {
       await createDepartment(name);
       await loadDepartments();
-    } catch (err: any) {
-      alert(err.message || 'Failed to create department');
-    }
-  }
-
-  async function loadFolderTree() {
-    try {
-      const allFolders = await listAllFolders();
-      const tree = buildFolderTree(allFolders);
-      setFolderTree(tree);
-    } catch (err) {
-      console.error('Failed to load folder tree', err);
-    }
-  }
-
-  async function loadData() {
-    try {
-      setLoading(true);
-      // Pass selectedFolder as department filter if we are at root level
-      const department = selectedFolder === 'All Files' ? 'All' : selectedFolder;
-      
-      const [filesData, foldersData] = await Promise.all([
-        listFiles(currentFolderId),
-        listFolders(currentFolderId, department)
-      ]);
-      setFiles(filesData);
-      setFolders(foldersData);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, 'Failed to create department'));
     }
   }
 
   const filteredFiles = useMemo(() => {
-    return files.filter(file => {
+    return files.filter((file) => {
       const typeMatch = typeFilter === 'All' || getFileCategory(file.originalName) === typeFilter;
       // If we are in a specific folder, we don't filter by "selectedFolder" (which is the sidebar category)
       // unless we are in "All Files" mode.
       // But wait, listFiles already filters by folderId.
       // If currentFolderId is null (root), we should filter by selectedFolder (department).
-      
+
       let deptMatch = true;
       if (!currentFolderId) {
-         if (selectedFolder !== 'All Files') {
-             deptMatch = file.department === selectedFolder;
-         }
+        if (selectedFolder !== 'All Files') {
+          deptMatch = file.department === selectedFolder;
+        }
       }
-      
+
       // Also apply the dropdown filter if it's set
       const dropdownDeptMatch = deptFilter === 'All' || file.department === deptFilter;
 
@@ -215,14 +233,14 @@ export default function FilesPage() {
       // We default department to 'General' or whatever logic we want.
       // Since we removed the concept of "Department" selection from sidebar, we can just use 'General'
       // or maybe inherit from parent if nested.
-      
-      const department = 'General'; 
+
+      const department = 'General';
       console.log('Creating folder with department:', department);
       await createFolder(name, currentFolderId, department);
       await loadData();
       await loadFolderTree();
-    } catch (err: any) {
-      setError(err.message || 'Failed to create folder');
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to create folder'));
     }
   }
 
@@ -232,8 +250,8 @@ export default function FilesPage() {
       await deleteFolder(id);
       await loadData();
       await loadFolderTree();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete folder');
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to delete folder'));
     }
   }
 
@@ -242,8 +260,8 @@ export default function FilesPage() {
     try {
       await deleteFile(id);
       await loadData();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete file');
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to delete file'));
     }
   }
 
@@ -260,11 +278,11 @@ export default function FilesPage() {
       if (isImage || isPdf) {
         const blob = await response.blob();
         const objectUrl = URL.createObjectURL(blob);
-        
+
         setPreviewFile({
           name: file.originalName,
           type: isImage ? 'image' : 'pdf',
-          url: objectUrl
+          url: objectUrl,
         });
         return;
       }
@@ -281,15 +299,14 @@ export default function FilesPage() {
         setPreviewFile({ name: file.originalName, type: 'docx', content: result.value });
         return;
       }
-
-    } catch (err) {
-      console.error('Preview error:', err);
+    } catch (error) {
+      console.error('Preview error:', error);
       setError('Failed to load preview');
     }
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     try {
@@ -299,14 +316,14 @@ export default function FilesPage() {
 
       await uploadFile(file, isAdminOnly, uploadDept, currentFolderId);
       await loadData();
-      e.target.value = '';
+      event.target.value = '';
 
       if (isAdminOnly) {
         setNotice('Uploaded. Admin-only files are hidden unless you are an admin.');
       }
-    } catch (err) {
-      console.error('Upload error:', err);
-      const msg = err instanceof Error ? err.message : 'Failed to upload file';
+    } catch (error) {
+      console.error('Upload error:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to upload file';
       setError(`Upload failed: ${msg}`);
     } finally {
       setUploading(false);
@@ -317,7 +334,9 @@ export default function FilesPage() {
     <div className="flex h-full gap-8">
       {/* Sub-sidebar for Folders */}
       <aside className="w-48 flex-shrink-0 border-r border-neutral-200 pr-4">
-        <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-500">My Files</h2>
+        <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-500">
+          My Files
+        </h2>
         <nav className="space-y-1">
           <button
             onClick={() => {
@@ -332,8 +351,8 @@ export default function FilesPage() {
           >
             📁 All Files
           </button>
-          
-          {folderTree.map(node => (
+
+          {folderTree.map((node) => (
             <FolderTreeItem
               key={node._id}
               node={node}
@@ -351,7 +370,7 @@ export default function FilesPage() {
       <div className="flex-1">
         <header className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-neutral-500">
-            <button 
+            <button
               onClick={() => {
                 setCurrentFolderId(null);
                 setSelectedFolder('All Files');
@@ -363,7 +382,7 @@ export default function FilesPage() {
             <span>&gt;</span>
             <span className="font-medium text-neutral-900">{selectedFolder}</span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <Button onClick={handleCreateFolder} variant="secondary" className="text-xs font-bold">
               + New Folder
@@ -371,13 +390,17 @@ export default function FilesPage() {
             <div className="flex items-center gap-2 rounded-lg border border-neutral-200 p-1">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`rounded px-3 py-1 text-xs font-medium ${viewMode === 'grid' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'}`}
+                className={`rounded px-3 py-1 text-xs font-medium ${
+                  viewMode === 'grid' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'
+                }`}
               >
                 Grid View
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`rounded px-3 py-1 text-xs font-medium ${viewMode === 'list' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'}`}
+                className={`rounded px-3 py-1 text-xs font-medium ${
+                  viewMode === 'list' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'
+                }`}
               >
                 List View
               </button>
@@ -390,12 +413,14 @@ export default function FilesPage() {
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold uppercase text-neutral-400">File Type:</span>
             <div className="flex gap-1">
-              {FILE_TYPES.map(type => (
+              {FILE_TYPES.map((type) => (
                 <button
                   key={type}
                   onClick={() => setTypeFilter(type)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    typeFilter === type ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                    typeFilter === type
+                      ? 'border-neutral-900 bg-neutral-900 text-white'
+                      : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
                   }`}
                 >
                   {type}
@@ -410,17 +435,21 @@ export default function FilesPage() {
               <button
                 onClick={() => setDeptFilter('All')}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  deptFilter === 'All' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                  deptFilter === 'All'
+                    ? 'border-neutral-900 bg-neutral-900 text-white'
+                    : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
                 }`}
               >
                 All
               </button>
-              {departments.map(dept => (
+              {departments.map((dept) => (
                 <button
                   key={dept._id}
                   onClick={() => setDeptFilter(dept.name)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    deptFilter === dept.name ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                    deptFilter === dept.name
+                      ? 'border-neutral-900 bg-neutral-900 text-white'
+                      : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
                   }`}
                 >
                   {dept.name}
@@ -437,15 +466,16 @@ export default function FilesPage() {
           </div>
         </div>
 
-        {error && (
-          <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600">
-            {error}
+        {error && <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</div>}
+        {notice && (
+          <div className="mb-6 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">
+            {notice}
           </div>
         )}
 
         {loading ? (
           <div className="py-12 text-center text-neutral-500">Loading...</div>
-        ) : (filteredFiles.length === 0 && folders.length === 0) ? (
+        ) : filteredFiles.length === 0 && folders.length === 0 ? (
           <div className="rounded-xl border border-dashed border-neutral-200 py-12 text-center">
             <p className="text-neutral-500">No files or folders found matching your filters.</p>
           </div>
@@ -453,8 +483,8 @@ export default function FilesPage() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {/* Folders first */}
             {folders.map((folder) => (
-              <div 
-                key={folder._id} 
+              <div
+                key={folder._id}
                 onClick={() => {
                   setCurrentFolderId(folder._id);
                   setSelectedFolder(folder.name);
@@ -464,17 +494,20 @@ export default function FilesPage() {
                 <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-amber-50 text-2xl">
                   <FileIcon fileName="" isFolder />
                 </div>
-                <h3 className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900" title={folder.name}>
+                <h3
+                  className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
+                  title={folder.name}
+                >
                   {folder.name}
                 </h3>
                 <p className="text-[10px] text-neutral-400">Folder</p>
-                
+
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     handleDeleteFolder(folder._id);
                   }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700"
+                  className="absolute right-2 top-2 text-red-500 opacity-0 hover:text-red-700 group-hover:opacity-100"
                 >
                   🗑️
                 </button>
@@ -483,20 +516,28 @@ export default function FilesPage() {
 
             {/* Files */}
             {filteredFiles.map((file) => (
-              <div key={file._id} className="group relative flex flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
+              <div
+                key={file._id}
+                className="group relative flex flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+              >
                 <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-neutral-50 text-2xl">
                   <FileIcon fileName={file.originalName} />
                 </div>
-                <h3 className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900" title={file.originalName}>
+                <h3
+                  className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
+                  title={file.originalName}
+                >
                   {file.originalName}
                 </h3>
                 <p className="text-[10px] text-neutral-400">
-                  {(file.size / 1024).toFixed(1)} KB • {new Date(file.createdAt).toLocaleDateString()}
+                  {(file.size / 1024).toFixed(1)} KB •{' '}
+                  {new Date(file.createdAt).toLocaleDateString()}
                 </p>
                 <p className="mt-1 text-[10px] font-medium text-neutral-500">
-                  {file.uploadedBy?.displayName || 'Unknown'} • <span className="text-neutral-400">{file.department}</span>
+                  {file.uploadedBy?.displayName || 'Unknown'} •{' '}
+                  <span className="text-neutral-400">{file.department}</span>
                 </p>
-                
+
                 {file.isAdminOnly && (
                   <span className="mt-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20">
                     Admin Only
@@ -504,11 +545,11 @@ export default function FilesPage() {
                 )}
 
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     handleDeleteFile(file._id);
                   }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700"
+                  className="absolute right-2 top-2 text-red-500 opacity-0 hover:text-red-700 group-hover:opacity-100"
                 >
                   🗑️
                 </button>
@@ -540,14 +581,14 @@ export default function FilesPage() {
                   <th className="px-6 py-3 font-medium">Department</th>
                   <th className="px-6 py-3 font-medium">Uploaded By</th>
                   <th className="px-6 py-3 font-medium">Date</th>
-                  <th className="px-6 py-3 font-medium text-right">Actions</th>
+                  <th className="px-6 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {/* Folders */}
                 {folders.map((folder) => (
-                  <tr 
-                    key={folder._id} 
+                  <tr
+                    key={folder._id}
                     onClick={() => {
                       setCurrentFolderId(folder._id);
                       setSelectedFolder(folder.name);
@@ -570,8 +611,8 @@ export default function FilesPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        onClick={(event) => {
+                          event.stopPropagation();
                           handleDeleteFolder(folder._id);
                         }}
                         className="font-medium text-red-600 hover:text-red-900 hover:underline"
@@ -620,8 +661,8 @@ export default function FilesPage() {
                           Download
                         </a>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={(event) => {
+                            event.stopPropagation();
                             handleDeleteFile(file._id);
                           }}
                           className="font-medium text-red-600 hover:text-red-900 hover:underline"
@@ -643,18 +684,20 @@ export default function FilesPage() {
         <div className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-neutral-200">
           <select
             value={uploadDept}
-            onChange={(e) => setUploadDept(e.target.value)}
+            onChange={(event) => setUploadDept(event.target.value)}
             className="rounded-lg border-neutral-200 text-xs font-bold text-neutral-700 focus:border-neutral-900 focus:ring-neutral-900"
           >
-            {departments.map(dept => (
-              <option key={dept._id} value={dept.name}>{dept.name}</option>
+            {departments.map((dept) => (
+              <option key={dept._id} value={dept.name}>
+                {dept.name}
+              </option>
             ))}
           </select>
           <label className="flex items-center gap-2 text-xs font-bold text-neutral-700">
-            <input 
-              type="checkbox" 
-              checked={isAdminOnly} 
-              onChange={e => setIsAdminOnly(e.target.checked)}
+            <input
+              type="checkbox"
+              checked={isAdminOnly}
+              onChange={(event) => setIsAdminOnly(event.target.checked)}
               className="h-4 w-4 rounded border-neutral-300"
             />
             Admin Only
@@ -689,4 +732,3 @@ export default function FilesPage() {
     </div>
   );
 }
-

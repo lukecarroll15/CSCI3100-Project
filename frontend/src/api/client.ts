@@ -80,3 +80,15 @@ export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
 export function apiGet<T>(path: string): Promise<T> {
   return apiJson<T>(path, { method: 'GET' });
 }
+
+export async function apiPatchJson<T>(path: string, body: unknown): Promise<T> {
+  return apiJson<T>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiDelete<T = void>(path: string): Promise<T> {
+  return apiJson<T>(path, { method: 'DELETE' });
+}
