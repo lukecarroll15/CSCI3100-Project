@@ -117,11 +117,27 @@ function getRandomDate(daysFromNow, range) {
   return date;
 }
 
-function generateTasks() {
+async function generateTasks(userList) {
   const tasks = [];
   const departments = Object.keys(taskTemplates);
   const priorities = ['high', 'medium', 'low'];
   const statuses = ['Not Started', 'In Progress', 'Completed'];
+  
+  // Use real user names from database, filter out empty ones
+  const userNames = userList
+    .map(u => u.displayName)
+    .filter(name => name && name.trim().length > 0);
+
+  if (userNames.length === 0) {
+    console.warn('No valid user names found, using defaults');
+    userNames.push(...[
+      'Sarah Chen',
+      'Michael Rodriguez',
+      'Emily Thompson',
+      'David Park',
+      'Jessica Williams',
+    ]);
+  }
 
   // Generate 25-30 tasks for the next month
   const nearTermCount = 25 + Math.floor(Math.random() * 6); // 25-30 tasks
@@ -129,7 +145,7 @@ function generateTasks() {
     const department = getRandomElement(departments);
     const template = getRandomElement(taskTemplates[department]);
     const priority = getRandomElement(priorities);
-    const assignee = getRandomElement(assigneeNames);
+    const assignee = getRandomElement(userNames);
     const dueDate = getRandomDate(1, 30); // 1-30 days from now
     
     // Weight towards Not Started/In Progress (80%), few Completed (20%)
@@ -163,7 +179,7 @@ function generateTasks() {
     const department = getRandomElement(departments);
     const template = getRandomElement(taskTemplates[department]);
     const priority = getRandomElement(priorities);
-    const assignee = getRandomElement(assigneeNames);
+    const assignee = getRandomElement(userNames);
     const dueDate = getRandomDate(90, 60); // 90-150 days from now (3-5 months)
 
     const task = {
@@ -195,9 +211,8 @@ async function seedTasks() {
     if (!adminUser) {
       console.log('No admin user found. Creating system admin user for seeding...');
       adminUser = await User.create({
-        name: 'System Admin',
-        email: 'system@taskflow.local',
-        password: 'not-used', // This is just for seeding, password doesn't matter
+        displayName: 'System Admin',
+        email: 'system@taskflow.com',
         role: 'admin',
       });
       console.log('System admin user created');
@@ -205,13 +220,25 @@ async function seedTasks() {
     
     console.log(`Using admin user: ${adminUser.email}`);
 
+    // Fetch all users from database
+    console.log('Fetching employee list...');
+    const userList = await User.find({});
+    
+    if (userList.length === 0) {
+      console.log('No users found. Please run "npm run seed:users" first.');
+      await mongoose.connection.close();
+      process.exit(1);
+    }
+    
+    console.log(`Found ${userList.length} employees`);
+
     // Clear existing tasks
     console.log('Clearing existing tasks...');
     await Task.deleteMany({});
     console.log('Existing tasks cleared');
 
     // Generate and insert new tasks
-    const tasks = generateTasks();
+    const tasks = await generateTasks(userList);
     
     // Add createdBy field to all tasks
     const tasksWithCreator = tasks.map(task => ({

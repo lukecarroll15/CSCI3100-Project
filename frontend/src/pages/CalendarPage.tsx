@@ -98,14 +98,26 @@ const initialTasks: Task[] = [
 ];
 
 const mockUsers: UserOption[] = [
-  { name: 'David Gray', email: 'david.gray@example.com' },
-  { name: 'Sarah Chen', email: 'sarah.chen@example.com' },
-  { name: 'Emma Wilson', email: 'emma.wilson@example.com' },
-  { name: 'Michael Torres', email: 'michael.torres@example.com' },
-  { name: 'John Smith', email: 'john.smith@example.com' },
-  { name: 'Alicia Patel', email: 'alicia.patel@example.com' },
-  { name: 'Priya Kumar', email: 'priya.kumar@example.com' },
-  { name: 'David Park', email: 'david.park@example.com' },
+  { name: 'Sarah Chen', email: 'sarah.chen@taskflow.com' },
+  { name: 'Michael Rodriguez', email: 'michael.rodriguez@taskflow.com' },
+  { name: 'Emily Thompson', email: 'emily.thompson@taskflow.com' },
+  { name: 'David Park', email: 'david.park@taskflow.com' },
+  { name: 'Jessica Williams', email: 'jessica.williams@taskflow.com' },
+  { name: 'Kevin Zhang', email: 'kevin.zhang@taskflow.com' },
+  { name: 'Amanda Foster', email: 'amanda.foster@taskflow.com' },
+  { name: 'Ryan Patel', email: 'ryan.patel@taskflow.com' },
+  { name: 'Lauren Martinez', email: 'lauren.martinez@taskflow.com' },
+  { name: 'James Kim', email: 'james.kim@taskflow.com' },
+  { name: 'Olivia Johnson', email: 'olivia.johnson@taskflow.com' },
+  { name: 'Daniel Lee', email: 'daniel.lee@taskflow.com' },
+  { name: 'Sophia Anderson', email: 'sophia.anderson@taskflow.com' },
+  { name: 'Marcus Brown', email: 'marcus.brown@taskflow.com' },
+  { name: 'Rachel Davis', email: 'rachel.davis@taskflow.com' },
+  { name: 'Alex Wilson', email: 'alex.wilson@taskflow.com' },
+  { name: 'Jordan Taylor', email: 'jordan.taylor@taskflow.com' },
+  { name: 'Morgan Garcia', email: 'morgan.garcia@taskflow.com' },
+  { name: 'Casey Moore', email: 'casey.moore@taskflow.com' },
+  { name: 'Harper Jackson', email: 'harper.jackson@taskflow.com' },
 ];
 
 const departments: Array<Department | 'all'> = [
@@ -411,12 +423,12 @@ function CalendarView({
                 {dayTasks.map((task, i) => (
                   <div
                     key={i}
-                    className={`mb-1 flex items-center justify-between rounded border-2 p-2 text-xs ${
+                    className={`group mb-1 flex items-center justify-between rounded border-2 p-2 text-xs transition-colors ${
                       task.priority === 'high'
-                        ? 'border-red-600'
+                        ? 'border-red-600 hover:bg-red-100'
                         : task.priority === 'medium'
-                          ? 'border-orange-500'
-                          : 'border-green-600'
+                          ? 'border-orange-500 hover:bg-orange-100'
+                          : 'border-green-600 hover:bg-green-100'
                     }`}
                   >
                     <button
@@ -513,7 +525,7 @@ export default function CalendarPage() {
 
   const assigneeMatches = useMemo(() => {
     const query = taskAssignee.trim().toLowerCase();
-    if (query.length < 2) return [] as UserOption[];
+    if (query.length < 1) return [] as UserOption[];
     return mockUsers.filter((u) =>
       `${u.name} ${u.email}`.toLowerCase().includes(query)
     );
@@ -1105,7 +1117,7 @@ export default function CalendarPage() {
                       setShowAssigneeSuggestions(true);
                     }}
                     onFocus={() => {
-                      if (taskAssignee.trim().length >= 2) setShowAssigneeSuggestions(true);
+                      if (taskAssignee.trim().length >= 1) setShowAssigneeSuggestions(true);
                     }}
                     onBlur={() => setTimeout(() => setShowAssigneeSuggestions(false), 120)}
                     className="w-full rounded-md border-2 border-gray-400 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
