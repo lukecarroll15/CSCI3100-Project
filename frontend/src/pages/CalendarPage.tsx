@@ -22,81 +22,6 @@ type Task = {
   completedAt?: string;
 };
 
-const initialTasks: Task[] = [
-  {
-    id: 't1',
-    name: 'Submit Final Tender',
-    date: 'Nov 20, 2025',
-    priority: 'high',
-    assignee: 'Sarah Chen',
-    department: 'sales',
-    status: 'In Progress',
-  },
-  {
-    id: 't2',
-    name: 'Complete Security Audit',
-    date: 'Nov 18, 2025',
-    priority: 'high',
-    assignee: 'David Park',
-    department: 'it',
-    status: 'Not Started',
-  },
-  {
-    id: 't3',
-    name: 'Review Q4 Budget',
-    date: 'Nov 22, 2025',
-    priority: 'medium',
-    assignee: 'Michael Torres',
-    department: 'finance',
-    status: 'In Progress',
-  },
-  {
-    id: 't4',
-    name: 'Update Marketing Materials',
-    date: 'Nov 25, 2025',
-    priority: 'medium',
-    assignee: 'Emma Wilson',
-    department: 'marketing',
-    status: 'Not Started',
-  },
-  {
-    id: 't5',
-    name: 'Review client feedback',
-    date: 'Nov 18, 2025',
-    priority: 'low',
-    assignee: 'John Smith',
-    department: 'customer-service',
-    status: 'In Progress',
-  },
-  {
-    id: 't6',
-    name: 'Organize team building event',
-    date: 'Dec 1, 2025',
-    priority: 'low',
-    assignee: 'Sarah Chen',
-    department: 'hr',
-    status: 'Not Started',
-  },
-  {
-    id: 't7',
-    name: 'Deploy new software update',
-    date: 'Nov 19, 2025',
-    priority: 'high',
-    assignee: 'David Park',
-    department: 'it',
-    status: 'In Progress',
-  },
-  {
-    id: 't8',
-    name: 'Prepare client presentation',
-    date: 'Nov 21, 2025',
-    priority: 'medium',
-    assignee: 'Emma Wilson',
-    department: 'sales',
-    status: 'Not Started',
-  },
-];
-
 const mockUsers: UserOption[] = [
   { name: 'Sarah Chen', email: 'sarah.chen@taskflow.com' },
   { name: 'Michael Rodriguez', email: 'michael.rodriguez@taskflow.com' },
@@ -130,7 +55,6 @@ const departments: Array<Department | 'all'> = [
   'customer-service',
 ];
 const priorities: Array<Priority | 'all'> = ['all', 'high', 'medium', 'low'];
-const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 type FilterSectionProps<T extends string> = {
   label: string;
@@ -215,12 +139,6 @@ function TableView({
   const indicator = (key: SortKey) => {
     if (sortKey !== key) return '↕';
     return sortDir === 'asc' ? '▲' : '▼';
-  };
-
-  const hint = (key: SortKey) => {
-    if (key === 'date') return sortDir === 'asc' ? 'Old → New' : 'New → Old';
-    if (key === 'priority') return sortDir === 'asc' ? 'High → Low' : 'Low → High';
-    return sortDir === 'asc' ? 'A → Z' : 'Z → A';
   };
 
   return (
@@ -344,8 +262,7 @@ function CalendarView({
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
   const currentDay = today.getDate();
 
-  // Get first day of month and number of days in month
-  const firstDay = new Date(year, month, 1).getDay();
+  // Get number of days in month
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   // Create array of just the days in the month (no padding)
@@ -355,7 +272,7 @@ function CalendarView({
       days.push(i);
     }
     return days;
-  }, [year, month]);
+  }, [daysInMonth]);
 
   const getTasksForDay = (day: number) =>
     filteredTasks.filter((t) => {
@@ -547,9 +464,8 @@ export default function CalendarPage() {
     [tasksState]
   );
 
-  const priorityWeight: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
-
   const sortedTasks = useMemo(() => {
+    const priorityWeight: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
     const dir = sortDir === 'asc' ? 1 : -1;
     const arr = [...filteredTasks];
     arr.sort((a, b) => {
@@ -574,7 +490,7 @@ export default function CalendarPage() {
       }
     });
     return arr;
-  }, [filteredTasks, sortDir, sortKey, priorityWeight]);
+  }, [filteredTasks, sortDir, sortKey]);
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -584,13 +500,6 @@ export default function CalendarPage() {
       setSortDir('asc');
     }
   };
-
-  const priorityColors = {
-    high: 'border-red-600 text-red-600',
-    medium: 'border-orange-500 text-orange-500',
-    low: 'border-green-600 text-green-600',
-    all: '',
-  } as const;
 
   const handleAddTaskClick = () => {
     if (user?.role === 'admin') {
