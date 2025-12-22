@@ -37,13 +37,20 @@ function joinUrl(path: string) {
 }
 
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...(init.headers as Record<string, string>),
+  };
+
+  // Auto-set Content-Type for JSON bodies
+  if (typeof init.body === 'string' && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(joinUrl(path), {
     ...init,
     credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...(init.headers ?? {}),
-    },
+    headers,
   });
 
   // 204 No Content

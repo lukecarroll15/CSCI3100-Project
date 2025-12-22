@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import mongoose from 'mongoose';
 import { AppError } from '../errors/AppError';
 
 export function notFoundHandler(req: Request, res: Response): void {
@@ -25,6 +26,28 @@ export function errorHandler(
         code: 'VALIDATION_ERROR',
         message: 'Request validation failed',
         details: err.flatten(),
+      },
+    });
+    return;
+  }
+
+  // Mongoose validation errors
+  if (err instanceof mongoose.Error.ValidationError) {
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: err.message,
+      },
+    });
+    return;
+  }
+
+  // Mongoose CastError (invalid ObjectId)
+  if (err instanceof mongoose.Error.CastError) {
+    res.status(400).json({
+      error: {
+        code: 'INVALID_ID',
+        message: `Invalid ${err.path}: ${err.value}`,
       },
     });
     return;

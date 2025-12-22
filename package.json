@@ -28,8 +28,12 @@
     "test": "npm run test:backend"
   },
   "devDependencies": {
+    "@types/multer": "^2.0.0",
     "concurrently": "^9.2.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14"
+  },
+  "dependencies": {
+    "multer": "^2.0.2"
   }
 }

@@ -1,327 +1,732 @@
-import { useState, useMemo } from 'react';
-import Badge from '../components/ui/Badge';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import mammoth from 'mammoth';
 import { useAuth } from '../auth/useAuth';
+import { listFiles, uploadFile, deleteFile, getDownloadUrl, type FileItem } from '../api/files';
+import {
+  listFolders,
+  createFolder,
+  deleteFolder,
+  listAllFolders,
+  type FolderItem,
+} from '../api/folders';
+import { listDepartments, createDepartment, type Department } from '../api/departments';
+import Button from '../components/ui/Button';
+import FilePreviewModal from '../components/files/FilePreviewModal';
 
-type Folder = { name: string; icon: string; sub: boolean };
-type FileType = 'Document' | 'Spreadsheet' | 'PDF' | 'Image';
-type Department = 'Sales' | 'IT' | 'Finance' | 'Marketing' | 'HR' | 'Shared';
-type ViewMode = 'grid' | 'list';
+const FILE_TYPES = ['All', 'Documents', 'Spreadsheets', 'PDFs', 'Images'];
 
-type FileItem = {
-  name: string;
-  type: FileType;
-  icon: string;
-  size: string;
-  date: string;
-  author: string;
-  department: Department;
-  adminOnly: boolean;
-};
+type FolderNode = FolderItem & { children: FolderNode[] };
 
-type FileCollection = FileItem[];
+function buildFolderTree(folders: FolderItem[]): FolderNode[] {
+  const map = new Map<string, FolderNode>();
+  const roots: FolderNode[] = [];
 
-const folders: Folder[] = [
-  { name: 'All Files', icon: '📁', sub: false },
-  { name: 'Sales', icon: '📁', sub: false },
-  { name: 'Proposals', icon: '📂', sub: true },
-  { name: 'Contracts', icon: '📂', sub: true },
-  { name: 'IT', icon: '📁', sub: false },
-  { name: 'Finance', icon: '📁', sub: false },
-  { name: 'Marketing', icon: '📁', sub: false },
-  { name: 'HR', icon: '📁', sub: false },
-  { name: 'Shared', icon: '📁', sub: false },
-];
+  // Initialize map
+  folders.forEach((folder) => {
+    map.set(folder._id, { ...folder, children: [] });
+  });
 
-const files: FileCollection = [
-  {
-    name: 'Q4_Budget_Report.xlsx',
-    type: 'Spreadsheet',
-    icon: '📄 DOC',
-    size: '2.3 MB',
-    date: 'Nov 17, 2025',
-    author: 'Michael Torres',
-    department: 'Finance',
-    adminOnly: false,
-  },
-  {
-    name: 'Project_Proposal_v3.pdf',
-    type: 'PDF',
-    icon: '📄 PDF',
-    size: '1.8 MB',
-    date: 'Nov 16, 2025',
-    author: 'Sarah Chen',
-    department: 'Sales',
-    adminOnly: false,
-  },
-  {
-    name: 'Sales_Strategy_2025.docx',
-    type: 'Document',
-    icon: '📄 DOC',
-    size: '890 KB',
-    date: 'Nov 15, 2025',
-    author: 'Emma Wilson',
-    department: 'Sales',
-    adminOnly: true,
-  },
-  {
-    name: 'Campaign_Banner.png',
-    type: 'Image',
-    icon: '🖼️ IMG',
-    size: '3.5 MB',
-    date: 'Nov 14, 2025',
-    author: 'David Park',
-    department: 'Marketing',
-    adminOnly: false,
-  },
-  {
-    name: 'Employee_Schedule.xlsx',
-    type: 'Spreadsheet',
-    icon: '📊 XLS',
-    size: '456 KB',
-    date: 'Nov 13, 2025',
-    author: 'John Smith',
-    department: 'HR',
-    adminOnly: false,
-  },
-  {
-    name: 'Security_Audit_Report.pdf',
-    type: 'PDF',
-    icon: '📄 PDF',
-    size: '2.1 MB',
-    date: 'Nov 12, 2025',
-    author: 'David Park',
-    department: 'IT',
-    adminOnly: true,
-  },
-];
+  // Build tree
+  folders.forEach((folder) => {
+    const node = map.get(folder._id)!;
+    if (folder.parentFolder && map.has(folder.parentFolder)) {
+      map.get(folder.parentFolder)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
 
-const fileTypeFilters: Array<{ label: string; value: 'All' | FileType }> = [
-  { label: 'All', value: 'All' },
-  { label: 'Documents', value: 'Document' },
-  { label: 'Spreadsheets', value: 'Spreadsheet' },
-  { label: 'PDFs', value: 'PDF' },
-  { label: 'Images', value: 'Image' },
-];
-const departments: Array<'All' | Department> = [
-  'All',
-  'Sales',
-  'IT',
-  'Finance',
-  'Marketing',
-  'Shared',
-];
+  return roots;
+}
 
-function FolderTree({
-  activeFolder,
+function FolderTreeItem({
+  node,
+  currentFolderId,
   onSelect,
 }: {
-  activeFolder: string;
-  onSelect: (folder: string) => void;
+  node: FolderNode;
+  currentFolderId: string | null;
+  onSelect: (folder: FolderNode) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const isSelected = currentFolderId === node._id;
+  const hasChildren = node.children.length > 0;
+
   return (
-    <div className="w-72 overflow-y-auto border-r-2 border-gray-800 bg-gray-50 p-6">
-      <div className="mb-5 rounded-md border-2 border-gray-800 bg-white p-3 text-lg font-bold">
-        My Files
+    <div className="select-none">
+      <div
+        className={`flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+          isSelected ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-100'
+        }`}
+        onClick={() => onSelect(node)}
+      >
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded(!expanded);
+          }}
+          className={`flex h-6 w-6 items-center justify-center rounded hover:bg-neutral-200/50 ${
+            hasChildren ? 'visible' : 'invisible'
+          }`}
+        >
+          <span className="text-[10px]">{expanded ? '▼' : '▶'}</span>
+        </button>
+        <span className="text-lg">📁</span>
+        <span className="truncate">{node.name}</span>
       </div>
-      {folders.map((folder) => (
-        <div
-          key={folder.name}
-          onClick={() => onSelect(folder.name)}
-          className={`my-2 flex cursor-pointer items-center gap-2 rounded-md border-2 p-3 transition-colors ${
-            folder.sub ? 'ml-5 text-sm' : ''
-          } ${
-            activeFolder === folder.name
-              ? 'border-gray-800 bg-gray-800 text-white'
-              : 'border-gray-500 bg-white hover:bg-gray-200'
-          }`}
-        >
-          {folder.icon} {folder.name}
-        </div>
-      ))}
-    </div>
-  );
-}
 
-function FileGrid({ files, isAdmin }: { files: FileCollection; isAdmin: boolean }) {
-  const handleClick = (file: FileItem) => {
-    if (file.adminOnly && !isAdmin) {
-      alert('Access Denied: This file requires admin privileges.');
-    } else {
-      alert('Would open file preview/download');
-    }
-  };
-
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-5">
-      {files.map((file) => (
-        <div
-          key={file.name}
-          onClick={() => handleClick(file)}
-          className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 p-5 transition-colors ${
-            file.adminOnly && !isAdmin
-              ? 'cursor-not-allowed border-gray-500 opacity-60'
-              : 'border-gray-500 hover:border-gray-800 hover:bg-gray-50'
-          }`}
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-gray-500 bg-gray-100 text-sm">
-            {file.icon}
-          </div>
-          <div className="break-words text-center text-sm font-bold">{file.name}</div>
-          <div className="text-xs text-gray-500">{file.size}</div>
-          <div className="text-xs text-gray-500">{file.date}</div>
-          <div className="text-xs text-gray-500">{file.author}</div>
-          {file.adminOnly && <Badge variant={isAdmin ? 'low' : 'high'}>🔒 Admin Only</Badge>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FileList({ files, isAdmin }: { files: FileCollection; isAdmin: boolean }) {
-  const handleClick = (file: FileItem) => {
-    if (file.adminOnly && !isAdmin) {
-      alert('Access Denied: This file requires admin privileges.');
-    } else {
-      alert('Would open file preview/download');
-    }
-  };
-
-  return (
-    <table className="w-full border-collapse overflow-hidden rounded-lg border-2 border-gray-800">
-      <thead className="bg-gray-100">
-        <tr>
-          {['Name', 'Type', 'Size', 'Uploaded By', 'Date', 'Access'].map((h) => (
-            <th key={h} className="border-2 border-gray-500 p-4 text-left text-sm font-bold">
-              {h}
-            </th>
+      {expanded && hasChildren && (
+        <div className="ml-3 border-l border-neutral-200 pl-1">
+          {node.children.map((child) => (
+            <FolderTreeItem
+              key={child._id}
+              node={child}
+              currentFolderId={currentFolderId}
+              onSelect={onSelect}
+            />
           ))}
-        </tr>
-      </thead>
-      <tbody>
-        {files.map((file) => (
-          <tr
-            key={file.name}
-            onClick={() => handleClick(file)}
-            className={`cursor-pointer ${
-              file.adminOnly && !isAdmin ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
-            }`}
-          >
-            <td className="border-2 border-gray-300 p-4 text-sm">
-              {file.icon.split(' ')[0]} {file.name}
-            </td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.type}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.size}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.author}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{file.date}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">
-              {file.adminOnly ? (
-                <Badge variant={isAdmin ? 'low' : 'high'}>🔒 Admin Only</Badge>
-              ) : (
-                'Everyone'
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+        </div>
+      )}
+    </div>
   );
+}
+
+function getFileCategory(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return 'PDFs';
+  if (['doc', 'docx', 'txt', 'md'].includes(ext || '')) return 'Documents';
+  if (['xls', 'xlsx', 'csv'].includes(ext || '')) return 'Spreadsheets';
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg'].includes(ext || '')) return 'Images';
+  return 'Other';
+}
+
+function FileIcon({ fileName, isFolder }: { fileName: string; isFolder?: boolean }) {
+  if (isFolder) return <span className="text-4xl text-amber-500">📁</span>;
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return <span className="font-bold text-red-500">PDF</span>;
+  if (['doc', 'docx'].includes(ext || ''))
+    return <span className="font-bold text-blue-500">DOC</span>;
+  if (['xls', 'xlsx'].includes(ext || ''))
+    return <span className="font-bold text-green-500">XLS</span>;
+  if (['png', 'jpg', 'jpeg'].includes(ext || ''))
+    return <span className="font-bold text-purple-500">IMG</span>;
+  return <span className="font-bold text-gray-500">FILE</span>;
 }
 
 export default function FilesPage() {
-  const [view, setView] = useState<ViewMode>('grid');
-  const [activeFolder, setActiveFolder] = useState('All Files');
-  const [typeFilter, setTypeFilter] = useState<'All' | FileType>('All');
-  const [deptFilter, setDeptFilter] = useState<'All' | Department>('All');
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { user: _user } = useAuth();
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [folders, setFolders] = useState<FolderItem[]>([]);
+  const [folderTree, setFolderTree] = useState<FolderNode[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [isAdminOnly, setIsAdminOnly] = useState(false);
+  const [uploadDept, setUploadDept] = useState('General');
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const visibleFiles = useMemo(() => {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [deptFilter, setDeptFilter] = useState('All');
+  const [selectedFolder, setSelectedFolder] = useState('All Files');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  const [previewFile, setPreviewFile] = useState<{
+    name: string;
+    type: 'markdown' | 'image' | 'pdf' | 'docx';
+    content?: string;
+    url?: string;
+  } | null>(null);
+
+  function getErrorMessage(error: unknown, fallback: string) {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return fallback;
+  }
+
+  const loadDepartments = useCallback(async () => {
+    try {
+      const data = await listDepartments();
+      setDepartments(data);
+    } catch (error) {
+      console.error('Failed to load departments', error);
+    }
+  }, []);
+
+  const loadFolderTree = useCallback(async () => {
+    try {
+      const allFolders = await listAllFolders();
+      const tree = buildFolderTree(allFolders);
+      setFolderTree(tree);
+    } catch (error) {
+      console.error('Failed to load folder tree', error);
+    }
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Pass selectedFolder as department filter if we are at root level
+      const department = selectedFolder === 'All Files' ? 'All' : selectedFolder;
+
+      const [filesData, foldersData] = await Promise.all([
+        listFiles(currentFolderId),
+        listFolders(currentFolderId, department),
+      ]);
+      setFiles(filesData);
+      setFolders(foldersData);
+    } catch (error) {
+      console.error(error);
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentFolderId, selectedFolder]);
+
+  useEffect(() => {
+    void loadData();
+    void loadFolderTree();
+    void loadDepartments();
+  }, [loadData, loadFolderTree, loadDepartments]); // Reload when folder or sidebar selection changes
+
+  async function handleAddDepartment() {
+    const name = prompt('Enter new department name:');
+    if (!name) return;
+    try {
+      await createDepartment(name);
+      await loadDepartments();
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, 'Failed to create department'));
+    }
+  }
+
+  const filteredFiles = useMemo(() => {
     return files.filter((file) => {
-      const typeMatches = typeFilter === 'All' || file.type === typeFilter;
-      const deptMatches = deptFilter === 'All' || file.department === deptFilter;
-      return typeMatches && deptMatches;
+      const typeMatch = typeFilter === 'All' || getFileCategory(file.originalName) === typeFilter;
+      // If we are in a specific folder, we don't filter by "selectedFolder" (which is the sidebar category)
+      // unless we are in "All Files" mode.
+      // But wait, listFiles already filters by folderId.
+      // If currentFolderId is null (root), we should filter by selectedFolder (department).
+
+      let deptMatch = true;
+      if (!currentFolderId) {
+        if (selectedFolder !== 'All Files') {
+          deptMatch = file.department === selectedFolder;
+        }
+      }
+
+      // Also apply the dropdown filter if it's set
+      const dropdownDeptMatch = deptFilter === 'All' || file.department === deptFilter;
+
+      return typeMatch && deptMatch && dropdownDeptMatch;
     });
-  }, [typeFilter, deptFilter]);
+  }, [files, typeFilter, deptFilter, selectedFolder, currentFolderId]);
+
+  async function handleCreateFolder() {
+    const name = prompt('Enter folder name:');
+    if (!name) return;
+
+    try {
+      // If we are at root (All Files), the new folder becomes a root folder (and thus a sidebar item)
+      // We default department to 'General' or whatever logic we want.
+      // Since we removed the concept of "Department" selection from sidebar, we can just use 'General'
+      // or maybe inherit from parent if nested.
+
+      const department = 'General';
+      console.log('Creating folder with department:', department);
+      await createFolder(name, currentFolderId, department);
+      await loadData();
+      await loadFolderTree();
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to create folder'));
+    }
+  }
+
+  async function handleDeleteFolder(id: string) {
+    if (!confirm('Are you sure you want to delete this folder?')) return;
+    try {
+      await deleteFolder(id);
+      await loadData();
+      await loadFolderTree();
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to delete folder'));
+    }
+  }
+
+  async function handleDeleteFile(id: string) {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+    try {
+      await deleteFile(id);
+      await loadData();
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to delete file'));
+    }
+  }
+
+  async function handlePreview(file: FileItem) {
+    const isImage = /\.(png|jpe?g)$/i.test(file.originalName);
+    const isMarkdown = /\.md$/i.test(file.originalName);
+    const isPdf = /\.pdf$/i.test(file.originalName);
+    const isDocx = /\.docx$/i.test(file.originalName);
+
+    try {
+      const response = await fetch(getDownloadUrl(file._id), { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch file');
+
+      if (isImage || isPdf) {
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        setPreviewFile({
+          name: file.originalName,
+          type: isImage ? 'image' : 'pdf',
+          url: objectUrl,
+        });
+        return;
+      }
+
+      if (isMarkdown) {
+        const text = await response.text();
+        setPreviewFile({ name: file.originalName, type: 'markdown', content: text });
+        return;
+      }
+
+      if (isDocx) {
+        const arrayBuffer = await response.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        setPreviewFile({ name: file.originalName, type: 'docx', content: result.value });
+        return;
+      }
+    } catch (error) {
+      console.error('Preview error:', error);
+      setError('Failed to load preview');
+    }
+  }
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      setError(null);
+      setNotice(null);
+
+      await uploadFile(file, isAdminOnly, uploadDept, currentFolderId);
+      await loadData();
+      event.target.value = '';
+
+      if (isAdminOnly) {
+        setNotice('Uploaded. Admin-only files are hidden unless you are an admin.');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to upload file';
+      setError(`Upload failed: ${msg}`);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
-    <div className="-m-10 flex h-full">
-      {/* Folder Tree */}
-      <FolderTree activeFolder={activeFolder} onSelect={setActiveFolder} />
+    <div className="flex h-full gap-8">
+      {/* Sub-sidebar for Folders */}
+      <aside className="w-48 flex-shrink-0 border-r border-neutral-200 pr-4">
+        <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-500">
+          My Files
+        </h2>
+        <nav className="space-y-1">
+          <button
+            onClick={() => {
+              setSelectedFolder('All Files');
+              setCurrentFolderId(null);
+            }}
+            className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+              selectedFolder === 'All Files' && !currentFolderId
+                ? 'bg-neutral-900 text-white'
+                : 'text-neutral-600 hover:bg-neutral-100'
+            }`}
+          >
+            📁 All Files
+          </button>
+
+          {folderTree.map((node) => (
+            <FolderTreeItem
+              key={node._id}
+              node={node}
+              currentFolderId={currentFolderId}
+              onSelect={(folder) => {
+                setCurrentFolderId(folder._id);
+                setSelectedFolder(folder.name);
+              }}
+            />
+          ))}
+        </nav>
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-8">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between border-b-2 border-gray-800 pb-4">
-          <div className="rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base text-gray-500">
-            Home &gt; {activeFolder}
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant={view === 'grid' ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setView('grid')}
+      <div className="flex-1">
+        <header className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-neutral-500">
+            <button
+              onClick={() => {
+                setCurrentFolderId(null);
+                setSelectedFolder('All Files');
+              }}
+              className="hover:text-neutral-900"
             >
-              Grid View
-            </Button>
-            <Button
-              variant={view === 'list' ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setView('list')}
-            >
-              List View
-            </Button>
+              Home
+            </button>
+            <span>&gt;</span>
+            <span className="font-medium text-neutral-900">{selectedFolder}</span>
           </div>
-        </div>
+
+          <div className="flex items-center gap-4">
+            <Button onClick={handleCreateFolder} variant="secondary" className="text-xs font-bold">
+              + New Folder
+            </Button>
+            <div className="flex items-center gap-2 rounded-lg border border-neutral-200 p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`rounded px-3 py-1 text-xs font-medium ${
+                  viewMode === 'grid' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'
+                }`}
+              >
+                Grid View
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`rounded px-3 py-1 text-xs font-medium ${
+                  viewMode === 'list' ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-500'
+                }`}
+              >
+                List View
+              </button>
+            </div>
+          </div>
+        </header>
 
         {/* Filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border-2 border-gray-500 bg-gray-50 p-4">
-          <div className="border-r-2 border-gray-400 pr-4 text-sm font-bold">File Type:</div>
-          {fileTypeFilters.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => setTypeFilter(value)}
-              className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
-                typeFilter === value
-                  ? 'border-gray-800 bg-gray-800 text-white'
-                  : 'border-gray-500 bg-white hover:bg-gray-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          <div className="ml-4 border-r-2 border-gray-400 pr-4 text-sm font-bold">Department:</div>
-          {departments.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDeptFilter(d)}
-              className={`cursor-pointer rounded-md border-2 px-3 py-1.5 text-sm transition-colors ${
-                deptFilter === d
-                  ? 'border-gray-800 bg-gray-800 text-white'
-                  : 'border-gray-500 bg-white hover:bg-gray-100'
-              }`}
-            >
-              {d}
-            </button>
-          ))}
+        <div className="mb-8 flex flex-wrap items-center gap-8 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold uppercase text-neutral-400">File Type:</span>
+            <div className="flex gap-1">
+              {FILE_TYPES.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setTypeFilter(type)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    typeFilter === type
+                      ? 'border-neutral-900 bg-neutral-900 text-white'
+                      : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold uppercase text-neutral-400">Department:</span>
+            <div className="flex flex-wrap gap-1">
+              <button
+                onClick={() => setDeptFilter('All')}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  deptFilter === 'All'
+                    ? 'border-neutral-900 bg-neutral-900 text-white'
+                    : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                }`}
+              >
+                All
+              </button>
+              {departments.map((dept) => (
+                <button
+                  key={dept._id}
+                  onClick={() => setDeptFilter(dept.name)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    deptFilter === dept.name
+                      ? 'border-neutral-900 bg-neutral-900 text-white'
+                      : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                  }`}
+                >
+                  {dept.name}
+                </button>
+              ))}
+              <button
+                onClick={handleAddDepartment}
+                className="rounded-full border border-dashed border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-400 hover:border-neutral-400 hover:text-neutral-600"
+                title="Add Department"
+              >
+                +
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* File Views */}
-        {view === 'grid' ? (
-          <FileGrid files={visibleFiles} isAdmin={isAdmin} />
+        {error && <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</div>}
+        {notice && (
+          <div className="mb-6 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div>
+        )}
+
+        {loading ? (
+          <div className="py-12 text-center text-neutral-500">Loading...</div>
+        ) : filteredFiles.length === 0 && folders.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-neutral-200 py-12 text-center">
+            <p className="text-neutral-500">No files or folders found matching your filters.</p>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {/* Folders first */}
+            {folders.map((folder) => (
+              <div
+                key={folder._id}
+                onClick={() => {
+                  setCurrentFolderId(folder._id);
+                  setSelectedFolder(folder.name);
+                }}
+                className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+              >
+                <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-amber-50 text-2xl">
+                  <FileIcon fileName="" isFolder />
+                </div>
+                <h3
+                  className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
+                  title={folder.name}
+                >
+                  {folder.name}
+                </h3>
+                <p className="text-[10px] text-neutral-400">Folder</p>
+
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDeleteFolder(folder._id);
+                  }}
+                  className="absolute right-2 top-2 text-red-500 opacity-0 hover:text-red-700 group-hover:opacity-100"
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+
+            {/* Files */}
+            {filteredFiles.map((file) => (
+              <div
+                key={file._id}
+                className="group relative flex flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+              >
+                <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-neutral-50 text-2xl">
+                  <FileIcon fileName={file.originalName} />
+                </div>
+                <h3
+                  className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
+                  title={file.originalName}
+                >
+                  {file.originalName}
+                </h3>
+                <p className="text-[10px] text-neutral-400">
+                  {(file.size / 1024).toFixed(1)} KB •{' '}
+                  {new Date(file.createdAt).toLocaleDateString()}
+                </p>
+                <p className="mt-1 text-[10px] font-medium text-neutral-500">
+                  {file.uploadedBy?.displayName || 'Unknown'} •{' '}
+                  <span className="text-neutral-400">{file.department}</span>
+                </p>
+
+                {file.isAdminOnly && (
+                  <span className="mt-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                    Admin Only
+                  </span>
+                )}
+
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDeleteFile(file._id);
+                  }}
+                  className="absolute right-2 top-2 text-red-500 opacity-0 hover:text-red-700 group-hover:opacity-100"
+                >
+                  🗑️
+                </button>
+
+                <div className="mt-4 flex w-full gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={() => handlePreview(file)}
+                    className="flex-1 rounded-lg bg-neutral-100 py-2 text-xs font-bold text-neutral-900 hover:bg-neutral-200"
+                  >
+                    Preview
+                  </button>
+                  <a
+                    href={getDownloadUrl(file._id)}
+                    className="flex-1 rounded-lg bg-neutral-900 py-2 text-center text-xs font-bold text-white hover:bg-neutral-800"
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <FileList files={visibleFiles} isAdmin={isAdmin} />
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-neutral-50 text-neutral-500">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Name</th>
+                  <th className="px-6 py-3 font-medium">Size</th>
+                  <th className="px-6 py-3 font-medium">Department</th>
+                  <th className="px-6 py-3 font-medium">Uploaded By</th>
+                  <th className="px-6 py-3 font-medium">Date</th>
+                  <th className="px-6 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {/* Folders */}
+                {folders.map((folder) => (
+                  <tr
+                    key={folder._id}
+                    onClick={() => {
+                      setCurrentFolderId(folder._id);
+                      setSelectedFolder(folder.name);
+                    }}
+                    className="group cursor-pointer hover:bg-neutral-50"
+                  >
+                    <td className="px-6 py-4 font-medium text-neutral-900">
+                      <div className="flex items-center gap-3">
+                        <FileIcon fileName="" isFolder />
+                        {folder.name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-neutral-500">--</td>
+                    <td className="px-6 py-4 text-neutral-500">Folder</td>
+                    <td className="px-6 py-4 text-neutral-500">
+                      {folder.createdBy?.displayName || 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 text-neutral-500">
+                      {new Date(folder.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDeleteFolder(folder._id);
+                        }}
+                        className="font-medium text-red-600 hover:text-red-900 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Files */}
+                {filteredFiles.map((file) => (
+                  <tr key={file._id} className="group hover:bg-neutral-50">
+                    <td className="px-6 py-4 font-medium text-neutral-900">
+                      <div className="flex items-center gap-3">
+                        <FileIcon fileName={file.originalName} />
+                        {file.originalName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-neutral-500">
+                      {(file.size / 1024).toFixed(1)} KB
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-600">
+                        {file.department}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-neutral-500">
+                      {file.uploadedBy?.displayName || 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 text-neutral-500">
+                      {new Date(file.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => handlePreview(file)}
+                          className="font-medium text-neutral-600 hover:text-neutral-900 hover:underline"
+                        >
+                          Preview
+                        </button>
+                        <a
+                          href={getDownloadUrl(file._id)}
+                          className="font-medium text-neutral-900 hover:underline"
+                        >
+                          Download
+                        </a>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDeleteFile(file._id);
+                          }}
+                          className="font-medium text-red-600 hover:text-red-900 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Upload Button */}
-      <button
-        onClick={() => alert('Would open file upload dialog')}
-        className="fixed bottom-12 right-12 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-gray-800 bg-white text-3xl shadow-lg transition-colors hover:bg-gray-100"
-      >
-        +
-      </button>
+      {/* Floating Upload Button */}
+      <div className="fixed bottom-8 right-8 flex flex-col items-end gap-4">
+        <div className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-neutral-200">
+          <select
+            value={uploadDept}
+            onChange={(event) => setUploadDept(event.target.value)}
+            className="rounded-lg border-neutral-200 text-xs font-bold text-neutral-700 focus:border-neutral-900 focus:ring-neutral-900"
+          >
+            {departments.map((dept) => (
+              <option key={dept._id} value={dept.name}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-xs font-bold text-neutral-700">
+            <input
+              type="checkbox"
+              checked={isAdminOnly}
+              onChange={(event) => setIsAdminOnly(event.target.checked)}
+              className="h-4 w-4 rounded border-neutral-300"
+            />
+            Admin Only
+          </label>
+          <div className="relative">
+            <input
+              type="file"
+              className="absolute inset-0 cursor-pointer opacity-0"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+            <button className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-900 text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
+              {uploading ? '...' : '↑'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        onClose={() => {
+          if (previewFile?.url && (previewFile.type === 'image' || previewFile.type === 'pdf')) {
+            URL.revokeObjectURL(previewFile.url);
+          }
+          setPreviewFile(null);
+        }}
+        fileName={previewFile?.name || ''}
+        content={previewFile?.content}
+        url={previewFile?.url}
+        type={previewFile?.type || 'markdown'}
+      />
     </div>
   );
 }
