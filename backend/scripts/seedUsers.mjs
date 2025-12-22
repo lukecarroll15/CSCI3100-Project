@@ -8,15 +8,19 @@ const __dirname = dirname(__filename);
 
 dotenv.config({ path: join(__dirname, '../.env') });
 
-const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/taskflow_dev';
+const MONGODB_URI =
+  process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/taskflow_dev';
 
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true, index: true, trim: true, lowercase: true },
-  displayName: { type: String, default: '' },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  githubId: { type: String, unique: true, sparse: true, index: true },
-  githubUsername: { type: String, default: '' },
-}, { timestamps: true });
+const userSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, index: true, trim: true, lowercase: true },
+    displayName: { type: String, default: '' },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    githubId: { type: String, unique: true, sparse: true, index: true },
+    githubUsername: { type: String, default: '' },
+  },
+  { timestamps: true }
+);
 
 const User = mongoose.model('User', userSchema);
 
@@ -69,16 +73,18 @@ async function seedUsers() {
     console.log(`✅ Successfully seeded ${users.length} users!`);
 
     // Display summary
-    const adminCount = users.filter(u => u.role === 'admin').length;
+    const adminCount = users.filter((u) => u.role === 'admin').length;
     const userCount = users.length - adminCount;
-    
+
     console.log(`\nSummary:`);
     console.log(`  - ${adminCount} admin accounts`);
     console.log(`  - ${userCount} regular user accounts`);
     console.log(`\nAdmin accounts:`);
-    users.filter(u => u.role === 'admin').forEach(u => {
-      console.log(`  - ${u.displayName} (${u.email})`);
-    });
+    users
+      .filter((u) => u.role === 'admin')
+      .forEach((u) => {
+        console.log(`  - ${u.displayName} (${u.email})`);
+      });
 
     await mongoose.connection.close();
     console.log('\nDatabase connection closed');

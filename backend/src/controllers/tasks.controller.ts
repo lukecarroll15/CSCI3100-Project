@@ -18,7 +18,10 @@ const UpdateTaskSchema = z.object({
   priority: z.enum(['high', 'medium', 'low']).optional(),
   department: z.enum(['sales', 'it', 'finance', 'marketing', 'hr', 'customer-service']).optional(),
   assignee: z.string().optional(),
-  dueDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid due date').optional(),
+  dueDate: z
+    .string()
+    .refine((val) => !isNaN(Date.parse(val)), 'Invalid due date')
+    .optional(),
   status: z.enum(['Not Started', 'In Progress', 'Completed']).optional(),
 });
 

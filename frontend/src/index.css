@@ -46,51 +46,51 @@
   }
 }
 
-  @keyframes modal-in {
-    0% {
-      opacity: 0;
-      transform: scale(0.9) translateY(-20px);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
+@keyframes modal-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
   }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
 
-  @keyframes pulse-glow {
-    0%,
-    100% {
-      box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(34, 197, 94, 0.8);
-    }
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
   }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.8);
+  }
+}
 
-  @keyframes pulse-soft {
-    0%,
-    100% {
-      box-shadow: 0 0 14px rgba(59, 130, 246, 0.25);
-    }
-    50% {
-      box-shadow: 0 0 26px rgba(59, 130, 246, 0.45);
-    }
+@keyframes pulse-soft {
+  0%,
+  100% {
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.25);
   }
+  50% {
+    box-shadow: 0 0 26px rgba(59, 130, 246, 0.45);
+  }
+}
 
-  @keyframes button-shake {
-    0%,
-    100% {
-      transform: translateX(0);
-    }
-    20%,
-    60% {
-      transform: translateX(-6px);
-    }
-    40%,
-    80% {
-      transform: translateX(6px);
-    }
+@keyframes button-shake {
+  0%,
+  100% {
+    transform: translateX(0);
   }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
 
 @layer components {
   .ripple-dot {

@@ -242,7 +242,9 @@ function TableView({
             <th className="border-2 border-gray-500 p-4 text-left text-base font-bold">Complete</th>
           )}
           {!showCompleteColumn && showIncompleteColumn && (
-            <th className="border-2 border-gray-500 p-4 text-left text-base font-bold">Incomplete</th>
+            <th className="border-2 border-gray-500 p-4 text-left text-base font-bold">
+              Incomplete
+            </th>
           )}
         </tr>
       </thead>
@@ -254,7 +256,9 @@ function TableView({
             className="cursor-pointer hover:bg-gray-50"
           >
             <td className="border-2 border-gray-300 p-4 text-sm">{task.name}</td>
-            <td className="border-2 border-gray-300 p-4 text-sm">{getDate ? getDate(task) : task.date}</td>
+            <td className="border-2 border-gray-300 p-4 text-sm">
+              {getDate ? getDate(task) : task.date}
+            </td>
             <td className="border-2 border-gray-300 p-4 text-sm">
               <Badge variant={task.priority}>{task.priority.toUpperCase()}</Badge>
             </td>
@@ -277,8 +281,8 @@ function TableView({
                   }}
                   className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
                     isAdmin
-                      ? 'border-gray-400 text-gray-600 hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-colors'
-                      : 'border-gray-300 text-gray-300 cursor-not-allowed'
+                      ? 'border-gray-400 text-gray-600 transition-colors hover:border-green-600 hover:bg-green-50 hover:text-green-600'
+                      : 'cursor-not-allowed border-gray-300 text-gray-300'
                   }`}
                   aria-label={`Mark ${task.name} complete`}
                   aria-disabled={!isAdmin}
@@ -301,8 +305,8 @@ function TableView({
                   }}
                   className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
                     isAdmin
-                      ? 'border-gray-400 text-gray-600 hover:border-red-600 hover:text-red-600 hover:bg-red-50 transition-colors'
-                      : 'border-gray-300 text-gray-300 cursor-not-allowed'
+                      ? 'border-gray-400 text-gray-600 transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-600'
+                      : 'cursor-not-allowed border-gray-300 text-gray-300'
                   }`}
                   aria-label={`Mark ${task.name} incomplete`}
                   aria-disabled={!isAdmin}
@@ -413,9 +417,7 @@ function CalendarView({
                     isToday ? 'border-blue-600' : 'border-gray-300'
                   }`}
                 >
-                  <div
-                    className={`font-bold ${isToday ? 'text-blue-600' : 'text-gray-800'}`}
-                  >
+                  <div className={`font-bold ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>
                     {day}
                   </div>
                   <div className="text-xs font-light text-gray-500">{dayOfWeek}</div>
@@ -446,7 +448,7 @@ function CalendarView({
                         }
                         onComplete(task);
                       }}
-                      className="ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-400 text-gray-600 hover:border-green-600 hover:text-green-600 hover:bg-green-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300 transition-colors"
+                      className="ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-400 text-gray-600 transition-colors hover:border-green-600 hover:bg-green-50 hover:text-green-600 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300"
                       aria-label={`Mark ${task.name} complete`}
                       disabled={!isAdmin}
                     >
@@ -526,9 +528,7 @@ export default function CalendarPage() {
   const assigneeMatches = useMemo(() => {
     const query = taskAssignee.trim().toLowerCase();
     if (query.length < 1) return [] as UserOption[];
-    return mockUsers.filter((u) =>
-      `${u.name} ${u.email}`.toLowerCase().includes(query)
-    );
+    return mockUsers.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(query));
   }, [taskAssignee]);
 
   const filteredTasks = useMemo(
@@ -791,7 +791,9 @@ export default function CalendarPage() {
       <div className="mb-6 flex gap-6 rounded-lg border-2 border-gray-500 bg-gray-50 p-5">
         {/* Priority Filter */}
         <div className="flex flex-1 items-center gap-4">
-          <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">Filter by Priority:</div>
+          <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">
+            Filter by Priority:
+          </div>
           <div className="flex flex-wrap gap-2">
             {priorities.map((opt) => {
               const isActive = priorityFilter === opt;
@@ -828,7 +830,9 @@ export default function CalendarPage() {
 
         {/* Department Filter */}
         <div className="flex flex-1 items-center gap-4">
-          <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">Filter by Department:</div>
+          <div className="border-r-2 border-gray-400 pr-4 text-base font-bold">
+            Filter by Department:
+          </div>
           <div className="flex flex-wrap gap-2">
             {departments.map((opt) => {
               const isActive = departmentFilter === opt;
@@ -842,7 +846,9 @@ export default function CalendarPage() {
                       : 'border-gray-500 bg-white hover:bg-gray-100'
                   }`}
                 >
-                  {opt === 'all' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1).replace('-', ' ')}
+                  {opt === 'all'
+                    ? 'All'
+                    : opt.charAt(0).toUpperCase() + opt.slice(1).replace('-', ' ')}
                 </button>
               );
             })}
@@ -853,67 +859,69 @@ export default function CalendarPage() {
       {/* Views - Scrollable Container */}
       <div className="flex-1 overflow-y-auto">
         {view === 'table' ? (
-        <TableView
-          filteredTasks={sortedTasks}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSort={handleSort}
-          isAdmin={user?.role === 'admin'}
-          onComplete={handleMarkComplete}
-          onNonAdmin={handleNonAdminAttempt}
-          onOpenDetails={(task) => {
-            setSelectedTask(task);
-            setShowTaskModal(true);
-          }}
-        />
-      ) : view === 'calendar' ? (
-        <CalendarView
-          filteredTasks={filteredTasks}
-          isAdmin={user?.role === 'admin'}
-          onComplete={handleMarkComplete}
-          onNonAdmin={handleNonAdminAttempt}
-          onOpenDetails={(task) => {
-            setSelectedTask(task);
-            setShowTaskModal(true);
-          }}
-        />
-      ) : (
-        <TableView
-          filteredTasks={completedTasks}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSort={handleSort}
-          isAdmin={user?.role === 'admin'}
-          onComplete={() => {}}
-          showCompleteColumn={false}
-          showIncompleteColumn={true}
-          onIncomplete={handleMarkIncomplete}
-          onNonAdmin={handleNonAdminAttempt}
-          dateLabel="Completion Date"
-          getDate={(t) => t.completedAt ?? t.date}
-          onOpenDetails={(task) => {
-            setSelectedTask(task);
-            setShowTaskModal(true);
-          }}
-        />
-      )}
+          <TableView
+            filteredTasks={sortedTasks}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={handleSort}
+            isAdmin={user?.role === 'admin'}
+            onComplete={handleMarkComplete}
+            onNonAdmin={handleNonAdminAttempt}
+            onOpenDetails={(task) => {
+              setSelectedTask(task);
+              setShowTaskModal(true);
+            }}
+          />
+        ) : view === 'calendar' ? (
+          <CalendarView
+            filteredTasks={filteredTasks}
+            isAdmin={user?.role === 'admin'}
+            onComplete={handleMarkComplete}
+            onNonAdmin={handleNonAdminAttempt}
+            onOpenDetails={(task) => {
+              setSelectedTask(task);
+              setShowTaskModal(true);
+            }}
+          />
+        ) : (
+          <TableView
+            filteredTasks={completedTasks}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={handleSort}
+            isAdmin={user?.role === 'admin'}
+            onComplete={() => {}}
+            showCompleteColumn={false}
+            showIncompleteColumn={true}
+            onIncomplete={handleMarkIncomplete}
+            onNonAdmin={handleNonAdminAttempt}
+            dateLabel="Completion Date"
+            getDate={(t) => t.completedAt ?? t.date}
+            onOpenDetails={(task) => {
+              setSelectedTask(task);
+              setShowTaskModal(true);
+            }}
+          />
+        )}
 
-      {loading && (
-        <div className="flex items-center justify-center p-8">
-          <div className="text-lg text-gray-600">Loading tasks...</div>
-        </div>
-      )}
+        {loading && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-lg text-gray-600">Loading tasks...</div>
+          </div>
+        )}
       </div>
 
       {/* Add Task Button */}
       <button
         onClick={handleAddTaskClick}
-        className={`fixed bottom-12 right-12 flex items-center gap-3 rounded-full border-2 border-gray-900 bg-white px-7 py-3 text-lg font-bold text-gray-900 shadow-xl transition-all hover:scale-105 hover:-translate-y-1 hover:shadow-2xl animate-pulse-soft ${
+        className={`animate-pulse-soft fixed bottom-12 right-12 flex items-center gap-3 rounded-full border-2 border-gray-900 bg-white px-7 py-3 text-lg font-bold text-gray-900 shadow-xl transition-all hover:-translate-y-1 hover:scale-105 hover:shadow-2xl ${
           shake ? 'animate-shake' : ''
         }`}
         aria-live="polite"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-900 bg-blue-600 text-2xl text-white">+</span>
+        <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-900 bg-blue-600 text-2xl text-white">
+          +
+        </span>
         <span className="pr-1">Add Task</span>
       </button>
       {addTaskError && (
@@ -949,13 +957,21 @@ export default function CalendarPage() {
                   <div>{selectedTask.name}</div>
                 </div>
                 <div>
-                  <div className="font-semibold">{selectedTask.status === 'Completed' ? 'Completion Date' : 'Due Date'}</div>
-                  <div>{selectedTask.status === 'Completed' ? selectedTask.completedAt ?? selectedTask.date : selectedTask.date}</div>
+                  <div className="font-semibold">
+                    {selectedTask.status === 'Completed' ? 'Completion Date' : 'Due Date'}
+                  </div>
+                  <div>
+                    {selectedTask.status === 'Completed'
+                      ? (selectedTask.completedAt ?? selectedTask.date)
+                      : selectedTask.date}
+                  </div>
                 </div>
                 <div>
                   <div className="font-semibold">Priority</div>
                   <div>
-                    <Badge variant={selectedTask.priority}>{selectedTask.priority.toUpperCase()}</Badge>
+                    <Badge variant={selectedTask.priority}>
+                      {selectedTask.priority.toUpperCase()}
+                    </Badge>
                   </div>
                 </div>
                 <div>
@@ -1066,7 +1082,7 @@ export default function CalendarPage() {
                           type="button"
                           onClick={() => setTaskPriority(p)}
                           className={`flex-1 rounded-md border-2 px-3 py-2 text-sm font-semibold transition-colors ${styles} ${
-                            isActive ? `${activeBg} ring-2 ring-offset-1 ring-gray-700` : 'bg-white'
+                            isActive ? `${activeBg} ring-2 ring-gray-700 ring-offset-1` : 'bg-white'
                           }`}
                           aria-pressed={isActive}
                         >
@@ -1200,7 +1216,8 @@ export default function CalendarPage() {
               </button>
             </div>
             <p className="mb-4 text-sm">
-              Are you sure you want to mark <span className="font-semibold">{taskToComplete.name}</span> as complete?
+              Are you sure you want to mark{' '}
+              <span className="font-semibold">{taskToComplete.name}</span> as complete?
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -1239,7 +1256,8 @@ export default function CalendarPage() {
               </button>
             </div>
             <p className="mb-4 text-sm">
-              Are you sure you want to revert the completion of <span className="font-semibold">{taskToRestore.name}</span>?
+              Are you sure you want to revert the completion of{' '}
+              <span className="font-semibold">{taskToRestore.name}</span>?
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
@@ -1278,7 +1296,9 @@ export default function CalendarPage() {
               </button>
             </div>
             <p className="mb-4 text-sm">
-              Are you sure you want to permanently delete <span className="font-semibold">{taskToDelete.name}</span>? This action cannot be undone.
+              Are you sure you want to permanently delete{' '}
+              <span className="font-semibold">{taskToDelete.name}</span>? This action cannot be
+              undone.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button

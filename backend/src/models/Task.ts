@@ -12,7 +12,11 @@ const TaskSchema = new Schema(
     },
     assignee: { type: String, default: 'Unassigned' },
     dueDate: { type: Date, required: true },
-    status: { type: String, enum: ['Not Started', 'In Progress', 'Completed'], default: 'Not Started' },
+    status: {
+      type: String,
+      enum: ['Not Started', 'In Progress', 'Completed'],
+      default: 'Not Started',
+    },
     completedAt: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
