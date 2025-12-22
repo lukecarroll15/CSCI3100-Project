@@ -51,7 +51,7 @@ const EnvSchema = z.object({
   GITHUB_SCOPES: z.string().default('read:user user:email'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(1000),
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });

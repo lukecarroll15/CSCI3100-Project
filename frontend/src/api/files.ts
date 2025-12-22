@@ -10,25 +10,40 @@ export interface FileItem {
     displayName: string;
     email: string;
   };
+  department: string;
+  folder: string | null;
   isAdminOnly: boolean;
   createdAt: string;
 }
 
-export async function listFiles(): Promise<FileItem[]> {
-  return apiJson<FileItem[]>('/files', { method: 'GET' });
+export async function listFiles(folderId?: string | null): Promise<FileItem[]> {
+  const url = folderId ? `/files?folder=${folderId}` : '/files';
+  return apiJson<FileItem[]>(url, { method: 'GET' });
 }
 
-export async function uploadFile(file: File, isAdminOnly: boolean): Promise<FileItem> {
+export async function uploadFile(file: File, isAdminOnly: boolean, department: string = 'General', folderId: string | null = null): Promise<FileItem> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('isAdminOnly', String(isAdminOnly));
+  formData.append('department', department);
+  if (folderId) {
+    formData.append('folder', folderId);
+  }
 
-  console.log('uploadFile called with:', { fileName: file.name, isAdminOnly });
+  console.log('uploadFile called with:', { fileName: file.name, isAdminOnly, department, folderId });
 
   return apiJson<FileItem>('/files', {
     method: 'POST',
     body: formData,
   });
+}
+
+export async function deleteFile(fileId: string): Promise<void> {
+  return apiJson<void>(`/files/${fileId}`, { method: 'DELETE' });
+}
+
+export async function deleteFolder(folderId: string): Promise<void> {
+  return apiJson<void>(`/folders/${folderId}`, { method: 'DELETE' });
 }
 
 export function getDownloadUrl(fileId: string): string {

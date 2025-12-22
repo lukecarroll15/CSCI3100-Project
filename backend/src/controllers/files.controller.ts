@@ -42,6 +42,12 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
 
     // Check if it should be admin only
     const isAdminOnly = req.body.isAdminOnly === 'true';
+    const department = req.body.department || 'General';
+    let folder = req.body.folder;
+    
+    if (folder === 'null' || folder === 'undefined' || !folder) {
+      folder = null;
+    }
 
     const fileDoc = await FileModel.create({
       originalName: req.file.originalname,
@@ -49,6 +55,8 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
       mimeType: req.file.mimetype,
       size: req.file.size,
       uploadedBy: userId,
+      department,
+      folder,
       isAdminOnly,
     });
 
@@ -61,18 +69,38 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
 export async function handleListFiles(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.auth?.userId;
-    const user = await UserModel.findById(userId);
+    let user = await UserModel.findById(userId);
+    
+    // Fallback: If user ID mismatch (e.g. DB reset), try finding by email
+    if (!user && req.auth?.email) {
+      user = await UserModel.findOne({ email: req.auth.email });
+    }
+
     const isAdmin = user?.role === 'admin';
     
-    const query: { isAdminOnly?: boolean } = {};
+    console.log(`[ListFiles] User: ${user?.email}, Role: ${user?.role}, IsAdmin: ${isAdmin}`);
+
+    const { folder } = req.query;
+    const query: any = {};
+    
     if (!isAdmin) {
       query.isAdminOnly = false;
     }
+
+    if (folder && folder !== 'null' && folder !== 'undefined') {
+      query.folder = folder;
+    } else {
+      query.folder = null;
+    }
+
+    console.log('[ListFiles] Query:', JSON.stringify(query));
 
     const files = await FileModel.find(query)
       .sort({ createdAt: -1 })
       .populate('uploadedBy', 'displayName email');
       
+    console.log(`[ListFiles] Found ${files.length} files`);
+
     res.json(files);
   } catch (err) {
     next(err);
@@ -95,6 +123,36 @@ export async function handleDownloadFile(req: Request, res: Response, next: Next
 
     const filePath = path.join(UPLOAD_DIR, file.storedName);
     res.download(filePath, file.originalName);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function handleDeleteFile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { fileId } = req.params;
+    const file = await FileModel.findById(fileId);
+    if (!file) throw new AppError(404, 'NOT_FOUND', 'File not found');
+
+    const userId = req.auth?.userId;
+    const user = await UserModel.findById(userId);
+    const isAdmin = user?.role === 'admin';
+
+    // Only the uploader or an admin can delete the file
+    if (file.uploadedBy.toString() !== userId && !isAdmin) {
+      throw new AppError(403, 'FORBIDDEN', 'Not authorized to delete this file');
+    }
+
+    // Delete from disk
+    const filePath = path.join(UPLOAD_DIR, file.storedName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Delete from DB
+    await FileModel.findByIdAndDelete(fileId);
+
+    res.status(204).send();
   } catch (err) {
     next(err);
   }
