@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { handleUploadFile, handleListFiles, handleDownloadFile, handleDeleteFile, upload } from '../../controllers/files.controller';
+import {
+  handleUploadFile,
+  handleListFiles,
+  handleDownloadFile,
+  handleDeleteFile,
+  upload,
+} from '../../controllers/files.controller';
 import { requireAuth } from '../../middleware/auth';
 
 export const filesRouter = Router();

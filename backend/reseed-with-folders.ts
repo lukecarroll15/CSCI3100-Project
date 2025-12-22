@@ -1,4 +1,3 @@
-
 import mongoose from 'mongoose';
 import { UserModel } from './src/models/User';
 import { FileModel } from './src/models/File';
@@ -14,9 +13,7 @@ const USERS = [
   { email: 'john.smith@example.com', displayName: 'John Smith', role: 'user' },
 ];
 
-const DEPARTMENTS = [
-  'Sales', 'IT', 'Finance', 'Marketing', 'HR', 'Customer Service'
-];
+const DEPARTMENTS = ['Sales', 'IT', 'Finance', 'Marketing', 'HR', 'Customer Service'];
 
 const FILES = [
   {
@@ -25,7 +22,7 @@ const FILES = [
     size: 2500000, // 2.5MB
     department: 'Sales',
     uploaderEmail: 'sarah.chen@example.com',
-    isAdminOnly: false
+    isAdminOnly: false,
   },
   {
     originalName: 'Security_Audit_2025.pdf',
@@ -33,7 +30,7 @@ const FILES = [
     size: 5600000, // 5.6MB
     department: 'IT',
     uploaderEmail: 'david.park@example.com',
-    isAdminOnly: true
+    isAdminOnly: true,
   },
   {
     originalName: 'Q4_Budget_Draft.xlsx',
@@ -41,7 +38,7 @@ const FILES = [
     size: 120000, // 120KB
     department: 'Finance',
     uploaderEmail: 'michael.torres@example.com',
-    isAdminOnly: false
+    isAdminOnly: false,
   },
   {
     originalName: 'Marketing_Assets_Q4.zip',
@@ -49,7 +46,7 @@ const FILES = [
     size: 15400000, // 15.4MB
     department: 'Marketing',
     uploaderEmail: 'emma.wilson@example.com',
-    isAdminOnly: false
+    isAdminOnly: false,
   },
   {
     originalName: 'Client_Feedback_Summary.docx',
@@ -57,7 +54,7 @@ const FILES = [
     size: 45000, // 45KB
     department: 'Customer Service',
     uploaderEmail: 'john.smith@example.com',
-    isAdminOnly: false
+    isAdminOnly: false,
   },
   {
     originalName: 'Team_Building_Event_Plan.docx',
@@ -65,7 +62,7 @@ const FILES = [
     size: 28000, // 28KB
     department: 'HR',
     uploaderEmail: 'sarah.chen@example.com',
-    isAdminOnly: false
+    isAdminOnly: false,
   },
   {
     originalName: 'Deployment_Script_v2.sh',
@@ -73,7 +70,7 @@ const FILES = [
     size: 5000, // 5KB
     department: 'IT',
     uploaderEmail: 'david.park@example.com',
-    isAdminOnly: true
+    isAdminOnly: true,
   },
   {
     originalName: 'Client_Presentation_Draft.pptx',
@@ -81,7 +78,7 @@ const FILES = [
     size: 8900000, // 8.9MB
     department: 'Sales',
     uploaderEmail: 'emma.wilson@example.com',
-    isAdminOnly: false
+    isAdminOnly: false,
   },
   {
     originalName: 'Sales_Strategy_2025.docx',
@@ -89,7 +86,7 @@ const FILES = [
     size: 890000, // 890KB
     department: 'Sales',
     uploaderEmail: 'emma.wilson@example.com',
-    isAdminOnly: true
+    isAdminOnly: true,
   },
   {
     originalName: 'Employee_Schedule.xlsx',
@@ -97,8 +94,8 @@ const FILES = [
     size: 456000, // 456KB
     department: 'HR',
     uploaderEmail: 'john.smith@example.com',
-    isAdminOnly: false
-  }
+    isAdminOnly: false,
+  },
 ];
 
 async function reseedWithFolders() {
@@ -115,14 +112,14 @@ async function reseedWithFolders() {
     // 2. Ensure Users exist (and get their IDs)
     console.log('Ensuring Users exist...');
     const userMap = new Map<string, string>(); // email -> _id
-    
+
     for (const u of USERS) {
       const user = await UserModel.findOneAndUpdate(
         { email: u.email },
-        { 
-          email: u.email, 
-          displayName: u.displayName, 
-          role: u.role 
+        {
+          email: u.email,
+          displayName: u.displayName,
+          role: u.role,
         },
         { upsert: true, new: true }
       );
@@ -150,7 +147,7 @@ async function reseedWithFolders() {
         name: deptName,
         parentFolder: null,
         createdBy: adminId,
-        department: deptName
+        department: deptName,
       });
       folderMap.set(deptName, folder._id.toString());
       console.log(`Created folder: ${deptName}`);
@@ -179,7 +176,7 @@ async function reseedWithFolders() {
         uploadedBy: uploaderId,
         department: f.department,
         folder: folderId, // Place in the department folder
-        isAdminOnly: f.isAdminOnly
+        isAdminOnly: f.isAdminOnly,
       });
       console.log(`Created file: ${f.originalName} in folder ${f.department}`);
     }

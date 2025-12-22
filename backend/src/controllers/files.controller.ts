@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { FilterQuery } from 'mongoose';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { FileModel } from '../models/File';
+import { FileModel, type FileDoc } from '../models/File';
 import { UserModel } from '../models/User';
 import { AppError } from '../errors/AppError';
 
@@ -36,7 +37,7 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
     });
 
     if (!req.file) throw new AppError(400, 'NO_FILE', 'No file uploaded');
-    
+
     const userId = req.auth?.userId;
     if (!userId) throw new AppError(401, 'UNAUTHENTICATED', 'User not found');
 
@@ -44,7 +45,7 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
     const isAdminOnly = req.body.isAdminOnly === 'true';
     const department = req.body.department || 'General';
     let folder = req.body.folder;
-    
+
     if (folder === 'null' || folder === 'undefined' || !folder) {
       folder = null;
     }
@@ -70,25 +71,26 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
   try {
     const userId = req.auth?.userId;
     let user = await UserModel.findById(userId);
-    
+
     // Fallback: If user ID mismatch (e.g. DB reset), try finding by email
     if (!user && req.auth?.email) {
       user = await UserModel.findOne({ email: req.auth.email });
     }
 
     const isAdmin = user?.role === 'admin';
-    
+
     console.log(`[ListFiles] User: ${user?.email}, Role: ${user?.role}, IsAdmin: ${isAdmin}`);
 
     const { folder } = req.query;
-    const query: any = {};
-    
+    const query: FilterQuery<FileDoc> = {};
+    const folderParam = typeof folder === 'string' ? folder : undefined;
+
     if (!isAdmin) {
       query.isAdminOnly = false;
     }
 
-    if (folder && folder !== 'null' && folder !== 'undefined') {
-      query.folder = folder;
+    if (folderParam && folderParam !== 'null' && folderParam !== 'undefined') {
+      query.folder = folderParam;
     } else {
       query.folder = null;
     }
@@ -98,7 +100,7 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
     const files = await FileModel.find(query)
       .sort({ createdAt: -1 })
       .populate('uploadedBy', 'displayName email');
-      
+
     console.log(`[ListFiles] Found ${files.length} files`);
 
     res.json(files);

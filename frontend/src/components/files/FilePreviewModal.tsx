@@ -26,9 +26,7 @@ export default function FilePreviewModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
-          <h3 className="text-lg font-semibold text-neutral-900">
-            Preview: {fileName}
-          </h3>
+          <h3 className="text-lg font-semibold text-neutral-900">Preview: {fileName}</h3>
           <button
             onClick={onClose}
             className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
@@ -49,36 +47,30 @@ export default function FilePreviewModal({
             </svg>
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto bg-neutral-50 p-6">
           {type === 'markdown' && content && (
             <div className="prose prose-neutral max-w-none rounded-lg bg-white p-8 shadow-sm">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
-              </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             </div>
           )}
-          
+
           {type === 'image' && url && (
             <div className="flex h-full items-center justify-center">
-              <img 
-                src={url} 
-                alt={fileName} 
-                className="max-h-full max-w-full rounded-lg object-contain shadow-sm" 
+              <img
+                src={url}
+                alt={fileName}
+                className="max-h-full max-w-full rounded-lg object-contain shadow-sm"
               />
             </div>
           )}
 
           {type === 'pdf' && url && (
-            <iframe
-              src={url}
-              className="h-full w-full rounded-lg shadow-sm"
-              title={fileName}
-            />
+            <iframe src={url} className="h-full w-full rounded-lg shadow-sm" title={fileName} />
           )}
 
           {type === 'docx' && content && (
-            <div 
+            <div
               className="prose prose-neutral max-w-none rounded-lg bg-white p-12 shadow-sm"
               dangerouslySetInnerHTML={{ __html: content }}
             />

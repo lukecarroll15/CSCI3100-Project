@@ -1,4 +1,3 @@
-
 import test, { before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
@@ -10,9 +9,12 @@ import { env } from '../config/env';
 import { UserModel } from '../models/User';
 import { FileModel } from '../models/File';
 import FolderModel from '../models/Folder';
-import { DepartmentModel } from '../models/Department';
 
 const app = createApp();
+
+type DepartmentResponse = { name: string };
+type FolderResponse = { _id: string; name: string; parentFolder?: string | null };
+type FileResponse = { originalName: string };
 
 function createSessionCookie(user: { _id: mongoose.Types.ObjectId; email: string }) {
   const token = jwt.sign({ email: user.email }, env.SESSION_SECRET, {
@@ -57,11 +59,10 @@ test('Feature: Department Management', async (t) => {
     assert.equal(resCreate.status, 201);
 
     // List
-    const resList = await request(app)
-      .get('/api/v1/departments')
-      .set('Cookie', [adminCookie]);
+    const resList = await request(app).get('/api/v1/departments').set('Cookie', [adminCookie]);
     assert.equal(resList.status, 200);
-    assert.ok(resList.body.some((d: any) => d.name === 'Engineering'));
+    const departments = resList.body as DepartmentResponse[];
+    assert.ok(departments.some((department) => department.name === 'Engineering'));
   });
 });
 
@@ -73,17 +74,15 @@ test('Feature: Folder Organization', async (t) => {
       role: 'admin',
     });
     const adminCookie = createSessionCookie(admin);
-    
-    let rootFolderId: string;
 
     // 1. Create Root
     const resRoot = await request(app)
       .post('/api/v1/folders')
       .set('Cookie', [adminCookie])
       .send({ name: 'Engineering', department: 'Engineering' });
-    
+
     assert.equal(resRoot.status, 201);
-    rootFolderId = resRoot.body._id;
+    const rootFolderId = resRoot.body._id as string;
 
     // 2. Create Nested
     const resNested = await request(app)
@@ -93,14 +92,13 @@ test('Feature: Folder Organization', async (t) => {
     assert.equal(resNested.status, 201);
 
     // 3. List Tree
-    const resList = await request(app)
-      .get('/api/v1/folders?all=true')
-      .set('Cookie', [adminCookie]);
-    
+    const resList = await request(app).get('/api/v1/folders?all=true').set('Cookie', [adminCookie]);
+
     assert.equal(resList.status, 200);
-    const root = resList.body.find((f: any) => f.name === 'Engineering');
-    const child = resList.body.find((f: any) => f.name === 'Docs');
-    
+    const folders = resList.body as FolderResponse[];
+    const root = folders.find((folder) => folder.name === 'Engineering');
+    const child = folders.find((folder) => folder.name === 'Docs');
+
     assert.ok(root, 'Root folder should exist');
     assert.ok(child, 'Child folder should exist');
     assert.equal(child.parentFolder, root._id);
@@ -126,7 +124,7 @@ test('Feature: File Management & Security', async (t) => {
     const folder = await FolderModel.create({
       name: 'Public Docs',
       createdBy: admin._id,
-      department: 'General'
+      department: 'General',
     });
 
     // 1. Upload File
@@ -150,23 +148,31 @@ test('Feature: File Management & Security', async (t) => {
       uploadedBy: admin._id,
       department: 'General',
       folder: folder._id, // Must be in the same folder to be tested
-      isAdminOnly: true
+      isAdminOnly: true,
     });
 
     // 3. User Check
     const userRes = await request(app)
       .get(`/api/v1/files?folder=${folder._id}`)
       .set('Cookie', [userCookie]);
-    
-    assert.ok(userRes.body.some((f: any) => f.originalName === 'test.txt'));
-    assert.ok(!userRes.body.some((f: any) => f.originalName === 'secret.txt'), 'User should not see secret file');
+
+    const userFiles = userRes.body as FileResponse[];
+    assert.ok(userFiles.some((file) => file.originalName === 'test.txt'));
+    assert.ok(
+      !userFiles.some((file) => file.originalName === 'secret.txt'),
+      'User should not see secret file'
+    );
 
     // 4. Admin Check
     const adminRes = await request(app)
       .get(`/api/v1/files?folder=${folder._id}`)
       .set('Cookie', [adminCookie]);
-    
-    assert.ok(adminRes.body.some((f: any) => f.originalName === 'test.txt'));
-    assert.ok(adminRes.body.some((f: any) => f.originalName === 'secret.txt'), 'Admin should see secret file');
+
+    const adminFiles = adminRes.body as FileResponse[];
+    assert.ok(adminFiles.some((file) => file.originalName === 'test.txt'));
+    assert.ok(
+      adminFiles.some((file) => file.originalName === 'secret.txt'),
+      'Admin should see secret file'
+    );
   });
 });

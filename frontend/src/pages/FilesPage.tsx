@@ -468,9 +468,7 @@ export default function FilesPage() {
 
         {error && <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</div>}
         {notice && (
-          <div className="mb-6 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">
-            {notice}
-          </div>
+          <div className="mb-6 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div>
         )}
 
         {loading ? (

@@ -21,7 +21,12 @@ export async function listFiles(folderId?: string | null): Promise<FileItem[]> {
   return apiJson<FileItem[]>(url, { method: 'GET' });
 }
 
-export async function uploadFile(file: File, isAdminOnly: boolean, department: string = 'General', folderId: string | null = null): Promise<FileItem> {
+export async function uploadFile(
+  file: File,
+  isAdminOnly: boolean,
+  department: string = 'General',
+  folderId: string | null = null
+): Promise<FileItem> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('isAdminOnly', String(isAdminOnly));
@@ -30,7 +35,12 @@ export async function uploadFile(file: File, isAdminOnly: boolean, department: s
     formData.append('folder', folderId);
   }
 
-  console.log('uploadFile called with:', { fileName: file.name, isAdminOnly, department, folderId });
+  console.log('uploadFile called with:', {
+    fileName: file.name,
+    isAdminOnly,
+    department,
+    folderId,
+  });
 
   return apiJson<FileItem>('/files', {
     method: 'POST',
