@@ -145,11 +145,6 @@ export const listFolders = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    if (normalizedAccess === 'all' && !hasDepartmentFilter) {
-      res.json(folders);
-      return;
-    }
-
     const folderIds = folders.map((folder) => folder._id);
     if (folderIds.length === 0) {
       res.json([]);
@@ -181,23 +176,37 @@ export const listFolders = async (req: Request, res: Response, next: NextFunctio
       fileQuery.$or = accessConditions;
     }
 
-    const foldersWithFiles = await FileModel.distinct('folder', fileQuery);
-    const folderIdSet = new Set(foldersWithFiles.map((id) => id.toString()));
+    const foldersWithAnyFiles = await FileModel.distinct('folder', { folder: { $in: folderIds } });
+    const foldersWithAccess = await FileModel.distinct('folder', fileQuery);
+    const anyFilesSet = new Set(foldersWithAnyFiles.map((id) => id.toString()));
+    const accessSet = new Set(foldersWithAccess.map((id) => id.toString()));
 
     folders = folders.filter((folder) => {
-      const hasMatchingFiles = folderIdSet.has(folder._id.toString());
+      const folderId = folder._id.toString();
+      const hasAnyFiles = anyFilesSet.has(folderId);
+      const hasAccessFiles = accessSet.has(folderId);
 
       if (normalizedAccess === 'private') {
-        if (!hasDepartmentFilter && folder.isPrivate) return true;
-        return hasMatchingFiles;
+        if (hasDepartmentFilter) {
+          return hasAccessFiles;
+        }
+        return folder.isPrivate || hasAccessFiles;
       }
 
       if (normalizedAccess === 'standard' || normalizedAccess === 'admin') {
         if (folder.isPrivate) return false;
-        return hasMatchingFiles;
+        return hasAccessFiles;
       }
 
-      return hasMatchingFiles;
+      if (hasDepartmentFilter) {
+        return hasAccessFiles;
+      }
+
+      if (!hasAnyFiles) {
+        return true;
+      }
+
+      return hasAccessFiles;
     });
 
     console.log(
