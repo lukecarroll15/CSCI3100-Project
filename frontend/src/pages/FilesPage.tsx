@@ -186,7 +186,25 @@ function FolderTreeItem({
                     {truncateLabel(file.originalName, 22)}
                   </span>
                   <span className="inline-flex h-3 w-3 items-center justify-center text-neutral-400">
-                    {file.isPrivate ? (
+                    {file.isAdminOnly ? (
+                      <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+                        <circle
+                          cx="12"
+                          cy="8"
+                          r="3.2"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
+                        <path
+                          d="M5 19c1.5-3 4.3-4.5 7-4.5s5.5 1.5 7 4.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    ) : file.isPrivate ? (
                       <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
                         <rect
                           x="5"
@@ -536,6 +554,17 @@ export default function FilesPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isCreateFolderOpen]);
+
+  useEffect(() => {
+    if (!confirmAction) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setConfirmAction(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmAction]);
 
   useEffect(() => {
     const saved = localStorage.getItem(FILES_UI_STATE_KEY);
@@ -1271,6 +1300,30 @@ export default function FilesPage() {
                       />
                     </svg>
                   </a>
+                  {file.isAdminOnly ? (
+                    <span
+                      className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
+                      aria-hidden="true"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4">
+                        <circle
+                          cx="12"
+                          cy="8"
+                          r="3.2"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
+                        <path
+                          d="M5 19c1.5-3 4.3-4.5 7-4.5s5.5 1.5 7 4.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </span>
+                  ) : null}
                   {file.isPrivate ? (
                     <span
                       className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
