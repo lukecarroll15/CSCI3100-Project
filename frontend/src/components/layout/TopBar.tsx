@@ -24,7 +24,7 @@ function AdminDashboardModal({
 
   return (
     <div
-      className="duration-400 fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 transition-opacity"
+      className="duration-400 fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/30 transition-opacity"
       onClick={onClose}
     >
       <div

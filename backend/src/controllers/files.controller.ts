@@ -41,8 +41,9 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
     const userId = req.auth?.userId;
     if (!userId) throw new AppError(401, 'UNAUTHENTICATED', 'User not found');
 
-    // Check if it should be admin only
-    const isAdminOnly = req.body.isAdminOnly === 'true';
+    // Only admins can upload admin-only files
+    const isAdminOnly = req.auth?.role === 'admin' && req.body.isAdminOnly === 'true';
+    const isPrivate = req.body.isPrivate === 'true' && !isAdminOnly;
     const department = req.body.department || 'General';
     let folder = req.body.folder;
 
@@ -59,6 +60,7 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
       department,
       folder,
       isAdminOnly,
+      isPrivate,
     });
 
     res.status(201).json(fileDoc);
@@ -77,16 +79,47 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
       user = await UserModel.findOne({ email: req.auth.email });
     }
 
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || req.auth?.role === 'admin';
 
     console.log(`[ListFiles] User: ${user?.email}, Role: ${user?.role}, IsAdmin: ${isAdmin}`);
 
-    const { folder } = req.query;
+    const { folder, access } = req.query;
     const query: FilterQuery<FileDoc> = {};
     const folderParam = typeof folder === 'string' ? folder : undefined;
+    const accessParam = typeof access === 'string' ? access : 'all';
+    const normalizedAccess = ['all', 'standard', 'admin', 'private'].includes(accessParam)
+      ? accessParam
+      : 'all';
 
-    if (!isAdmin) {
-      query.isAdminOnly = false;
+    const userAccessId = req.auth?.userId;
+    if (!userAccessId) {
+      throw new AppError(401, 'UNAUTHENTICATED', 'User not found');
+    }
+
+    const standardCondition: FilterQuery<FileDoc> = {
+      isAdminOnly: { $ne: true },
+      isPrivate: { $ne: true },
+    };
+    const privateCondition: FilterQuery<FileDoc> = { isPrivate: true, uploadedBy: userAccessId };
+    const adminCondition: FilterQuery<FileDoc> = { isAdminOnly: true };
+
+    const accessConditions: FilterQuery<FileDoc>[] = [];
+
+    if (normalizedAccess === 'admin') {
+      if (!isAdmin) {
+        res.json([]);
+        return;
+      }
+      accessConditions.push(adminCondition);
+    } else if (normalizedAccess === 'private') {
+      accessConditions.push(privateCondition);
+    } else if (normalizedAccess === 'standard') {
+      accessConditions.push(standardCondition);
+    } else {
+      accessConditions.push(standardCondition, privateCondition);
+      if (isAdmin) {
+        accessConditions.push(adminCondition);
+      }
     }
 
     if (folderParam && folderParam !== 'null' && folderParam !== 'undefined') {
@@ -94,6 +127,7 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
     } else {
       query.folder = null;
     }
+    query.$or = accessConditions;
 
     console.log('[ListFiles] Query:', JSON.stringify(query));
 
@@ -117,10 +151,13 @@ export async function handleDownloadFile(req: Request, res: Response, next: Next
 
     const userId = req.auth?.userId;
     const user = await UserModel.findById(userId);
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || req.auth?.role === 'admin';
 
     if (file.isAdminOnly && !isAdmin) {
       throw new AppError(403, 'FORBIDDEN', 'Admin access required');
+    }
+    if (file.isPrivate && file.uploadedBy.toString() !== userId) {
+      throw new AppError(403, 'FORBIDDEN', 'Private file access required');
     }
 
     const filePath = path.join(UPLOAD_DIR, file.storedName);
@@ -138,7 +175,11 @@ export async function handleDeleteFile(req: Request, res: Response, next: NextFu
 
     const userId = req.auth?.userId;
     const user = await UserModel.findById(userId);
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || req.auth?.role === 'admin';
+
+    if (file.isPrivate && file.uploadedBy.toString() !== userId) {
+      throw new AppError(403, 'FORBIDDEN', 'Not authorized to delete this private file');
+    }
 
     // Only the uploader or an admin can delete the file
     if (file.uploadedBy.toString() !== userId && !isAdmin) {

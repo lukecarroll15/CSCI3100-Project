@@ -5,16 +5,20 @@ export interface IFolder extends Document {
   parentFolder?: mongoose.Types.ObjectId | null;
   createdBy: mongoose.Types.ObjectId;
   department: string;
+  isPrivate: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export const FOLDER_DEPARTMENT = 'Workspace';
 
 const FolderSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
     parentFolder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    department: { type: String, default: 'General' },
+    department: { type: String, default: FOLDER_DEPARTMENT },
+    isPrivate: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

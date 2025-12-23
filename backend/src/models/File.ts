@@ -10,6 +10,7 @@ const FileSchema = new Schema(
     department: { type: String, default: 'General' },
     folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
     isAdminOnly: { type: Boolean, default: false },
+    isPrivate: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

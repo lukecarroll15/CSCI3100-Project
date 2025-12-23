@@ -13,23 +13,34 @@ export interface FileItem {
   department: string;
   folder: string | null;
   isAdminOnly: boolean;
+  isPrivate: boolean;
   createdAt: string;
 }
 
-export async function listFiles(folderId?: string | null): Promise<FileItem[]> {
-  const url = folderId ? `/files?folder=${folderId}` : '/files';
+export async function listFiles(
+  folderId?: string | null,
+  access: 'all' | 'standard' | 'admin' | 'private' = 'all'
+): Promise<FileItem[]> {
+  const params = new URLSearchParams();
+  if (folderId) params.append('folder', folderId);
+  if (access && access !== 'all') params.append('access', access);
+
+  const query = params.toString();
+  const url = query ? `/files?${query}` : '/files';
   return apiJson<FileItem[]>(url, { method: 'GET' });
 }
 
 export async function uploadFile(
   file: File,
   isAdminOnly: boolean,
+  isPrivate: boolean,
   department: string = 'General',
   folderId: string | null = null
 ): Promise<FileItem> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('isAdminOnly', String(isAdminOnly));
+  formData.append('isPrivate', String(isPrivate));
   formData.append('department', department);
   if (folderId) {
     formData.append('folder', folderId);

@@ -36,6 +36,10 @@ function joinUrl(path: string) {
   return `${apiBaseUrl}${p}`;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -47,23 +51,49 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(joinUrl(path), {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  const method = (init.method ?? 'GET').toUpperCase();
+  const canRetry = method === 'GET';
+  const request = () =>
+    fetch(joinUrl(path), {
+      ...init,
+      credentials: 'include',
+      headers,
+    });
+
+  let res = await request();
+  let attempt = 0;
+  while (canRetry && res.status === 429 && attempt < 2) {
+    const retryAfterHeader = res.headers.get('Retry-After');
+    const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : Number.NaN;
+    const delayMs = Number.isFinite(retryAfterSeconds)
+      ? Math.max(0, retryAfterSeconds * 1000)
+      : 800 * (attempt + 1);
+    await sleep(delayMs);
+    attempt += 1;
+    res = await request();
+  }
 
   // 204 No Content
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as unknown) : undefined;
+  let data: unknown = undefined;
+  if (text) {
+    try {
+      data = JSON.parse(text) as unknown;
+    } catch {
+      data = undefined;
+    }
+  }
 
-  if (res.ok) return data as T;
+  if (res.ok) {
+    return (data ?? (text as unknown)) as T;
+  }
 
   const payload = data as ApiErrorPayload | undefined;
-  const code = payload?.error?.code ?? 'UNKNOWN_ERROR';
-  const message = payload?.error?.message ?? `Request failed with status ${res.status}`;
+  const code = payload?.error?.code ?? (res.status === 429 ? 'RATE_LIMITED' : 'UNKNOWN_ERROR');
+  const message =
+    payload?.error?.message ?? (text ? text : `Request failed with status ${res.status}`);
   const details = payload?.error?.details;
 
   throw new ApiRequestError(res.status, code, message, details, payload);

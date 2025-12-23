@@ -309,6 +309,7 @@ export default function CanvasPage() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const pendingEditRef = useRef<string | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const viewRef = useRef<ViewState>({ offsetX: 0, offsetY: 0, scale: 1 });
   const gestureBaseScaleRef = useRef<number | null>(null);
@@ -347,6 +348,15 @@ export default function CanvasPage() {
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+
+  useEffect(() => {
+    if (!editingNodeId) return;
+    const focusEditor = () => {
+      editorRef.current?.focus();
+    };
+    const timer = window.setTimeout(focusEditor, 0);
+    return () => window.clearTimeout(timer);
+  }, [editingNodeId]);
 
   useEffect(() => {
     const updateSize = () => {
@@ -625,9 +635,9 @@ export default function CanvasPage() {
       setBoard(nextBoard);
       setSelectedNodeId(newNode.id);
       setSelectedEdgeId(null);
-      startEditing(newNode, nextBoard);
+      pendingEditRef.current = newNode.id;
     },
-    [board, pushHistory, startEditing]
+    [board, pushHistory]
   );
 
   const deleteSelection = useCallback(() => {
@@ -869,27 +879,36 @@ export default function CanvasPage() {
 
   const handlePointerUp = useCallback(() => {
     const drag = dragRef.current;
-    if (!drag) return;
-
-    if (drag.mode === 'move') {
-      if (drag.moved) {
-        pushHistory(drag.snapshot);
-      } else if (activeTool === 'select') {
-        const node = board.nodes.find((item) => item.id === drag.nodeId);
-        if (node) {
-          startEditing(node, board);
+    if (drag) {
+      if (drag.mode === 'move') {
+        if (drag.moved) {
+          pushHistory(drag.snapshot);
+        } else if (activeTool === 'select') {
+          const node = board.nodes.find((item) => item.id === drag.nodeId);
+          if (node) {
+            startEditing(node, board);
+          }
         }
       }
+
+      if (drag.mode === 'resize' && drag.moved) {
+        pushHistory(drag.snapshot);
+      }
+
+      if (drag.mode === 'pan') {
+        setIsPanning(false);
+      }
+      dragRef.current = null;
     }
 
-    if (drag.mode === 'resize' && drag.moved) {
-      pushHistory(drag.snapshot);
+    const pendingNodeId = pendingEditRef.current;
+    if (pendingNodeId) {
+      const node = board.nodes.find((item) => item.id === pendingNodeId);
+      if (node) {
+        startEditing(node, board);
+      }
+      pendingEditRef.current = null;
     }
-
-    if (drag.mode === 'pan') {
-      setIsPanning(false);
-    }
-    dragRef.current = null;
   }, [activeTool, board, pushHistory, startEditing]);
 
   useEffect(() => {
@@ -971,7 +990,7 @@ export default function CanvasPage() {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         const minScale = getMinScale();
-        const zoomFactor = Math.exp(-(event.deltaY * zoomMultiplier) * 0.01);
+        const zoomFactor = Math.exp(-(event.deltaY * zoomMultiplier) * 0.04);
         const nextScale = clamp(viewRef.current.scale * zoomFactor, minScale, MAX_SCALE);
         applyZoom(nextScale, mouseX, mouseY);
         return;
@@ -989,12 +1008,22 @@ export default function CanvasPage() {
   );
 
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const wheelListener = (event: WheelEvent) => handleWheel(event);
-    viewport.addEventListener('wheel', wheelListener, { passive: false });
+    const wheelListener = (event: WheelEvent) => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      const target = event.target as Node | null;
+      const rect = viewport.getBoundingClientRect();
+      const withinBounds =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      if (target && !viewport.contains(target) && !withinBounds) return;
+      handleWheel(event);
+    };
+    window.addEventListener('wheel', wheelListener, { passive: false });
     return () => {
-      viewport.removeEventListener('wheel', wheelListener);
+      window.removeEventListener('wheel', wheelListener);
     };
   }, [handleWheel]);
 
@@ -1095,6 +1124,10 @@ export default function CanvasPage() {
         if (edge.kind === 'arrow') {
           const angle = Math.atan2(endY - startY, endX - startX);
           const size = 10;
+          ctx.save();
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(endX, endY);
           ctx.lineTo(
@@ -1107,6 +1140,8 @@ export default function CanvasPage() {
           );
           ctx.closePath();
           ctx.fill();
+          ctx.stroke();
+          ctx.restore();
         }
       });
 
@@ -1356,11 +1391,17 @@ export default function CanvasPage() {
                     id="arrow-head"
                     markerWidth="8"
                     markerHeight="8"
-                    refX="6"
-                    refY="3.5"
+                    refX="7"
+                    refY="4"
                     orient="auto"
                   >
-                    <polygon points="0 0, 7 3.5, 0 7" fill="#111827" />
+                    <path
+                      d="M1 1.25 L7 4 L1 6.75 Z"
+                      fill="#111827"
+                      stroke="#111827"
+                      strokeWidth="1"
+                      strokeLinejoin="round"
+                    />
                   </marker>
                 </defs>
                 {board.edges.map((edge) => {

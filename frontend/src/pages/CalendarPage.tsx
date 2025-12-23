@@ -845,7 +845,7 @@ export default function CalendarPage() {
       )}
 
       {showTaskModal && selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
           <div className="animate-modal-in w-full max-w-xl rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Task Details</h3>
@@ -944,7 +944,7 @@ export default function CalendarPage() {
       )}
 
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
           <div className="animate-modal-in w-full max-w-lg rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Add New Task</h3>
@@ -1110,7 +1110,7 @@ export default function CalendarPage() {
         </div>
       )}
       {showCompleteModal && taskToComplete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
           <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Confirm Completion</h3>
@@ -1150,7 +1150,7 @@ export default function CalendarPage() {
       )}
 
       {showIncompleteModal && taskToRestore && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
           <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Revert Completion</h3>
@@ -1190,7 +1190,7 @@ export default function CalendarPage() {
       )}
 
       {showDeleteModal && taskToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
           <div className="animate-modal-in w-full max-w-md rounded-xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Delete Task</h3>

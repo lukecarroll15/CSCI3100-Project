@@ -17,10 +17,10 @@ export default function Sidebar({ children }: { children?: React.ReactNode }) {
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `mx-5 my-2 block rounded-lg border-2 px-6 py-3 text-base transition-colors ${
+              `mx-5 my-2 block rounded-lg border-2 px-6 py-3 text-base text-[#07000b] transition-colors ${
                 isActive
-                  ? 'border-gray-800 bg-gray-800 text-white'
-                  : 'border-gray-500 bg-white hover:bg-gray-200'
+                  ? 'border-[#07000b] bg-[#07000b] text-white'
+                  : 'border-neutral-200 bg-white hover:bg-neutral-100'
               }`
             }
           >
