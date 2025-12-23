@@ -316,7 +316,7 @@ export default function LoginPage() {
                 {/* Background layers */}
                 <div className="absolute inset-0 opacity-60" style={wireframeBgStyle} />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.10),transparent_45%),radial-gradient(circle_at_70%_55%,rgba(255,255,255,0.08),transparent_55%)]" />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/30 to-black/60" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#07000b]/10 via-[#07000b]/30 to-[#07000b]/60" />
 
                 {/* Foreground content */}
                 <div className="relative z-10 max-w-xl px-12">

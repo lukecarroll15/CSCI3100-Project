@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { DepartmentModel } from '../models/Department';
+import Folder, { FOLDER_DEPARTMENT } from '../models/Folder';
+import { FileModel } from '../models/File';
 import { AppError } from '../errors/AppError';
 
 const DEFAULT_DEPARTMENTS = ['General', 'Sales', 'IT', 'Finance', 'Marketing'];
@@ -26,6 +28,14 @@ export async function handleCreateDepartment(req: Request, res: Response, next: 
     const { name } = req.body;
     if (!name) throw new AppError(400, 'BAD_REQUEST', 'Department name is required');
 
+    if (String(name).trim().toLowerCase() === FOLDER_DEPARTMENT.toLowerCase()) {
+      throw new AppError(
+        400,
+        'BAD_REQUEST',
+        `${FOLDER_DEPARTMENT} is reserved for folders and cannot be created.`
+      );
+    }
+
     const exists = await DepartmentModel.findOne({
       name: { $regex: new RegExp(`^${name}$`, 'i') },
     });
@@ -37,6 +47,37 @@ export async function handleCreateDepartment(req: Request, res: Response, next: 
     });
 
     res.status(201).json(dept);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function handleDeleteDepartment(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const department = await DepartmentModel.findById(id);
+    if (!department) {
+      throw new AppError(404, 'NOT_FOUND', 'Department not found');
+    }
+
+    const deptName = department.name.trim().toLowerCase();
+    if (deptName === 'general') {
+      throw new AppError(400, 'BAD_REQUEST', 'General department cannot be deleted');
+    }
+    if (deptName === FOLDER_DEPARTMENT.toLowerCase()) {
+      throw new AppError(400, 'BAD_REQUEST', `${FOLDER_DEPARTMENT} department cannot be deleted`);
+    }
+
+    await Promise.all([
+      FileModel.updateMany({ department: department.name }, { $set: { department: 'General' } }),
+      Folder.updateMany(
+        { department: department.name },
+        { $set: { department: FOLDER_DEPARTMENT } }
+      ),
+    ]);
+
+    await DepartmentModel.findByIdAndDelete(id);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

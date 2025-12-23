@@ -22,14 +22,37 @@ export function createApp() {
     })
   );
 
-  app.use(
-    rateLimit({
-      windowMs: env.RATE_LIMIT_WINDOW_MS,
-      max: env.RATE_LIMIT_MAX,
-      standardHeaders: true,
-      legacyHeaders: false,
-    })
-  );
+  const shouldSkipRateLimit = (req: express.Request) =>
+    req.method === 'OPTIONS' ||
+    req.method === 'HEAD' ||
+    req.path.startsWith(`${env.API_PREFIX}/v1/auth/github`);
+
+  const rateLimitHandler = (_req: express.Request, res: express.Response) => {
+    res.status(429).json({
+      error: { code: 'RATE_LIMITED', message: 'Too many requests, please try again later.' },
+    });
+  };
+
+  const readLimiter = rateLimit({
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX * 4,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => shouldSkipRateLimit(req) || req.method !== 'GET',
+    handler: rateLimitHandler,
+  });
+
+  const writeLimiter = rateLimit({
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX * 2,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => shouldSkipRateLimit(req) || req.method === 'GET',
+    handler: rateLimitHandler,
+  });
+
+  app.use(readLimiter);
+  app.use(writeLimiter);
 
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));

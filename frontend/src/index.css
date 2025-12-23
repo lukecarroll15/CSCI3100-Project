@@ -1,6 +1,11 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+@theme {
+  --color-black: #07000b;
+  --color-neutral-900: #07000b;
+}
+
 @layer utilities {
   @keyframes ripple-wave {
     0% {
