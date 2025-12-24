@@ -20,6 +20,17 @@ function AdminDashboardModal({
   stats: AdminStats | null;
   loading: boolean;
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -48,9 +59,13 @@ function AdminDashboardModal({
               <h3 className="mb-3 font-bold">Admins</h3>
               <div className="space-y-2 rounded-lg border-2 border-gray-300 bg-gray-50 p-4">
                 {stats.admins.map((admin, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="font-semibold">{admin.displayName}</span>
-                    <span className="text-gray-600">{admin.email}</span>
+                  <div key={idx} className="flex min-w-0 items-center justify-between text-sm">
+                    <span className="max-w-[220px] truncate font-semibold" title={admin.displayName}>
+                      {admin.displayName}
+                    </span>
+                    <span className="max-w-[240px] truncate text-gray-600" title={admin.email}>
+                      {admin.email}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -66,14 +81,14 @@ function AdminDashboardModal({
                   {stats.activationKeys.map((key, idx) => (
                     <div key={idx} className="border-b-2 border-gray-200 pb-3 last:border-b-0">
                       <div className="flex justify-between text-sm font-semibold">
-                        <span className="font-mono text-blue-600">{key.key}</span>
+                        <span className="font-mono text-neutral-700">{key.key}</span>
                         <span className="text-gray-600">
                           {key.usesCount} / {key.maxUses}
                         </span>
                       </div>
                       <div className="mt-1 h-2 rounded-full bg-gray-200">
                         <div
-                          className="h-full rounded-full bg-green-600"
+                          className="h-full rounded-full bg-neutral-800"
                           style={{
                             width: `${((key.maxUses - key.usesCount) / key.maxUses) * 100}%`,
                           }}
@@ -87,7 +102,7 @@ function AdminDashboardModal({
 
             <button
               onClick={onClose}
-              className="w-full rounded-md border-2 border-gray-800 bg-gray-800 px-4 py-2 font-semibold text-white hover:bg-gray-700"
+              className="w-full cursor-pointer rounded-md border-2 border-neutral-900 bg-neutral-900 px-4 py-2 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-200"
             >
               Close
             </button>
@@ -143,7 +158,9 @@ export default function TopBar({
           U
         </div>
         <div className="flex items-center gap-2 rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base">
-          {userName}
+          <span className="max-w-[180px] truncate" title={userName}>
+            {userName}
+          </span>
           {userRole === 'admin' && (
             <Badge variant="admin" className={animateAdmin ? 'admin-badge-pop' : ''}>
               ADMIN
@@ -153,7 +170,7 @@ export default function TopBar({
         {userRole === 'admin' && (
           <button
             onClick={handleOpenDashboard}
-            className="rounded-md border-2 border-blue-600 bg-blue-50 px-4 py-2 text-base font-semibold text-blue-600 transition-colors hover:bg-blue-100"
+            className="cursor-pointer rounded-md border-2 border-blue-600 bg-blue-50 px-4 py-2 text-base font-semibold text-blue-600 transition-all hover:-translate-y-0.5 hover:border-blue-700 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200"
           >
             Admin Dashboard
           </button>
@@ -161,17 +178,14 @@ export default function TopBar({
       </div>
 
       <div className="absolute left-1/2 -translate-x-1/2 text-center">
-        <div className="mb-1 rounded-md border-2 border-gray-800 px-5 py-1 text-2xl font-bold">
+        <div className="rounded-md border-2 border-gray-800 px-5 py-1 text-2xl font-bold">
           {companyName}
-        </div>
-        <div className="rounded border border-gray-400 bg-gray-50 px-3 py-1 text-xs text-gray-500">
-          Jira-like project manager (CSCI3100)
         </div>
       </div>
 
       <button
         onClick={onLogout}
-        className="ml-auto cursor-pointer rounded-md border-2 border-gray-800 bg-white px-5 py-2 text-base transition-colors hover:bg-gray-100"
+        className="ml-auto cursor-pointer rounded-md border-2 border-gray-800 bg-white px-5 py-2 text-base transition-all hover:-translate-y-0.5 hover:bg-gray-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
       >
         Logout
       </button>

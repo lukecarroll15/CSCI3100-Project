@@ -3,21 +3,33 @@ import { z } from 'zod';
 import { TaskModel } from '../models/Task';
 import { AppError } from '../errors/AppError';
 
+const MAX_TASK_NAME_LENGTH = 80;
+const AssigneeSchema = z
+  .union([z.string().trim().min(1), z.array(z.string().trim().min(1))])
+  .optional();
+
+const normalizeAssignees = (value: string | string[] | undefined) => {
+  if (!value) return [];
+  const list = Array.isArray(value) ? value : [value];
+  const cleaned = list.map((item) => item.trim()).filter(Boolean);
+  return Array.from(new Set(cleaned));
+};
+
 const CreateTaskSchema = z.object({
-  name: z.string().trim().min(1, 'Task name is required'),
+  name: z.string().trim().min(1, 'Task name is required').max(MAX_TASK_NAME_LENGTH),
   description: z.string().optional(),
   priority: z.enum(['high', 'medium', 'low']),
-  department: z.enum(['sales', 'it', 'finance', 'marketing', 'hr', 'customer-service']),
-  assignee: z.string().optional(),
+  department: z.string().trim().min(1, 'Department is required'),
+  assignee: AssigneeSchema,
   dueDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid due date'),
 });
 
 const UpdateTaskSchema = z.object({
-  name: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).max(MAX_TASK_NAME_LENGTH).optional(),
   description: z.string().optional(),
   priority: z.enum(['high', 'medium', 'low']).optional(),
-  department: z.enum(['sales', 'it', 'finance', 'marketing', 'hr', 'customer-service']).optional(),
-  assignee: z.string().optional(),
+  department: z.string().trim().min(1).optional(),
+  assignee: AssigneeSchema,
   dueDate: z
     .string()
     .refine((val) => !isNaN(Date.parse(val)), 'Invalid due date')
@@ -47,12 +59,13 @@ export async function handleCreateTask(req: Request, res: Response, next: NextFu
 
     const parsed = CreateTaskSchema.parse(req.body);
 
+    const assignees = normalizeAssignees(parsed.assignee);
     const task = await TaskModel.create({
       name: parsed.name,
       description: parsed.description || '',
       priority: parsed.priority,
       department: parsed.department,
-      assignee: parsed.assignee || 'Unassigned',
+      assignee: assignees.length ? assignees : ['Unassigned'],
       dueDate: new Date(parsed.dueDate),
       status: 'Not Started',
       createdBy: auth.userId,
@@ -83,12 +96,39 @@ export async function handleUpdateTask(req: Request, res: Response, next: NextFu
       throw new AppError(404, 'NOT_FOUND', 'Task not found');
     }
 
-    if (parsed.name !== undefined) task.name = parsed.name;
-    if (parsed.description !== undefined) task.description = parsed.description;
-    if (parsed.priority !== undefined) task.priority = parsed.priority;
-    if (parsed.department !== undefined) task.department = parsed.department;
-    if (parsed.assignee !== undefined) task.assignee = parsed.assignee;
-    if (parsed.dueDate !== undefined) task.dueDate = new Date(parsed.dueDate);
+    let hasNonStatusChange = false;
+
+    if (parsed.name !== undefined && parsed.name !== task.name) {
+      task.name = parsed.name;
+      hasNonStatusChange = true;
+    }
+    if (parsed.description !== undefined && parsed.description !== task.description) {
+      task.description = parsed.description;
+      hasNonStatusChange = true;
+    }
+    if (parsed.priority !== undefined && parsed.priority !== task.priority) {
+      task.priority = parsed.priority;
+      hasNonStatusChange = true;
+    }
+    if (parsed.department !== undefined && parsed.department !== task.department) {
+      task.department = parsed.department;
+      hasNonStatusChange = true;
+    }
+    if (parsed.assignee !== undefined) {
+      const assignees = normalizeAssignees(parsed.assignee);
+      const nextAssignees = assignees.length ? assignees : ['Unassigned'];
+      if (nextAssignees.join('|') !== task.assignee.join('|')) {
+        task.assignee = nextAssignees;
+        hasNonStatusChange = true;
+      }
+    }
+    if (parsed.dueDate !== undefined) {
+      const nextDueDate = new Date(parsed.dueDate);
+      if (task.dueDate.getTime() !== nextDueDate.getTime()) {
+        task.dueDate = nextDueDate;
+        hasNonStatusChange = true;
+      }
+    }
     if (parsed.status !== undefined) {
       task.status = parsed.status;
       if (parsed.status === 'Completed' && !task.completedAt) {
@@ -96,6 +136,10 @@ export async function handleUpdateTask(req: Request, res: Response, next: NextFu
       } else if (parsed.status !== 'Completed') {
         task.completedAt = undefined;
       }
+    }
+
+    if (hasNonStatusChange) {
+      task.editedAt = new Date();
     }
 
     await task.save();

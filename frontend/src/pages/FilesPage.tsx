@@ -14,10 +14,13 @@ import {
   listDepartments,
   createDepartment,
   deleteDepartment,
+  getDepartmentUsage,
+  type DepartmentUsage,
   type Department,
 } from '../api/departments';
 import Button from '../components/ui/Button';
 import FilePreviewModal from '../components/files/FilePreviewModal';
+import { IconFile, IconFolder } from '../components/ui/Icons';
 
 const FILE_TYPES = ['All', 'Documents', 'Spreadsheets', 'PDFs', 'Images'];
 const MAX_FOLDER_NAME_LENGTH = 48;
@@ -25,6 +28,11 @@ const MAX_DEPARTMENT_NAME_LENGTH = 32;
 const MAX_FOLDER_DEPTH = 4;
 const FOLDER_DEPARTMENT = 'Workspace';
 const FILES_UI_STATE_KEY = 'filesPageState:v2';
+const GRID_TITLE_MAX = 25;
+const GRID_META_MAX = 12;
+const LIST_NAME_MAX = 32;
+const LIST_DEPARTMENT_MAX = 18;
+const LIST_UPLOADER_MAX = 18;
 
 type FilesUiState = {
   currentFolderId: string | null;
@@ -124,7 +132,7 @@ function FolderTreeItem({
         >
           <span className="text-[10px]">{expanded ? '▼' : '▶'}</span>
         </button>
-        <span className="text-lg">📁</span>
+        <IconFolder className="h-4 w-4 text-neutral-500" />
         <span className="min-w-0 flex-1 truncate">{truncateLabel(node.name, 25)}</span>
         <span className="ml-auto inline-flex h-3 w-3 items-center justify-center text-neutral-400">
           {node.isPrivate ? (
@@ -181,7 +189,8 @@ function FolderTreeItem({
                   className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
                 >
                   <span className="inline-flex h-6 w-6 shrink-0" aria-hidden="true" />
-                  <span className="text-[11px]">📄</span>
+                  <IconFile className="h-3.5 w-3.5 text-neutral-400" />
+
                   <span className="min-w-0 flex-1 truncate">
                     {truncateLabel(file.originalName, 22)}
                   </span>
@@ -267,7 +276,7 @@ function getFolderDepartment(folder: FolderItem) {
 }
 
 function FileIcon({ fileName, isFolder }: { fileName: string; isFolder?: boolean }) {
-  if (isFolder) return <span className="text-4xl text-amber-500">📁</span>;
+  if (isFolder) return <IconFolder className="h-10 w-10 text-amber-500" />;
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (ext === 'pdf') return <span className="font-bold text-red-500">PDF</span>;
   if (['doc', 'docx'].includes(ext || ''))
@@ -299,6 +308,8 @@ export default function FilesPage() {
   const [uploadDeptMenuOpen, setUploadDeptMenuOpen] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [departmentUsage, setDepartmentUsage] = useState<DepartmentUsage | null>(null);
+  const [departmentUsageError, setDepartmentUsageError] = useState<string | null>(null);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isFolderPrivate, setIsFolderPrivate] = useState(false);
@@ -325,9 +336,10 @@ export default function FilesPage() {
   const folderFilesMapRef = useRef<Record<string, FileItem[]>>({});
   const [folderFilesMap, setFolderFilesMap] = useState<Record<string, FileItem[]>>({});
   const scrollSaveRef = useRef<number | null>(null);
-  const pendingScrollYRef = useRef<number | null>(null);
+  const pendingContentScrollRef = useRef<number | null>(null);
   const pendingSidebarScrollRef = useRef<number | null>(null);
   const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const expandedFolderSet = useMemo(() => new Set(expandedFolderIds), [expandedFolderIds]);
   const [hasHydrated, setHasHydrated] = useState(false);
   const restoreStateRef = useRef<Partial<FilesUiState> | null>(null);
@@ -559,7 +571,7 @@ export default function FilesPage() {
     if (!confirmAction) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setConfirmAction(null);
+        resetConfirmAction();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -607,8 +619,10 @@ export default function FilesPage() {
         restored.accessFilter === 'admin' && !isAdmin ? 'all' : restored.accessFilter;
       setAccessFilter(nextAccess);
     }
-    if (typeof restored.scrollY === 'number') {
-      pendingScrollYRef.current = restored.scrollY ?? 0;
+    if (typeof restored.contentScrollTop === 'number') {
+      pendingContentScrollRef.current = restored.contentScrollTop ?? 0;
+    } else if (typeof restored.scrollY === 'number') {
+      pendingContentScrollRef.current = restored.scrollY ?? 0;
     }
     if (typeof restored.sidebarScrollTop === 'number') {
       pendingSidebarScrollRef.current = restored.sidebarScrollTop ?? 0;
@@ -618,11 +632,13 @@ export default function FilesPage() {
   }, [hasHydrated, isAdmin, authLoading]);
 
   useEffect(() => {
-    if (pendingScrollYRef.current === null) return;
+    if (pendingContentScrollRef.current === null) return;
     if (loading) return;
+    const target = contentScrollRef.current;
+    if (!target) return;
     requestAnimationFrame(() => {
-      window.scrollTo(0, pendingScrollYRef.current ?? 0);
-      pendingScrollYRef.current = null;
+      target.scrollTop = pendingContentScrollRef.current ?? 0;
+      pendingContentScrollRef.current = null;
     });
   }, [loading]);
 
@@ -661,17 +677,20 @@ export default function FilesPage() {
   ]);
 
   useEffect(() => {
+    const target = contentScrollRef.current;
+    if (!target) return;
     const handleScroll = () => {
       if (scrollSaveRef.current) {
         window.clearTimeout(scrollSaveRef.current);
       }
       scrollSaveRef.current = window.setTimeout(() => {
-        persistUiState({ scrollY: window.scrollY });
+        persistUiState({ contentScrollTop: target.scrollTop });
       }, 200);
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    target.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      target.removeEventListener('scroll', handleScroll);
       if (scrollSaveRef.current) {
         window.clearTimeout(scrollSaveRef.current);
       }
@@ -696,6 +715,10 @@ export default function FilesPage() {
   }, [expandedFolderIds, folderTree, loadFolderFiles]);
 
   function handleAddDepartment() {
+    if (!isAdmin) {
+      setError('Only admins can manage departments.');
+      return;
+    }
     setDialogError(null);
     setNewDeptName('');
     setIsCreateDeptOpen(true);
@@ -777,6 +800,28 @@ export default function FilesPage() {
     }
   }
 
+  const resetConfirmAction = () => {
+    setConfirmAction(null);
+    setDepartmentUsage(null);
+    setDepartmentUsageError(null);
+  };
+
+  async function handleConfirmDepartmentDelete(id: string, name: string) {
+    if (!isAdmin) {
+      setError('Only admins can manage departments.');
+      return;
+    }
+    setDepartmentUsage(null);
+    setDepartmentUsageError(null);
+    try {
+      const usage = await getDepartmentUsage(id);
+      setDepartmentUsage(usage);
+    } catch (error: unknown) {
+      setDepartmentUsageError(getErrorMessage(error, 'Failed to load department usage'));
+    }
+    setConfirmAction({ type: 'department', id, name });
+  }
+
   async function handleDeleteFolder(id: string) {
     try {
       await deleteFolder(id);
@@ -798,7 +843,7 @@ export default function FilesPage() {
 
   async function handleDeleteDepartment(id: string) {
     try {
-      await deleteDepartment(id);
+      await deleteDepartment(id, { force: true });
       await loadDepartments();
       await loadData();
       await loadFolderTree();
@@ -923,13 +968,13 @@ export default function FilesPage() {
   }, []);
 
   return (
-    <div className="flex h-full gap-8">
+    <div className="flex h-full gap-8 overflow-hidden">
       {/* Sub-sidebar for Folders */}
-      <aside className="w-48 flex-shrink-0 border-r border-neutral-200 pr-4">
+      <aside className="flex h-full min-h-0 w-48 flex-shrink-0 flex-col border-r border-neutral-200 pr-4">
         <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-500">
           My Files
         </h2>
-        <nav ref={sidebarRef} className="space-y-1">
+        <nav ref={sidebarRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
           <button
             onClick={() => {
               setCurrentFolderId(null);
@@ -940,7 +985,10 @@ export default function FilesPage() {
                 : 'text-neutral-600 hover:bg-neutral-100'
             }`}
           >
-            📁 All Files
+            <span className="inline-flex items-center gap-2">
+              <IconFolder className="h-4 w-4" />
+              <span>All Files</span>
+            </span>
           </button>
 
           {folderTree.map((node) => (
@@ -963,7 +1011,7 @@ export default function FilesPage() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         <header className="mb-8 flex items-center justify-between">
           <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-500">
             <button
@@ -1078,7 +1126,7 @@ export default function FilesPage() {
             <div className="flex flex-wrap gap-1">
               {orderedDepartments.map((dept) => {
                 const isActive = deptFilter === dept.name;
-                const isDeletable = dept.name.toLowerCase() !== 'general';
+                const isDeletable = isAdmin && dept.name.toLowerCase() !== 'general';
                 return (
                   <div
                     key={dept._id}
@@ -1098,9 +1146,7 @@ export default function FilesPage() {
                     {isDeletable ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          setConfirmAction({ type: 'department', id: dept._id, name: dept.name })
-                        }
+                        onClick={() => void handleConfirmDepartmentDelete(dept._id, dept.name)}
                         className={`absolute -right-1 -top-1 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border text-[9px] transition-colors ${
                           isActive
                             ? 'border-white/70 bg-white/85 text-neutral-900 shadow-sm'
@@ -1123,13 +1169,15 @@ export default function FilesPage() {
                   </div>
                 );
               })}
-              <button
-                onClick={handleAddDepartment}
-                className="cursor-pointer rounded-full border border-dashed border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-400 hover:border-neutral-400 hover:text-neutral-600"
-                title="Add Department"
-              >
-                +
-              </button>
+              {isAdmin ? (
+                <button
+                  onClick={handleAddDepartment}
+                  className="cursor-pointer rounded-full border border-dashed border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-400 hover:border-neutral-400 hover:text-neutral-600"
+                  title="Add Department"
+                >
+                  +
+                </button>
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1176,326 +1224,280 @@ export default function FilesPage() {
           </div>
         )}
 
-        {loading ? (
-          <div className="py-12 text-center text-neutral-500">Loading...</div>
-        ) : filteredFiles.length === 0 && folders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-neutral-200 py-12 text-center">
-            <p className="text-neutral-500">No files or folders found matching your filters.</p>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {/* Folders first */}
-            {folders.map((folder) => (
-              <div
-                key={folder._id}
-                onClick={() => {
-                  setCurrentFolderId(folder._id);
-                }}
-                className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-              >
-                {folder.isPrivate ? (
-                  <span
-                    className="absolute left-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
-                    aria-hidden="true"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4">
-                      <rect
-                        x="5"
-                        y="11"
-                        width="14"
-                        height="9"
-                        rx="2"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                      />
-                      <path
-                        d="M8 11V8a4 4 0 0 1 8 0v3"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </span>
-                ) : null}
-                <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-amber-50 text-2xl">
-                  <FileIcon fileName="" isFolder />
-                </div>
-                <h3
-                  className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
-                  title={folder.name}
-                >
-                  {truncateLabel(folder.name, 25)}
-                </h3>
-                <p className="text-[10px] text-neutral-400">
-                  -- • {new Date(folder.createdAt).toLocaleDateString()}
-                </p>
-                <p className="mt-1 text-[10px] font-medium text-neutral-500">
-                  {truncateLabel(folder.createdBy?.displayName || 'Unknown', 12)} •{' '}
-                  <span className="text-neutral-400">{getFolderDepartment(folder)}</span>
-                </p>
-
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
-                  }}
-                  className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
-                  aria-label="Delete folder"
-                  title="Delete"
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                    <path
-                      d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ))}
-
-            {/* Files */}
-            {filteredFiles.map((file) => (
-              <div
-                key={file._id}
-                onClick={() => handlePreview(file)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    handlePreview(file);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-              >
-                <div className="absolute left-2 top-2 flex items-center gap-1">
-                  <a
-                    href={getDownloadUrl(file._id)}
-                    onClick={(event) => event.stopPropagation()}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-                    aria-label="Download file"
-                    title="Download"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                      <path
-                        d="M12 4v10m0 0l-4-4m4 4l4-4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M5 18h14"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </a>
-                  {file.isAdminOnly ? (
-                    <span
-                      className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
-                      aria-hidden="true"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4">
-                        <circle
-                          cx="12"
-                          cy="8"
-                          r="3.2"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                        />
-                        <path
-                          d="M5 19c1.5-3 4.3-4.5 7-4.5s5.5 1.5 7 4.5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </span>
-                  ) : null}
-                  {file.isPrivate ? (
-                    <span
-                      className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
-                      aria-hidden="true"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4">
-                        <rect
-                          x="5"
-                          y="11"
-                          width="14"
-                          height="9"
-                          rx="2"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                        />
-                        <path
-                          d="M8 11V8a4 4 0 0 1 8 0v3"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-neutral-50 text-2xl">
-                  <FileIcon fileName={file.originalName} />
-                </div>
-                <h3
-                  className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
-                  title={file.originalName}
-                >
-                  {truncateLabel(file.originalName, 25)}
-                </h3>
-                <p className="text-[10px] text-neutral-400">
-                  {formatFileSize(file.size)} • {new Date(file.createdAt).toLocaleDateString()}
-                </p>
-                <p className="mt-1 text-[10px] font-medium text-neutral-500">
-                  {file.isAdminOnly ? (
-                    <>
-                      <span className="font-bold text-neutral-900">[ADMIN]</span>
-                      <span className="text-neutral-500"> • </span>
-                    </>
-                  ) : null}
-                  {truncateLabel(file.uploadedBy?.displayName || 'Unknown', 12)} •{' '}
-                  <span className="text-neutral-400">{file.department}</span>
-                </p>
-
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setConfirmAction({ type: 'file', id: file._id, name: file.originalName });
-                  }}
-                  className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
-                  aria-label="Delete file"
-                  title="Delete"
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                    <path
-                      d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-50 text-neutral-500">
-                <tr>
-                  <th className="px-6 py-3 font-medium">Name</th>
-                  <th className="px-6 py-3 font-medium">Size</th>
-                  <th className="px-6 py-3 font-medium">Department</th>
-                  <th className="px-6 py-3 font-medium">Uploaded By</th>
-                  <th className="px-6 py-3 font-medium">Date</th>
-                  <th className="px-6 py-3 text-right font-medium" aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {/* Folders */}
+          <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {loading ? (
+            <div className="py-12 text-center text-neutral-500">Loading...</div>
+          ) : filteredFiles.length === 0 && folders.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-neutral-200 py-12 text-center">
+              <p className="text-neutral-500">No files or folders found matching your filters.</p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="rounded-xl border border-neutral-200 bg-white p-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {/* Folders first */}
                 {folders.map((folder) => (
-                  <tr
+                  <div
                     key={folder._id}
                     onClick={() => {
                       setCurrentFolderId(folder._id);
                     }}
-                    className="group cursor-pointer hover:bg-neutral-50"
+                    className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+   
                   >
-                    <td className="px-6 py-4 font-medium text-neutral-900">
-                      <div className="flex items-center gap-3">
-                        <FileIcon fileName="" isFolder />
-                        <span className="flex items-center gap-2">
-                          {truncateLabel(folder.name, 25)}
-                          {folder.isPrivate ? (
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-neutral-500">
-                              <rect
-                                x="5"
-                                y="11"
-                                width="14"
-                                height="9"
-                                rx="2"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.6"
-                              />
-                              <path
-                                d="M8 11V8a4 4 0 0 1 8 0v3"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.6"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          ) : null}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-neutral-500">--</td>
-                    <td className="px-6 py-4 text-neutral-500">{getFolderDepartment(folder)}</td>
-                    <td className="px-6 py-4 text-neutral-500">
-                      {truncateLabel(folder.createdBy?.displayName || 'Unknown', 12)}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-500">
-                      {new Date(folder.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-right">
+                    {folder.isPrivate ? (
+                      <span
+                        className="absolute left-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
+                        aria-hidden="true"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4">
+                          <rect
+                            x="5"
+                            y="11"
+                            width="14"
+                            height="9"
+                            rx="2"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                          />
+                          <path
+                            d="M8 11V8a4 4 0 0 1 8 0v3"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </span>
+                    ) : null}
+                    <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-amber-50 text-2xl">
+                      <FileIcon fileName="" isFolder />
+                    </div>
+                    <h3
+                      className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
+                      title={folder.name}
+                    >
+                      {truncateLabel(folder.name, GRID_TITLE_MAX)}
+                    </h3>
+                    <p className="text-[10px] text-neutral-400">
+                      -- • {new Date(folder.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-neutral-500">
+                      <span title={folder.createdBy?.displayName || 'Unknown'}>
+                        {truncateLabel(folder.createdBy?.displayName || 'Unknown', GRID_META_MAX)}
+                      </span>{' '}
+                      •{' '}
+                      <span className="text-neutral-400" title={getFolderDepartment(folder)}>
+                        {truncateLabel(getFolderDepartment(folder), GRID_META_MAX)}
+                      </span>
+                    </p>
                       <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
-                        }}
-                        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
-                        aria-label="Delete folder"
-                        title="Delete"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
+                      }}
+                      className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
+                      aria-label="Delete folder"
+                      title="Delete"
+                    >
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+          
+                        <path
+                           d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                    
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                           strokeLinejoin="round"
+                        />
+                      </svg>
+                     </button>
+                  </div>
+                ))}
+
+                  {/* Files */}
+                {filteredFiles.map((file) => (
+                  <div
+                    key={file._id}
+                    onClick={() => handlePreview(file)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handlePreview(file);
+                      }
+                
+                    }}
+                      role="button"
+                    tabIndex={0}
+                    className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            
+                  >
+                    <div className="absolute left-2 top-2 flex items-center gap-1">
+                      <a
+                        href={getDownloadUrl(file._id)}
+                        onClick={(event) => event.stopPropagation()}
+                        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
+                        aria-label="Download file"
+                        title="Download"
+
                       >
                         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                           <path
-                            d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                             d="M12 4v10m0 0l-4-4m4 4l4-4"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="1.6"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
+                             <path
+                            d="M5 18h14"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                          />
                         </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        </a>
+                      {file.isAdminOnly ? (
+                        <span
+                          className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
+                          aria-hidden="true"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4">
+                            <circle
+                              cx="12"
+                              cy="8"
+                              r="3.2"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                            />
+                            <path
+                              d="M5 19c1.5-3 4.3-4.5 7-4.5s5.5 1.5 7 4.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </span>
+                      ) : null}
+                      {file.isPrivate ? (
+                        <span
+                          className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
+                          aria-hidden="true"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4">
+                            <rect
+                              x="5"
+                              y="11"
+                              width="14"
+                              height="9"
+                              rx="2"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                            />
+                            <path
+                              d="M8 11V8a4 4 0 0 1 8 0v3"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-neutral-50 text-2xl">
+                      <FileIcon fileName={file.originalName} />
+                    </div>
+                    <h3
+                      className="mb-1 w-full truncate text-center text-sm font-bold text-neutral-900"
+                      title={file.originalName}
+                    >
+                      {truncateLabel(file.originalName, GRID_TITLE_MAX)}
+                    </h3>
+                    <p className="text-[10px] text-neutral-400">
+                      {formatFileSize(file.size)} • {new Date(file.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-neutral-500">
+                      {file.isAdminOnly ? (
+                        <>
+                          <span className="font-bold text-neutral-900">[ADMIN]</span>
+                          <span className="text-neutral-500"> • </span>
+                        </>
+                      ) : null}
+                      <span title={file.uploadedBy?.displayName || 'Unknown'}>
+                        {truncateLabel(file.uploadedBy?.displayName || 'Unknown', GRID_META_MAX)}
+                      </span>{' '}
+                      •{' '}
+                      <span className="text-neutral-400" title={file.department}>
+                        {truncateLabel(file.department, GRID_META_MAX)}
+                      </span>
+                    </p>
 
-                {/* Files */}
-                {filteredFiles.map((file) => (
-                  <tr key={file._id} className="group hover:bg-neutral-50">
-                    <td className="px-6 py-4 font-medium text-neutral-900">
-                      <button
-                        type="button"
-                        onClick={() => handlePreview(file)}
-                        className="flex cursor-pointer items-center gap-3 text-left text-neutral-900 transition-colors hover:text-neutral-900"
-                      >
-                        <FileIcon fileName={file.originalName} />
-                        <span className="flex items-center gap-2">
-                          <span className="inline-flex w-4 justify-center text-neutral-500">
-                            {file.isPrivate ? (
-                              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" aria-hidden="true">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setConfirmAction({ type: 'file', id: file._id, name: file.originalName });
+                      }}
+                      className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
+                      aria-label="Delete file"
+                      title="Delete"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                        <path
+                          d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+    </div>
+        </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+              <table className="w-full table-fixed text-left text-sm">
+                <thead className="bg-neutral-50 text-neutral-500">
+                  <tr>
+                    <th className="w-[32%] px-6 py-3 font-medium">Name</th>
+                    <th className="w-[10%] px-6 py-3 font-medium">Size</th>
+                    <th className="w-[16%] px-6 py-3 font-medium">Department</th>
+                    <th className="w-[16%] px-6 py-3 font-medium">Uploaded By</th>
+                    <th className="w-[14%] px-6 py-3 font-medium">Date</th>
+                    <th className="w-[12%] px-6 py-3 text-right font-medium" aria-label="Actions" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {/* Folders */}
+                  {folders.map((folder) => (
+                    <tr
+                      key={folder._id}
+                      onClick={() => {
+                        setCurrentFolderId(folder._id);
+                      }}
+                      className="group cursor-pointer hover:bg-neutral-50"
+                    >
+                      <td className="px-6 py-4 font-medium text-neutral-900">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <FileIcon fileName="" isFolder />
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate" title={folder.name}>
+                              {truncateLabel(folder.name, LIST_NAME_MAX)}
+                            </span>
+                            {folder.isPrivate ? (
+                              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-neutral-500">
+                             
+                 
+      
                                 <rect
                                   x="5"
                                   y="11"
@@ -1516,88 +1518,67 @@ export default function FilesPage() {
                               </svg>
                             ) : null}
                           </span>
-                          {file.isAdminOnly ? (
-                            <>
-                              <span className="font-semibold text-neutral-900">[ADMIN]</span>
-                              <span className="text-neutral-400">•</span>
-                            </>
-                          ) : null}
-                          <span>{truncateLabel(file.originalName, 25)}</span>
+                             </div>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+              <table className="w-full table-fixed text-left text-sm">
+                <thead className="bg-neutral-50 text-neutral-500">
+                  <tr>
+                    <th className="w-[32%] px-6 py-3 font-medium">Name</th>
+                    <th className="w-[10%] px-6 py-3 font-medium">Size</th>
+                    <th className="w-[16%] px-6 py-3 font-medium">Department</th>
+                    <th className="w-[16%] px-6 py-3 font-medium">Uploaded By</th>
+                    <th className="w-[14%] px-6 py-3 font-medium">Date</th>
+                    <th className="w-[12%] px-6 py-3 text-right font-medium" aria-label="Actions" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {/* Folders */}
+                  {folders.map((folder) => (
+                    <tr
+                      key={folder._id}
+                      onClick={() => {
+                        setCurrentFolderId(folder._id);
+                      }}
+                      className="group cursor-pointer hover:bg-neutral-50"
+                    >
+                      <td className="px-6 py-4 font-medium text-neutral-900">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <FileIcon fileName="" isFolder />
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate" title={folder.name}>
+                              {truncateLabel(folder.name, LIST_NAME_MAX)}
+                            </span>
+                            {folder.isPrivate ? (
+                              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-neutral-500">
+                             
                         </span>
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-neutral-500">{formatFileSize(file.size)}</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-600">
-                        {file.department}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-neutral-500">
-                      {truncateLabel(file.uploadedBy?.displayName || 'Unknown', 12)}
-                    </td>
-                    <td className="px-6 py-4 text-neutral-500">
-                      {new Date(file.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => handlePreview(file)}
-                          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-                          aria-label="Preview file"
-                          title="Preview"
+                       </td>
+                      <td className="px-6 py-4 text-neutral-500">
+                        <span
+                          className="block truncate"
+                          title={folder.createdBy?.displayName || 'Unknown'}
+                  
                         >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                            <path
-                              d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.6"
-                            />
-                            <circle
-                              cx="12"
-                              cy="12"
-                              r="3.2"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.6"
-                            />
-                          </svg>
-                        </button>
-                        <a
-                          href={getDownloadUrl(file._id)}
-                          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-                          aria-label="Download file"
-                          title="Download"
-                        >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                            <path
-                              d="M12 4v10m0 0l-4-4m4 4l4-4"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.6"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <path
-                              d="M5 18h14"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.6"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        </a>
+                              {truncateLabel(
+                            folder.createdBy?.displayName || 'Unknown',
+                            LIST_UPLOADER_MAX
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-500 whitespace-nowrap">
+                        {new Date(folder.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-right">
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            setConfirmAction({
-                              type: 'file',
-                              id: file._id,
-                              name: file.originalName,
-                            });
+                                setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
+                       
                           }}
                           className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
-                          aria-label="Delete file"
+                           aria-label="Delete folder"
                           title="Delete"
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -1611,14 +1592,134 @@ export default function FilesPage() {
                             />
                           </svg>
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                           </td>
+                    </tr>
+                  ))}
+                   {/* Files */}
+                  {filteredFiles.map((file) => (
+                    <tr key={file._id} className="group hover:bg-neutral-50">
+                      <td className="px-6 py-4 font-medium text-neutral-900">
+                        <button
+                          type="button"
+                          onClick={() => handlePreview(file)}
+                          className="flex min-w-0 cursor-pointer items-center gap-3 text-left text-neutral-900 transition-colors hover:text-neutral-900"
+                        >
+                          <FileIcon fileName={file.originalName} />
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="inline-flex w-4 justify-center text-neutral-500">
+                              {file.isPrivate ? (
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" aria-hidden="true">
+                                  <rect
+                                    x="5"
+                                    y="11"
+                                    width="14"
+                                    height="9"
+                                    rx="2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                  />
+                                  <path
+                                    d="M8 11V8a4 4 0 0 1 8 0v3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                  />
+                                </svg>
+                              ) : null}
+                            </span>
+                            {file.isAdminOnly ? (
+                              <>
+                                <span className="font-semibold text-neutral-900">[ADMIN]</span>
+                                <span className="text-neutral-400">•</span>
+                              </>
+                            ) : null}
+                            <span className="truncate" title={file.originalName}>
+                              {truncateLabel(file.originalName, LIST_NAME_MAX)}
+                            </span>
+                          </span>
+                             </td>
+                      <td className="px-6 py-4 text-neutral-500">
+                        <span
+                          className="block truncate"
+                          title={folder.createdBy?.displayName || 'Unknown'}
+                 
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                              <path
+                                d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                              />
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="3.2"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                              />
+                            </svg>
+                          </button>
+                          <a
+                            href={getDownloadUrl(file._id)}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                            aria-label="Download file"
+                            title="Download"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                              <path
+                                d="M12 4v10m0 0l-4-4m4 4l4-4"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <path
+                                d="M5 18h14"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </a>
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setConfirmAction({
+                                type: 'file',
+                                id: file._id,
+                                name: file.originalName,
+                              });
+                            }}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                            aria-label="Delete file"
+                            title="Delete"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                              <path
+                                d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Floating Upload Menu */}
@@ -1939,7 +2040,7 @@ export default function FilesPage() {
             type="button"
             aria-label="Close"
             className="absolute inset-0 cursor-pointer bg-neutral-900/30"
-            onClick={() => setConfirmAction(null)}
+            onClick={resetConfirmAction}
           />
           <div
             role="dialog"
@@ -1955,19 +2056,26 @@ export default function FilesPage() {
             </h3>
             <p className="mt-2 text-sm text-neutral-500">
               {confirmAction.type === 'department'
-                ? `Files move to General, folders move to ${FOLDER_DEPARTMENT}.`
+                ? 'Removing this department will delete related tasks and files.'
                 : 'This action cannot be undone.'}
             </p>
+            {confirmAction.type === 'department' && departmentUsageError ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {departmentUsageError}
+              </div>
+            ) : null}
+            {confirmAction.type === 'department' && departmentUsage ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                This will delete {departmentUsage.taskCount} task
+                {departmentUsage.taskCount === 1 ? '' : 's'} and {departmentUsage.fileCount} file
+                {departmentUsage.fileCount === 1 ? '' : 's'}.
+              </div>
+            ) : null}
             <div className="mt-3 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
               {confirmAction.name}
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setConfirmAction(null)}
-              >
+              <Button type="button" variant="secondary" size="sm" onClick={resetConfirmAction}>
                 Cancel
               </Button>
               <Button
@@ -1977,7 +2085,7 @@ export default function FilesPage() {
                 className="border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 focus-visible:ring-red-200"
                 onClick={async () => {
                   const action = confirmAction;
-                  setConfirmAction(null);
+                  resetConfirmAction();
                   if (action.type === 'folder') {
                     await handleDeleteFolder(action.id);
                     return;

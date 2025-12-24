@@ -50,6 +50,27 @@
       transform: scale(1) translateY(0);
     }
   }
+
+  .scrollbar-minimal {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(15 23 42 / 0.35) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-minimal::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    background-color: rgb(15 23 42 / 0.25);
+  }
 }
 
 @keyframes modal-in {

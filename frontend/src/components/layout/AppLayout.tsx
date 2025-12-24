@@ -1,10 +1,12 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../auth/useAuth';
 
 export default function AppLayout({ sidebarExtra }: { sidebarExtra?: React.ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCalendar = location.pathname.startsWith('/calendar');
   const { user, logout } = useAuth();
 
   const handleLogout = async () => {
@@ -21,8 +23,8 @@ export default function AppLayout({ sidebarExtra }: { sidebarExtra?: React.React
         onLogout={handleLogout}
       />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar>{sidebarExtra}</Sidebar>
-        <main className="flex-1 overflow-y-auto bg-white p-10">
+        <Sidebar compact={isCalendar}>{sidebarExtra}</Sidebar>
+        <main className={`flex-1 overflow-y-auto bg-white ${isCalendar ? 'p-5' : 'p-10'}`}>
           <Outlet />
         </main>
       </div>
