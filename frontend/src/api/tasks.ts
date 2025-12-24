@@ -1,7 +1,7 @@
 import { apiGet, apiPostJson, apiPatchJson, apiDelete } from './client';
 
 export type Priority = 'high' | 'medium' | 'low';
-export type Department = 'sales' | 'it' | 'finance' | 'marketing' | 'hr' | 'customer-service';
+export type Department = string;
 export type TaskStatus = 'Not Started' | 'In Progress' | 'Completed';
 
 export type Task = {
@@ -10,10 +10,11 @@ export type Task = {
   description: string;
   priority: Priority;
   department: Department;
-  assignee: string;
+  assignee: string[];
   dueDate: string;
   status: TaskStatus;
   completedAt?: string;
+  editedAt?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -24,7 +25,7 @@ export type CreateTaskPayload = {
   description?: string;
   priority: Priority;
   department: Department;
-  assignee?: string;
+  assignee?: string[];
   dueDate: string;
 };
 
@@ -33,7 +34,7 @@ export type UpdateTaskPayload = {
   description?: string;
   priority?: Priority;
   department?: Department;
-  assignee?: string;
+  assignee?: string[];
   dueDate?: string;
   status?: TaskStatus;
 };

@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import * as tasksApi from '../api/tasks';
 import { listFiles, type FileItem } from '../api/files';
 import { listAllFolders } from '../api/folders';
 import { listDepartments, type Department as DepartmentOption } from '../api/departments';
-import { IconCalendar, IconFile, IconSearch, IconTerminal, IconX } from '../components/ui/Icons';
 
 const SEARCH_STORAGE_KEY = 'dashboard_search';
-const DASHBOARD_UI_STATE_KEY = 'dashboardState:v1';
 
 type Priority = tasksApi.Priority;
 type Department = tasksApi.Department;
@@ -45,6 +42,7 @@ type ActivityItemData = {
   title: string;
   description: string;
   meta: string[];
+  icon: string;
   priority?: Priority;
   task?: Task;
   file?: FileItem;
@@ -57,15 +55,6 @@ type ActivityGroupData = {
 };
 
 type UserOption = { name: string; email: string };
-
-type DashboardUiState = {
-  search?: string;
-  filter?: FilterType;
-  activityScrollTop?: number;
-  selectedTaskId?: string | null;
-  showTaskModal?: boolean;
-  showUpdatesModal?: boolean;
-};
 
 const mockUsers: UserOption[] = [
   { name: 'Sarah Chen', email: 'sarah.chen@taskflow.com' },
@@ -94,10 +83,6 @@ const MAX_TASK_NAME_LENGTH = 80;
 const TABLE_NAME_MAX = 24;
 const TABLE_ASSIGNEE_MAX = 22;
 const TABLE_DEPARTMENT_MAX = 18;
-const ACTIVITY_TITLE_MAX = 56;
-const MAX_TASK_DESCRIPTION_LENGTH = 280;
-const MAX_ASSIGNEE_NAME_LENGTH = 32;
-const ASSIGNEE_CHIP_MAX = 18;
 const WEEKDAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_LABELS = [
   'January',
@@ -151,8 +136,8 @@ const STATUS_STYLES: Record<Task['status'], { text: string; pill: string }> = {
     pill: 'border-neutral-200 bg-neutral-50 text-neutral-600',
   },
   'In Progress': {
-    text: 'text-blue-600',
-    pill: 'border-blue-200 bg-blue-50 text-blue-700',
+    text: 'text-amber-600',
+    pill: 'border-amber-200 bg-amber-50 text-amber-700',
   },
   Completed: {
     text: 'text-emerald-500',
@@ -286,33 +271,11 @@ const FILE_VISIBILITY_STYLES: Record<string, string> = {
   Shared: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 };
 
-const filterConfig: { type: FilterType; label: string; icon: ReactNode }[] = [
-  { type: 'all', label: 'All', icon: <IconTerminal className="h-4 w-4" /> },
-  { type: 'tasks', label: 'Tasks', icon: <IconCalendar className="h-4 w-4" /> },
-  { type: 'files', label: 'Files', icon: <IconFile className="h-4 w-4" /> },
+const filterConfig: { type: FilterType; label: string; icon: string }[] = [
+  { type: 'all', label: 'All', icon: '📋' },
+  { type: 'tasks', label: 'Tasks', icon: '📅' },
+  { type: 'files', label: 'Files', icon: '📁' },
 ];
-
-const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
-  task_created: 'Created',
-  task_updated: 'Updated',
-  task_status: 'Status change',
-  file_created: 'File upload',
-};
-
-const ACTIVITY_KIND_STYLES: Record<ActivityKind, string> = {
-  task_created: 'border-neutral-200 bg-neutral-50 text-neutral-600',
-  task_updated: 'border-sky-200 bg-sky-50 text-sky-700',
-  task_status: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-
-  file_created: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-};
-
-const ACTIVITY_KIND_ACCENTS: Record<ActivityKind, string> = {
-  task_created: 'border-l-neutral-300',
-  task_updated: 'border-l-sky-300',
-  task_status: 'border-l-indigo-300',
-  file_created: 'border-l-emerald-300',
-};
 
 function groupActivities(items: ActivityItemData[]): ActivityGroupData[] {
   const sorted = [...items].sort(
@@ -354,16 +317,6 @@ function PriorityBadge({ priority }: { priority: Priority }) {
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide ${PRIORITY_STYLES[priority].badge}`}
     >
       {priority.charAt(0).toUpperCase() + priority.slice(1)}
-    </span>
-  );
-}
-
-function ActivityKindPill({ kind }: { kind: ActivityKind }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide ${ACTIVITY_KIND_STYLES[kind]}`}
-    >
-      {ACTIVITY_KIND_LABELS[kind]}
     </span>
   );
 }
@@ -448,9 +401,7 @@ function DepartmentMenu({
 function SearchBar({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <div className="relative mb-4">
-      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400">
-        <IconSearch className="h-4 w-4" />
-      </span>
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400">🔍</span>
       <input
         type="text"
         value={value}
@@ -460,11 +411,10 @@ function SearchBar({ value, onChange }: { value: string; onChange: (value: strin
       />
       {value && (
         <button
-          type="button"
           onClick={() => onChange('')}
-          className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-neutral-400 transition-all hover:scale-105 hover:text-neutral-600 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-200"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
         >
-          <IconX className="h-4 w-4" />
+          ✕
         </button>
       )}
     </div>
@@ -484,10 +434,10 @@ function FilterButtons({
         <button
           key={type}
           onClick={() => onFilterChange(type)}
-          className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-4 py-2 font-medium transition-colors ${
+          className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 font-medium transition-colors ${
             activeFilter === type
-              ? 'border-neutral-900 bg-neutral-900 text-white'
-              : 'border-neutral-400 bg-white text-neutral-900 hover:border-neutral-900 hover:bg-neutral-50'
+              ? 'border-gray-800 bg-gray-800 text-white'
+              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-500'
           }`}
         >
           <span>{icon}</span>
@@ -515,47 +465,24 @@ function ActivityItem({
     onOpenFiles();
   };
 
-  const icon =
-    item.category === 'task' ? (
-      <IconCalendar className="h-5 w-5 text-neutral-600" />
-    ) : (
-      <IconFile className="h-5 w-5 text-neutral-600" />
-    );
-
   return (
     <button
       type="button"
       onClick={handleClick}
-      className={`group flex w-full cursor-pointer gap-4 rounded-xl border border-l-4 border-neutral-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-md ${ACTIVITY_KIND_ACCENTS[item.kind]}`}
+      className="group flex w-full cursor-pointer gap-4 rounded-xl border border-neutral-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50 hover:shadow-md"
     >
       <div className="min-w-[72px] text-xs font-medium text-neutral-400">{item.timeLabel}</div>
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-sm transition-colors group-hover:bg-white">
-        {icon}
+        {item.icon}
       </div>
       <div className="flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold text-neutral-900" title={item.title}>
-              {truncateText(item.title, ACTIVITY_TITLE_MAX)}
-            </div>
-            <div className="mt-1 text-sm text-neutral-500">{item.description}</div>
-          </div>
-          <div className="shrink-0">
-            <ActivityKindPill kind={item.kind} />
-          </div>
-        </div>{' '}
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+        <div className="mb-1 text-base font-semibold text-neutral-900">{item.title}</div>
+        <div className="mb-2 text-sm text-neutral-500">{item.description}</div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
           {item.priority && <PriorityBadge priority={item.priority} />}
-          {item.meta.length > 0 && (
-            <div className="flex flex-wrap items-center">
-              {item.meta.map((meta, index) => (
-                <span key={`${meta}-${index}`} className="inline-flex items-center">
-                  {index > 0 && <span className="mx-2 text-neutral-300">•</span>}
-                  {meta}
-                </span>
-              ))}
-            </div>
-          )}
+          {item.meta.map((m, i) => (
+            <span key={i}>{m}</span>
+          ))}
         </div>
       </div>
     </button>
@@ -592,7 +519,7 @@ function DueTodayCard({
   onOpenTask: (task: Task) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-sm sm:p-6">
+    <div className="rounded-2xl border border-neutral-200 bg-white/90 p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
@@ -618,15 +545,10 @@ function DueTodayCard({
               className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${PRIORITY_STYLES[task.priority].card}`}
             >
               <div className="min-w-0">
-                <div className="truncate font-semibold text-neutral-800" title={task.name}>
+                <div className="truncate font-semibold text-neutral-800">
                   {truncateText(task.name, TABLE_NAME_MAX)}
                 </div>
-                <div
-                  className="mt-0.5 text-[11px] text-neutral-500"
-                  title={`${formatAssignees(task.assignee)} • ${normalizeDepartmentName(
-                    task.department
-                  )}`}
-                >
+                <div className="mt-0.5 text-[11px] text-neutral-500">
                   {truncateText(formatAssignees(task.assignee), TABLE_ASSIGNEE_MAX)} •{' '}
                   {truncateText(normalizeDepartmentName(task.department), TABLE_DEPARTMENT_MAX)}
                 </div>
@@ -667,7 +589,7 @@ function UpdatesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
-      <div className="animate-modal-in w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-6">
+      <div className="animate-modal-in w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-neutral-900">Updates for Today</h3>
@@ -699,26 +621,15 @@ function UpdatesModal({
                     }
                     onOpenFiles();
                   }}
-                  className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-l-4 px-3 py-2 text-left text-sm transition-colors ${
+                  className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
                     isTask && item.priority
                       ? PRIORITY_STYLES[item.priority].card
                       : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50'
-                  } ${ACTIVITY_KIND_ACCENTS[item.kind]}`}
+                  }`}
                 >
                   <div className="min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold text-neutral-800" title={item.title}>
-                          {truncateText(item.title, ACTIVITY_TITLE_MAX)}
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-neutral-500">
-                          {item.description}
-                        </div>
-                      </div>
-                      <div className="shrink-0">
-                        <ActivityKindPill kind={item.kind} />
-                      </div>
-                    </div>
+                    <div className="truncate font-semibold text-neutral-800">{item.title}</div>
+                    <div className="mt-0.5 text-[11px] text-neutral-500">{item.description}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-[10px] font-medium text-neutral-400">
@@ -765,13 +676,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
-  const [hasHydrated, setHasHydrated] = useState(false);
-  const restoreStateRef = useRef<DashboardUiState | null>(null);
-  const pendingActivityScrollTopRef = useRef<number | null>(null);
-  const activityScrollSaveRef = useRef<number | null>(null);
-  const activityScrollRef = useRef<HTMLDivElement | null>(null);
-  const restoreSelectedTaskIdRef = useRef<string | null>(null);
-  const restoreShowTaskModalRef = useRef(false);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -797,89 +701,12 @@ export default function DashboardPage() {
 
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState(() => {
-    try {
-      return localStorage.getItem(SEARCH_STORAGE_KEY) ?? '';
-    } catch (error) {
-      console.warn('Failed to read dashboard search state', error);
-      return '';
-    }
+    return localStorage.getItem(SEARCH_STORAGE_KEY) ?? '';
   });
 
-  const persistDashboardState = useCallback((partial: DashboardUiState) => {
-    try {
-      const stored = localStorage.getItem(DASHBOARD_UI_STATE_KEY);
-      let base: DashboardUiState = {};
-      if (stored) {
-        try {
-          base = JSON.parse(stored) as DashboardUiState;
-        } catch (error) {
-          console.warn('Failed to parse dashboard state', error);
-        }
-      }
-      localStorage.setItem(DASHBOARD_UI_STATE_KEY, JSON.stringify({ ...base, ...partial }));
-    } catch (error) {
-      console.warn('Failed to persist dashboard state', error);
-    }
-  }, []);
-
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(DASHBOARD_UI_STATE_KEY);
-      if (stored) {
-        restoreStateRef.current = JSON.parse(stored) as DashboardUiState;
-      }
-    } catch (error) {
-      console.warn('Failed to read dashboard state', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (hasHydrated) return;
-    const restored = restoreStateRef.current;
-    if (restored) {
-      if (restored.search !== undefined) {
-        setSearch(restored.search);
-      }
-      if (restored.filter) {
-        setFilter(restored.filter);
-      }
-      if (typeof restored.activityScrollTop === 'number') {
-        pendingActivityScrollTopRef.current = restored.activityScrollTop;
-      }
-      if (restored.selectedTaskId) {
-        restoreSelectedTaskIdRef.current = restored.selectedTaskId;
-      }
-      if (typeof restored.showUpdatesModal === 'boolean') {
-        setShowUpdatesModal(restored.showUpdatesModal);
-      }
-      restoreShowTaskModalRef.current = restored.showTaskModal === true;
-    }
-    setHasHydrated(true);
-  }, [hasHydrated]);
-
-  useEffect(() => {
-    if (!hasHydrated) return;
-    try {
-      localStorage.setItem(SEARCH_STORAGE_KEY, search);
-    } catch (error) {
-      console.warn('Failed to persist dashboard search state', error);
-    }
-    persistDashboardState({
-      search,
-      filter,
-      showTaskModal,
-      showUpdatesModal,
-      selectedTaskId: selectedTask?.id ?? null,
-    });
-  }, [
-    filter,
-    hasHydrated,
-    persistDashboardState,
-    search,
-    selectedTask?.id,
-    showTaskModal,
-    showUpdatesModal,
-  ]);
+    localStorage.setItem(SEARCH_STORAGE_KEY, search);
+  }, [search]);
 
   useEffect(() => {
     let active = true;
@@ -923,52 +750,6 @@ export default function DashboardPage() {
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!hasHydrated) return;
-    if (!restoreSelectedTaskIdRef.current || selectedTask || !restoreShowTaskModalRef.current) {
-      return;
-    }
-    const match = tasksState.find((task) => task.id === restoreSelectedTaskIdRef.current);
-    restoreSelectedTaskIdRef.current = null;
-    restoreShowTaskModalRef.current = false;
-    if (match) {
-      setSelectedTask(match);
-      setShowTaskModal(true);
-    }
-  }, [hasHydrated, selectedTask, tasksState, showTaskModal]);
-
-  useEffect(() => {
-    if (!hasHydrated) return;
-    if (pendingActivityScrollTopRef.current === null) return;
-    if (!activityScrollRef.current) return;
-    requestAnimationFrame(() => {
-      if (activityScrollRef.current) {
-        activityScrollRef.current.scrollTop = pendingActivityScrollTopRef.current ?? 0;
-      }
-      pendingActivityScrollTopRef.current = null;
-    });
-  }, [filesState.length, hasHydrated, loading, tasksState.length]);
-
-  useEffect(() => {
-    const target = activityScrollRef.current;
-    if (!target) return;
-    const handleScroll = () => {
-      if (activityScrollSaveRef.current) {
-        window.clearTimeout(activityScrollSaveRef.current);
-      }
-      activityScrollSaveRef.current = window.setTimeout(() => {
-        persistDashboardState({ activityScrollTop: target.scrollTop });
-      }, 200);
-    };
-    target.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      target.removeEventListener('scroll', handleScroll);
-      if (activityScrollSaveRef.current) {
-        window.clearTimeout(activityScrollSaveRef.current);
-      }
-    };
-  }, [persistDashboardState]);
 
   const userIdentifiers = useMemo(() => {
     if (!user) return [] as string[];
@@ -1021,6 +802,7 @@ export default function DashboardPage() {
         title: task.name,
         description: isCreatedByUser ? 'Task created' : 'Assigned to you',
         meta,
+        icon: '📅',
         priority: task.priority,
         task,
       });
@@ -1034,6 +816,7 @@ export default function DashboardPage() {
           title: task.name,
           description: 'Task details updated',
           meta,
+          icon: '📅',
           priority: task.priority,
           task,
         });
@@ -1049,6 +832,7 @@ export default function DashboardPage() {
           title: task.name,
           description: `Status updated to ${task.status}`,
           meta,
+          icon: '📅',
           priority: task.priority,
           task,
         });
@@ -1072,6 +856,7 @@ export default function DashboardPage() {
         title: file.originalName,
         description: 'File uploaded',
         meta,
+        icon: '📁',
         file,
       });
     });
@@ -1098,9 +883,7 @@ export default function DashboardPage() {
       return isSameDay(timestamp, today);
     });
   }, [activityItems]);
-
-  const updatesLabel =
-    todayUpdates.length <= 1 ? `${todayUpdates.length} update` : `${todayUpdates.length} updates`;
+  const updatesLabel = todayUpdates.length === 1 ? '1 update' : `${todayUpdates.length} updates`;
 
   const editSelectedDate = useMemo(() => parseInputDate(editTaskDueDate), [editTaskDueDate]);
   const editDatePickerYearOptions = useMemo(
@@ -1141,30 +924,6 @@ export default function DashboardPage() {
     setShowEditDatePicker(false);
     setShowStatusMenu(false);
   }, [selectedTask, showTaskModal, isEditingTask]);
-
-  useEffect(() => {
-    if (!showTaskModal && !showUpdatesModal && !showDeleteModal) return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (showDeleteModal) {
-        setShowDeleteModal(false);
-        setTaskToDelete(null);
-        return;
-      }
-      if (showTaskModal) {
-        setShowTaskModal(false);
-        setSelectedTask(null);
-        setIsEditingTask(false);
-        setShowStatusMenu(false);
-        setShowEditDatePicker(false);
-      }
-      if (showUpdatesModal) {
-        setShowUpdatesModal(false);
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [showTaskModal, showUpdatesModal, showDeleteModal]);
 
   useEffect(() => {
     if (!showStatusMenu) return;
@@ -1270,11 +1029,6 @@ export default function DashboardPage() {
       setEditFormError(`Task name must be ${MAX_TASK_NAME_LENGTH} characters or fewer.`);
       return;
     }
-    const trimmedDescription = editTaskDescription.trim();
-    if (trimmedDescription.length > MAX_TASK_DESCRIPTION_LENGTH) {
-      setEditFormError(`Description must be ${MAX_TASK_DESCRIPTION_LENGTH} characters or fewer.`);
-      return;
-    }
 
     const parsedDate = parseInputDate(editTaskDueDate);
     if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
@@ -1285,7 +1039,7 @@ export default function DashboardPage() {
     try {
       const payload: tasksApi.UpdateTaskPayload = {
         name: trimmedName,
-        description: trimmedDescription || undefined,
+        description: editTaskDescription.trim() || undefined,
         priority: editTaskPriority,
         department: editTaskDepartment,
         assignee: normalizeAssignees(editTaskAssignees),
@@ -1364,7 +1118,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-full flex-col gap-6 lg:h-full">
       <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section className="flex min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-sm sm:p-6">
+        <section className="flex min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white/90 p-6 shadow-sm">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-neutral-900">Activity Feed</h2>
@@ -1375,7 +1129,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setShowUpdatesModal(true)}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-semibold text-neutral-600 transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-200"
+              className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-semibold text-neutral-600 transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 hover:shadow-sm"
             >
               {updatesLabel}
             </button>
@@ -1387,10 +1141,7 @@ export default function DashboardPage() {
           )}
           <SearchBar value={search} onChange={setSearch} />
           <FilterButtons activeFilter={filter} onFilterChange={setFilter} />
-          <div
-            ref={activityScrollRef}
-            className="scrollbar-minimal mt-2 flex-1 pr-1 lg:min-h-0 lg:overflow-y-auto lg:pr-4"
-          >
+          <div className="mt-2 flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
             {loading ? (
               <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-8 text-center text-sm text-neutral-500">
                 Loading activity feed...
@@ -1429,7 +1180,7 @@ export default function DashboardPage() {
 
       {showTaskModal && selectedTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
-          <div className="animate-modal-in w-full max-w-xl rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-6">
+          <div className="animate-modal-in w-full max-w-xl rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-bold text-neutral-900">Task Details</h3>
@@ -1540,9 +1291,7 @@ export default function DashboardPage() {
                       </div>
                     </>
                   ) : (
-                    <div className="mt-1 break-words text-neutral-700" title={selectedTask.name}>
-                      {selectedTask.name}
-                    </div>
+                    <div className="mt-1 text-neutral-700">{selectedTask.name}</div>
                   )}
                 </div>
                 <div>
@@ -1713,10 +1462,7 @@ export default function DashboardPage() {
                       />
                     </div>
                   ) : (
-                    <div
-                      className="mt-1 break-words text-neutral-700"
-                      title={normalizeDepartmentName(selectedTask.department)}
-                    >
+                    <div className="mt-1 text-neutral-700">
                       {normalizeDepartmentName(selectedTask.department)}
                     </div>
                   )}
@@ -1729,11 +1475,9 @@ export default function DashboardPage() {
                         {editTaskAssignees.map((assignee) => (
                           <span
                             key={assignee}
-                            className="inline-flex max-w-[180px] items-center gap-1 rounded-full bg-neutral-900 px-2 py-1 text-xs font-semibold text-white"
+                            className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2 py-1 text-xs font-semibold text-white"
                           >
-                            <span className="truncate" title={assignee}>
-                              {truncateText(assignee, ASSIGNEE_CHIP_MAX)}
-                            </span>
+                            {assignee}
                             <button
                               type="button"
                               onClick={() =>
@@ -1755,7 +1499,6 @@ export default function DashboardPage() {
                             setEditAssigneeQuery(event.target.value);
                             setShowEditAssigneeSuggestions(true);
                           }}
-                          maxLength={MAX_ASSIGNEE_NAME_LENGTH}
                           onFocus={() => {
                             if (editAssigneeQuery.trim().length >= 1)
                               setShowEditAssigneeSuggestions(true);
@@ -1820,10 +1563,7 @@ export default function DashboardPage() {
                       )}
                     </div>
                   ) : (
-                    <div
-                      className="mt-1 break-words text-neutral-700"
-                      title={formatAssignees(selectedTask.assignee)}
-                    >
+                    <div className="mt-1 text-neutral-700">
                       {formatAssignees(selectedTask.assignee)}
                     </div>
                   )}
@@ -1903,18 +1643,12 @@ export default function DashboardPage() {
               <div>
                 <div className="mb-1 font-semibold">Description</div>
                 {isEditingTask ? (
-                  <>
-                    <textarea
-                      value={editTaskDescription}
-                      onChange={(event) => setEditTaskDescription(event.target.value)}
-                      maxLength={MAX_TASK_DESCRIPTION_LENGTH}
-                      className="min-h-[96px] w-full resize-none rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 focus:border-neutral-900 focus:outline-none"
-                      placeholder="Add more context, requirements, or links"
-                    />
-                    <div className="mt-1 text-xs text-neutral-400">
-                      {editTaskDescription.length}/{MAX_TASK_DESCRIPTION_LENGTH}
-                    </div>
-                  </>
+                  <textarea
+                    value={editTaskDescription}
+                    onChange={(event) => setEditTaskDescription(event.target.value)}
+                    className="min-h-[96px] w-full resize-none rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 focus:border-neutral-900 focus:outline-none"
+                    placeholder="Add more context, requirements, or links"
+                  />
                 ) : (
                   <div className="whitespace-pre-wrap break-words text-neutral-600">
                     {selectedTask.description || 'No description provided.'}
@@ -1994,7 +1728,7 @@ export default function DashboardPage() {
 
       {showDeleteModal && taskToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
-          <div className="animate-modal-in w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-6">
+          <div className="animate-modal-in w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Delete Task</h3>
               <button
@@ -2009,10 +1743,8 @@ export default function DashboardPage() {
             </div>
             <p className="mb-4 text-sm">
               Are you sure you want to permanently delete{' '}
-              <span className="font-semibold" title={taskToDelete.name}>
-                {truncateText(taskToDelete.name, MAX_TASK_NAME_LENGTH)}
-              </span>
-              ? This action cannot be undone.
+              <span className="font-semibold">{taskToDelete.name}</span>? This action cannot be
+              undone.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button

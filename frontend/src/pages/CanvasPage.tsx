@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import Button from '../components/ui/Button';
@@ -25,6 +26,12 @@ type ViewState = {
   offsetX: number;
   offsetY: number;
   scale: number;
+};
+
+type CanvasUiState = {
+  activeTool?: Tool;
+  snapEnabled?: boolean;
+  view?: ViewState;
 };
 
 type DragState =
@@ -67,6 +74,11 @@ const HISTORY_LIMIT = 50;
 const DRAG_THRESHOLD_PX = 3;
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 2.5;
+const CANVAS_UI_STATE_KEY = 'canvasState:v1';
+const MAX_NODE_TEXT_LENGTH = 240;
+const NODE_TEXT_HORIZONTAL_PADDING = 12;
+const NODE_TEXT_VERTICAL_PADDING = 14;
+const NODE_TEXT_LINE_HEIGHT = 18;
 
 const DEFAULT_BOARD: CanvasData = { version: 1, nodes: [], edges: [] };
 const DEFAULT_VIEW: ViewState = { offsetX: 0, offsetY: 0, scale: 1 };
@@ -172,6 +184,17 @@ function normalizeView(value: unknown): ViewState {
   };
 }
 
+function loadCanvasUiState(): CanvasUiState | null {
+  try {
+    const stored = localStorage.getItem(CANVAS_UI_STATE_KEY);
+    if (!stored) return null;
+    return JSON.parse(stored) as CanvasUiState;
+  } catch (error) {
+    console.warn('Failed to read canvas UI state', error);
+    return null;
+  }
+}
+
 function isCanvasNode(value: unknown): value is CanvasNode {
   if (!value || typeof value !== 'object') return false;
   const node = value as CanvasNode;
@@ -255,30 +278,59 @@ function drawWrappedText(
   x: number,
   y: number,
   maxWidth: number,
-  lineHeight: number
+  lineHeight: number,
+  maxHeight?: number
 ) {
   const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
   let line = '';
-  let currentY = y;
 
-  words.forEach((word, index) => {
+  words.forEach((word) => {
     const testLine = line ? `${line} ${word}` : word;
     const { width } = ctx.measureText(testLine);
     if (width > maxWidth && line) {
-      ctx.fillText(line, x, currentY);
+      lines.push(line);
       line = word;
-      currentY += lineHeight;
       return;
     }
     line = testLine;
-    if (index === words.length - 1) {
-      ctx.fillText(line, x, currentY);
-    }
   });
 
-  if (!words.length) {
-    ctx.fillText('', x, currentY);
+  if (line) {
+    lines.push(line);
   }
+
+  const maxLines = Number.isFinite(maxHeight)
+    ? Math.max(1, Math.floor((maxHeight as number) / lineHeight))
+    : lines.length || 1;
+
+  const appendEllipsis = (value: string) => {
+    const ellipsis = '...';
+    let trimmed = value.trimEnd();
+    while (trimmed && ctx.measureText(`${trimmed}${ellipsis}`).width > maxWidth) {
+      trimmed = trimmed.slice(0, -1);
+    }
+    return trimmed ? `${trimmed}${ellipsis}` : ellipsis;
+  };
+
+  const fitLine = (value: string) => {
+    if (ctx.measureText(value).width <= maxWidth) return value;
+    return appendEllipsis(value);
+  };
+
+  const visibleLines = lines.slice(0, maxLines).map(fitLine);
+  if (lines.length > maxLines && visibleLines.length) {
+    visibleLines[visibleLines.length - 1] = appendEllipsis(visibleLines[visibleLines.length - 1]);
+  }
+
+  if (!words.length) {
+    ctx.fillText('', x, y);
+    return;
+  }
+
+  visibleLines.forEach((lineText, index) => {
+    ctx.fillText(lineText, x, y + index * lineHeight);
+  });
 }
 
 function drawRoundedRect(
@@ -316,11 +368,15 @@ export default function CanvasPage() {
   const gestureAnchorRef = useRef<{ x: number; y: number } | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const hasLoadedRef = useRef(false);
+  const savedCanvasState = useMemo(() => loadCanvasUiState(), []);
+  const canvasStateSaveRef = useRef<number | null>(null);
 
   const [board, setBoard] = useState<CanvasData>(DEFAULT_BOARD);
   const [view, setView] = useState<ViewState>({ offsetX: 0, offsetY: 0, scale: 1 });
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
-  const [activeTool, setActiveTool] = useState<Tool>('select');
+  const [activeTool, setActiveTool] = useState<Tool>(
+    () => savedCanvasState?.activeTool ?? 'select'
+  );
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -329,7 +385,7 @@ export default function CanvasPage() {
   const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; kind: EdgeKind } | null>(
     null
   );
-  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [snapEnabled, setSnapEnabled] = useState(() => savedCanvasState?.snapEnabled ?? true);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -348,6 +404,27 @@ export default function CanvasPage() {
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+
+  useEffect(() => {
+    if (canvasStateSaveRef.current) {
+      window.clearTimeout(canvasStateSaveRef.current);
+    }
+    canvasStateSaveRef.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem(
+          CANVAS_UI_STATE_KEY,
+          JSON.stringify({ activeTool, snapEnabled, view })
+        );
+      } catch (error) {
+        console.warn('Failed to persist canvas UI state', error);
+      }
+    }, 200);
+    return () => {
+      if (canvasStateSaveRef.current) {
+        window.clearTimeout(canvasStateSaveRef.current);
+      }
+    };
+  }, [activeTool, snapEnabled, view]);
 
   useEffect(() => {
     if (!editingNodeId) return;
@@ -376,7 +453,7 @@ export default function CanvasPage() {
         const data = await getCanvas();
         if (!active) return;
         setBoard(normalizeBoard(data));
-        setView(normalizeView(data?.view));
+        setView(normalizeView(data?.view ?? savedCanvasState?.view));
         setSaveStatus('saved');
         historyRef.current = { past: [], future: [] };
         setHistoryTick((tick) => tick + 1);
@@ -390,7 +467,7 @@ export default function CanvasPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [savedCanvasState]);
 
   useEffect(() => {
     if (loading) return;
@@ -1174,7 +1251,15 @@ export default function CanvasPage() {
         ctx.fillStyle = '#111827';
         ctx.font = '14px system-ui, sans-serif';
         ctx.textBaseline = 'top';
-        drawWrappedText(ctx, node.text, x + 12, y + 14, width - 24, 18);
+        drawWrappedText(
+          ctx,
+          node.text,
+          x + NODE_TEXT_HORIZONTAL_PADDING,
+          y + NODE_TEXT_VERTICAL_PADDING,
+          width - NODE_TEXT_HORIZONTAL_PADDING * 2,
+          NODE_TEXT_LINE_HEIGHT,
+          height - NODE_TEXT_VERTICAL_PADDING * 2
+        );
       });
 
       if (type === 'png') {
@@ -1222,7 +1307,7 @@ export default function CanvasPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col gap-6 overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -1283,7 +1368,7 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
           <div className="flex flex-wrap items-center gap-2">
             {(Object.keys(TOOL_LABELS) as Tool[]).map((tool) => (
@@ -1365,10 +1450,10 @@ export default function CanvasPage() {
           </div>
         ) : null}
 
-        <div className="rounded-2xl border-2 border-gray-800 bg-white p-4">
+        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border-2 border-gray-800 bg-white p-4">
           <div
             ref={viewportRef}
-            className={`relative h-[640px] w-full overflow-hidden overscroll-contain rounded-xl border border-gray-200 bg-white ${viewportCursor}`}
+            className={`relative min-h-0 w-full flex-1 overflow-hidden overscroll-contain rounded-xl border border-gray-200 bg-white ${viewportCursor}`}
             onPointerDown={handleBoardPointerDown}
             style={gridBackground}
           >
@@ -1438,6 +1523,17 @@ export default function CanvasPage() {
                 const isEditing = node.id === editingNodeId;
                 const isCentered = node.type === 'rect' || node.type === 'diamond';
                 const hasText = node.text.trim().length > 0;
+                const textMaxLines = Math.max(
+                  1,
+                  Math.floor((node.height - NODE_TEXT_VERTICAL_PADDING * 2) / NODE_TEXT_LINE_HEIGHT)
+                );
+                const textClampStyle: CSSProperties = {
+                  display: '-webkit-box',
+                  WebkitLineClamp: textMaxLines,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  maxWidth: '100%',
+                };
                 const diamondClip =
                   node.type === 'diamond'
                     ? { clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }
@@ -1470,6 +1566,7 @@ export default function CanvasPage() {
                         onChange={(event) =>
                           updateNode(node.id, (curr) => ({ ...curr, text: event.target.value }))
                         }
+                        maxLength={MAX_NODE_TEXT_LENGTH}
                         onBlur={finishEditing}
                         onKeyDown={(event) => {
                           if (event.key === 'Escape') finishEditing();
@@ -1492,7 +1589,12 @@ export default function CanvasPage() {
                         ].join(' ')}
                       >
                         {hasText ? (
-                          <span>{node.text}</span>
+                          <span
+                            className="block whitespace-pre-wrap break-words"
+                            style={textClampStyle}
+                          >
+                            {node.text}
+                          </span>
                         ) : (
                           <span className="block h-0.5 w-16 animate-pulse rounded bg-gray-300/80" />
                         )}

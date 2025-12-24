@@ -36,8 +36,15 @@ export default function FilePreviewModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/50 p-4 backdrop-blur-sm">
       <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
-          <h3 className="text-lg font-semibold text-neutral-900">Preview: {fileName}</h3>
+        <div className="flex min-w-0 items-center justify-between gap-4 border-b border-neutral-200 px-6 py-4">
+          <h3 className="min-w-0 text-lg font-semibold text-neutral-900">
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="text-neutral-500">Preview:</span>
+              <span className="min-w-0 truncate" title={fileName}>
+                {fileName}
+              </span>
+            </span>
+          </h3>
           <button
             onClick={onClose}
             className="cursor-pointer rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"

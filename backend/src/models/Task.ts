@@ -5,12 +5,8 @@ const TaskSchema = new Schema(
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     priority: { type: String, enum: ['high', 'medium', 'low'], required: true },
-    department: {
-      type: String,
-      enum: ['sales', 'it', 'finance', 'marketing', 'hr', 'customer-service'],
-      required: true,
-    },
-    assignee: { type: String, default: 'Unassigned' },
+    department: { type: String, required: true, trim: true },
+    assignee: { type: [String], default: ['Unassigned'] },
     dueDate: { type: Date, required: true },
     status: {
       type: String,
@@ -18,6 +14,7 @@ const TaskSchema = new Schema(
       default: 'Not Started',
     },
     completedAt: { type: Date },
+    editedAt: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }

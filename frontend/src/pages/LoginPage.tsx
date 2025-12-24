@@ -1,5 +1,5 @@
 // login-styling-and-structure-LoginPage.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -9,11 +9,33 @@ import type { OtpPurpose } from '../api/auth';
 import { githubOAuthUrl } from '../config/env';
 
 type Step = 'details' | 'code';
+type MessageTone = 'error' | 'info';
+type MessageState = { tone: MessageTone; text: string; autoHide?: boolean };
 
-function getErrorMessage(err: unknown): string {
+const MAX_DISPLAY_NAME_LENGTH = 32;
+const MESSAGE_FADE_MS = 2600;
+const MESSAGE_CLEAR_MS = 3200;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function extractErrorMessage(err: unknown): string {
   if (err instanceof ApiRequestError) return err.payload?.error?.message ?? err.message;
   if (err instanceof Error) return err.message;
-  return 'Unexpected error';
+  return '';
+}
+
+function getAuthErrorMessage(err: unknown, fallback: string): string {
+  const raw = extractErrorMessage(err);
+  if (!raw) return fallback;
+  const normalized = raw.toLowerCase();
+  const isNetwork =
+    normalized.includes('failed to fetch') ||
+    normalized.includes('networkerror') ||
+    normalized.includes('network request failed') ||
+    normalized.includes('load failed');
+  if (isNetwork) {
+    return 'We couldn’t reach the server. Check your connection and try again.';
+  }
+  return raw;
 }
 
 export default function LoginPage() {
@@ -28,9 +50,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<MessageState | null>(null);
+  const [messageFading, setMessageFading] = useState(false);
+  const messageFadeTimerRef = useRef<number | null>(null);
+  const messageClearTimerRef = useRef<number | null>(null);
 
   const isSignup = purpose === 'signup';
 
@@ -38,11 +64,53 @@ export default function LoginPage() {
     if (!auth.loading && auth.user) navigate('/');
   }, [auth.loading, auth.user, navigate]);
 
+  const clearMessageTimers = useCallback(() => {
+    if (messageFadeTimerRef.current) {
+      window.clearTimeout(messageFadeTimerRef.current);
+      messageFadeTimerRef.current = null;
+    }
+    if (messageClearTimerRef.current) {
+      window.clearTimeout(messageClearTimerRef.current);
+      messageClearTimerRef.current = null;
+    }
+  }, []);
+
+  const clearMessage = useCallback(() => {
+    clearMessageTimers();
+    setMessage(null);
+    setMessageFading(false);
+  }, [clearMessageTimers]);
+
+  const showMessage = useCallback(
+    (text: string, tone: MessageTone, autoHide = false) => {
+      clearMessageTimers();
+      setMessage({ text, tone, autoHide });
+      setMessageFading(false);
+      if (autoHide) {
+        messageFadeTimerRef.current = window.setTimeout(() => {
+          setMessageFading(true);
+        }, MESSAGE_FADE_MS);
+        messageClearTimerRef.current = window.setTimeout(() => {
+          setMessage(null);
+          setMessageFading(false);
+        }, MESSAGE_CLEAR_MS);
+      }
+    },
+    [clearMessageTimers]
+  );
+
+  useEffect(() => {
+    return () => {
+      clearMessageTimers();
+    };
+  }, [clearMessageTimers]);
+
   useEffect(() => {
     setStep('details');
     setCode('');
-    setMessage(null);
-  }, [purpose]);
+    clearMessage();
+    setEmailTouched(false);
+  }, [purpose, clearMessage]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -59,36 +127,92 @@ export default function LoginPage() {
       GITHUB_API_FAILED: 'GitHub login failed while reading your profile. Please retry.',
     };
 
-    setMessage(msg ?? defaultMsgMap[error] ?? `Login failed: ${error}`);
+    showMessage(msg ?? defaultMsgMap[error] ?? `Login failed: ${error}`, 'error', true);
     window.history.replaceState({}, '', window.location.pathname);
-  }, []);
+  }, [showMessage]);
 
   async function onSendCode() {
-    setMessage(null);
+    clearMessage();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !EMAIL_PATTERN.test(trimmedEmail)) {
+      setEmailTouched(true);
+      return;
+    }
     setBusy(true);
     try {
-      await auth.requestOtp(email, purpose);
+      await auth.requestOtp(trimmedEmail, purpose);
       setStep('code');
-      setMessage('Code sent. Check your [email] (or Mailpit in dev).');
+      showMessage('Code sent. Check your [email] (or Mailpit in dev).', 'info');
     } catch (err) {
-      setMessage(getErrorMessage(err));
+      showMessage(
+        getAuthErrorMessage(
+          err,
+          'We couldn’t send the verification code. Please check your email and try again.'
+        ),
+        'error',
+        true
+      );
     } finally {
       setBusy(false);
     }
   }
 
   async function onVerify() {
-    setMessage(null);
+    clearMessage();
+    const trimmedEmail = email.trim();
+    const trimmedCode = code.trim();
+    const trimmedName = displayName.trim();
+    if (!trimmedEmail || !EMAIL_PATTERN.test(trimmedEmail)) {
+      setEmailTouched(true);
+      return;
+    }
+    if (!trimmedCode) {
+      showMessage('Please enter the verification code to continue.', 'error', true);
+      return;
+    }
     setBusy(true);
     try {
-      await auth.verifyOtp(email, code, purpose, isSignup ? displayName : undefined);
+      await auth.verifyOtp(
+        trimmedEmail,
+        trimmedCode,
+        purpose,
+        isSignup && trimmedName ? trimmedName : undefined
+      );
       navigate('/');
     } catch (err) {
-      setMessage(getErrorMessage(err));
+      showMessage(
+        getAuthErrorMessage(err, 'We couldn’t verify the code. Please check it and try again.'),
+        'error',
+        true
+      );
     } finally {
       setBusy(false);
     }
   }
+
+  const handleDetailsSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    setEmailTouched(true);
+    void onSendCode();
+  };
+
+  const handleVerifySubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    if (!emailTouched) {
+      setEmailTouched(true);
+    }
+    void onVerify();
+  };
+
+  const emailError = useMemo(() => {
+    if (!emailTouched) return null;
+    const trimmed = email.trim();
+    if (!trimmed) return 'Email is required.';
+    if (!EMAIL_PATTERN.test(trimmed)) return 'Enter a valid email address (e.g. name@example.com).';
+    return null;
+  }, [email, emailTouched]);
 
   const wireframeBgStyle = useMemo(() => {
     // Subtle “wireframe” overlay (no asset needed)
@@ -155,20 +279,29 @@ export default function LoginPage() {
               </p>
 
               {message ? (
-                <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
-                  {message}
+                <div
+                  className={`mt-6 rounded-xl border px-4 py-3 text-sm font-semibold transition-opacity duration-300 ${
+                    messageFading ? 'opacity-0' : 'opacity-100'
+                  } ${
+                    message.tone === 'error'
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-neutral-200 bg-neutral-50 text-neutral-700'
+                  }`}
+                >
+                  {message.text}
                 </div>
               ) : null}
 
               {/* DETAILS STEP */}
               {step === 'details' ? (
-                <div className="mt-8 space-y-6">
+                <form className="mt-8 space-y-6" onSubmit={handleDetailsSubmit} noValidate>
                   <Button
                     variant="outline"
                     className="h-12 w-full justify-center gap-2"
                     disabled={busy}
                     // Use href for a standard OAuth redirect flow.
                     onClick={() => window.location.assign(githubAuthHref)}
+                    type="button"
                   >
                     <svg
                       aria-hidden="true"
@@ -197,11 +330,22 @@ export default function LoginPage() {
                       <label className="text-sm font-medium text-neutral-900">[Email]</label>
                       <Input
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (!emailTouched && e.target.value.trim().length > 0) {
+                            setEmailTouched(true);
+                          }
+                        }}
+                        onBlur={() => setEmailTouched(true)}
                         placeholder="name@example.com"
                         type="email"
                         autoComplete="email"
                       />
+                      {emailError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                          {emailError}
+                        </div>
+                      ) : null}
                     </div>
 
                     {isSignup ? (
@@ -215,6 +359,7 @@ export default function LoginPage() {
                           placeholder="e.g. Nate"
                           type="text"
                           autoComplete="nickname"
+                          maxLength={MAX_DISPLAY_NAME_LENGTH}
                         />
                       </div>
                     ) : null}
@@ -222,7 +367,7 @@ export default function LoginPage() {
                     <Button
                       variant="primary"
                       className="h-12 w-full"
-                      onClick={onSendCode}
+                      type="submit"
                       disabled={busy || email.trim().length === 0}
                     >
                       {busy ? 'Sending…' : isSignup ? '[Send Sign-up Code]' : '[Send Login Code]'}
@@ -246,10 +391,10 @@ export default function LoginPage() {
                       .
                     </p>
                   </div>
-                </div>
+                </form>
               ) : (
                 /* CODE STEP */
-                <div className="mt-8 space-y-6">
+                <form className="mt-8 space-y-6" onSubmit={handleVerifySubmit} noValidate>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-sm font-medium text-neutral-900">
@@ -276,7 +421,7 @@ export default function LoginPage() {
                   <Button
                     variant="primary"
                     className="h-12 w-full"
-                    onClick={onVerify}
+                    type="submit"
                     disabled={busy || code.trim().length === 0}
                   >
                     {busy ? 'Verifying…' : isSignup ? 'Create Account' : 'Log In'}
@@ -287,6 +432,7 @@ export default function LoginPage() {
                     className="h-12 w-full"
                     onClick={onSendCode}
                     disabled={busy}
+                    type="button"
                   >
                     Resend code
                   </Button>
@@ -294,7 +440,7 @@ export default function LoginPage() {
                   <p className="text-center text-xs text-neutral-500">
                     Didn’t receive it? Check your spam folder (or Mailpit in dev).
                   </p>
-                </div>
+                </form>
               )}
             </div>
           </main>
