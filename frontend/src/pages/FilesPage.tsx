@@ -42,8 +42,9 @@ type FilesUiState = {
   accessFilter: 'all' | 'standard' | 'admin' | 'private';
   uploadDept: string;
   expandedFolderIds: string[];
-  scrollY: number;
+  contentScrollTop: number;
   sidebarScrollTop: number;
+  scrollY?: number;
 };
 
 type ConfirmAction =
@@ -276,7 +277,7 @@ function getFolderDepartment(folder: FolderItem) {
 }
 
 function FileIcon({ fileName, isFolder }: { fileName: string; isFolder?: boolean }) {
-  if (isFolder) return <IconFolder className="h-10 w-10 text-amber-500" />;
+  if (isFolder) return <IconFolder className="h-10 w-10 text-neutral-700" />;
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (ext === 'pdf') return <span className="font-bold text-red-500">PDF</span>;
   if (['doc', 'docx'].includes(ext || ''))
@@ -968,18 +969,21 @@ export default function FilesPage() {
   }, []);
 
   return (
-    <div className="flex h-full gap-8 overflow-hidden">
+    <div className="flex h-full flex-col gap-6 overflow-hidden lg:flex-row lg:gap-8">
       {/* Sub-sidebar for Folders */}
-      <aside className="flex h-full min-h-0 w-48 flex-shrink-0 flex-col border-r border-neutral-200 pr-4">
-        <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-500">
+      <aside className="flex w-full flex-shrink-0 flex-col border-b border-neutral-200 pb-4 pr-0 lg:h-full lg:min-h-0 lg:w-48 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-neutral-500 lg:mb-4">
           My Files
         </h2>
-        <nav ref={sidebarRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+        <nav
+          ref={sidebarRef}
+          className="max-h-[40vh] min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 lg:max-h-none"
+        >
           <button
             onClick={() => {
               setCurrentFolderId(null);
             }}
-            className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+            className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-colors ${
               !currentFolderId
                 ? 'bg-neutral-900 text-white'
                 : 'text-neutral-600 hover:bg-neutral-100'
@@ -1012,8 +1016,8 @@ export default function FilesPage() {
 
       {/* Main Content */}
       <div className="flex min-h-0 flex-1 flex-col">
-        <header className="mb-8 flex items-center justify-between">
-          <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-500">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 sm:text-sm">
             <button
               onClick={() => {
                 setCurrentFolderId(null);
@@ -1046,7 +1050,7 @@ export default function FilesPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               onClick={() => {
                 setDialogError(null);
@@ -1101,7 +1105,7 @@ export default function FilesPage() {
         </header>
 
         {/* Filters */}
-        <div className="mb-8 flex flex-wrap items-center gap-8 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 lg:mb-8">
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold uppercase text-neutral-400">File Type:</span>
             <div className="flex gap-1">
@@ -1224,7 +1228,7 @@ export default function FilesPage() {
           </div>
         )}
 
-          <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
           {loading ? (
             <div className="py-12 text-center text-neutral-500">Loading...</div>
           ) : filteredFiles.length === 0 && folders.length === 0 ? (
@@ -1241,8 +1245,7 @@ export default function FilesPage() {
                     onClick={() => {
                       setCurrentFolderId(folder._id);
                     }}
-                    className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-   
+                    className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:p-6"
                   >
                     {folder.isPrivate ? (
                       <span
@@ -1270,7 +1273,7 @@ export default function FilesPage() {
                         </svg>
                       </span>
                     ) : null}
-                    <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-amber-50 text-2xl">
+                    <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-xl bg-neutral-100 text-2xl">
                       <FileIcon fileName="" isFolder />
                     </div>
                     <h3
@@ -1291,7 +1294,8 @@ export default function FilesPage() {
                         {truncateLabel(getFolderDepartment(folder), GRID_META_MAX)}
                       </span>
                     </p>
-                      <button
+
+                    <button
                       onClick={(event) => {
                         event.stopPropagation();
                         setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
@@ -1300,23 +1304,21 @@ export default function FilesPage() {
                       aria-label="Delete folder"
                       title="Delete"
                     >
-                                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-          
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                         <path
-                           d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                    
+                          d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="1.6"
                           strokeLinecap="round"
-                           strokeLinejoin="round"
+                          strokeLinejoin="round"
                         />
                       </svg>
-                     </button>
+                    </button>
                   </div>
                 ))}
 
-                  {/* Files */}
+                {/* Files */}
                 {filteredFiles.map((file) => (
                   <div
                     key={file._id}
@@ -1326,12 +1328,10 @@ export default function FilesPage() {
                         event.preventDefault();
                         handlePreview(file);
                       }
-                
                     }}
-                      role="button"
+                    role="button"
                     tabIndex={0}
-                    className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-            
+                    className="group relative flex cursor-pointer flex-col items-center rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:p-6"
                   >
                     <div className="absolute left-2 top-2 flex items-center gap-1">
                       <a
@@ -1340,18 +1340,17 @@ export default function FilesPage() {
                         className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
                         aria-label="Download file"
                         title="Download"
-
                       >
                         <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                           <path
-                             d="M12 4v10m0 0l-4-4m4 4l4-4"
+                            d="M12 4v10m0 0l-4-4m4 4l4-4"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="1.6"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
-                             <path
+                          <path
                             d="M5 18h14"
                             fill="none"
                             stroke="currentColor"
@@ -1359,7 +1358,7 @@ export default function FilesPage() {
                             strokeLinecap="round"
                           />
                         </svg>
-                        </a>
+                      </a>
                       {file.isAdminOnly ? (
                         <span
                           className="pointer-events-none inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-400"
@@ -1461,11 +1460,11 @@ export default function FilesPage() {
                     </button>
                   </div>
                 ))}
-    </div>
-        </div>
+              </div>
+            </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-              <table className="w-full table-fixed text-left text-sm">
+            <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+              <table className="w-full min-w-[900px] table-fixed text-left text-sm">
                 <thead className="bg-neutral-50 text-neutral-500">
                   <tr>
                     <th className="w-[32%] px-6 py-3 font-medium">Name</th>
@@ -1495,9 +1494,6 @@ export default function FilesPage() {
                             </span>
                             {folder.isPrivate ? (
                               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-neutral-500">
-                             
-                 
-      
                                 <rect
                                   x="5"
                                   y="11"
@@ -1518,67 +1514,36 @@ export default function FilesPage() {
                               </svg>
                             ) : null}
                           </span>
-                             </div>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-              <table className="w-full table-fixed text-left text-sm">
-                <thead className="bg-neutral-50 text-neutral-500">
-                  <tr>
-                    <th className="w-[32%] px-6 py-3 font-medium">Name</th>
-                    <th className="w-[10%] px-6 py-3 font-medium">Size</th>
-                    <th className="w-[16%] px-6 py-3 font-medium">Department</th>
-                    <th className="w-[16%] px-6 py-3 font-medium">Uploaded By</th>
-                    <th className="w-[14%] px-6 py-3 font-medium">Date</th>
-                    <th className="w-[12%] px-6 py-3 text-right font-medium" aria-label="Actions" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {/* Folders */}
-                  {folders.map((folder) => (
-                    <tr
-                      key={folder._id}
-                      onClick={() => {
-                        setCurrentFolderId(folder._id);
-                      }}
-                      className="group cursor-pointer hover:bg-neutral-50"
-                    >
-                      <td className="px-6 py-4 font-medium text-neutral-900">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <FileIcon fileName="" isFolder />
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="truncate" title={folder.name}>
-                              {truncateLabel(folder.name, LIST_NAME_MAX)}
-                            </span>
-                            {folder.isPrivate ? (
-                              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-neutral-500">
-                             
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-500">--</td>
+                      <td className="px-6 py-4 text-neutral-500">
+                        <span className="block truncate" title={getFolderDepartment(folder)}>
+                          {truncateLabel(getFolderDepartment(folder), LIST_DEPARTMENT_MAX)}
                         </span>
-                       </td>
+                      </td>
                       <td className="px-6 py-4 text-neutral-500">
                         <span
                           className="block truncate"
                           title={folder.createdBy?.displayName || 'Unknown'}
-                  
                         >
-                              {truncateLabel(
+                          {truncateLabel(
                             folder.createdBy?.displayName || 'Unknown',
                             LIST_UPLOADER_MAX
                           )}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-neutral-500 whitespace-nowrap">
+                      <td className="whitespace-nowrap px-6 py-4 text-neutral-500">
                         {new Date(folder.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                                setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
-                       
+                            setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
                           }}
                           className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
-                           aria-label="Delete folder"
+                          aria-label="Delete folder"
                           title="Delete"
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -1592,10 +1557,11 @@ export default function FilesPage() {
                             />
                           </svg>
                         </button>
-                           </td>
+                      </td>
                     </tr>
                   ))}
-                   {/* Files */}
+
+                  {/* Files */}
                   {filteredFiles.map((file) => (
                     <tr key={file._id} className="group hover:bg-neutral-50">
                       <td className="px-6 py-4 font-medium text-neutral-900">
@@ -1639,12 +1605,38 @@ export default function FilesPage() {
                               {truncateLabel(file.originalName, LIST_NAME_MAX)}
                             </span>
                           </span>
-                             </td>
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-500">{formatFileSize(file.size)}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className="inline-flex max-w-full items-center truncate rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-600"
+                          title={file.department}
+                        >
+                          {truncateLabel(file.department, LIST_DEPARTMENT_MAX)}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-neutral-500">
                         <span
                           className="block truncate"
-                          title={folder.createdBy?.displayName || 'Unknown'}
-                 
+                          title={file.uploadedBy?.displayName || 'Unknown'}
+                        >
+                          {truncateLabel(
+                            file.uploadedBy?.displayName || 'Unknown',
+                            LIST_UPLOADER_MAX
+                          )}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-neutral-500">
+                        {new Date(file.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => handlePreview(file)}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                            aria-label="Preview file"
+                            title="Preview"
                           >
                             <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                               <path
@@ -1904,7 +1896,7 @@ export default function FilesPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl"
+            className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl sm:p-6"
           >
             <h3 className="text-lg font-semibold text-neutral-900">New Folder</h3>
             <p className="mt-1 text-sm text-neutral-500">
@@ -1982,7 +1974,7 @@ export default function FilesPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl"
+            className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl sm:p-6"
           >
             <h3 className="text-lg font-semibold text-neutral-900">Add Department</h3>
             <p className="mt-1 text-sm text-neutral-500">Keep department names short and clear.</p>
@@ -2045,7 +2037,7 @@ export default function FilesPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl"
+            className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl sm:p-6"
           >
             <h3 className="text-lg font-semibold text-neutral-900">
               {confirmAction.type === 'department'

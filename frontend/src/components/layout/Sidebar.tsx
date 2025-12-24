@@ -22,7 +22,7 @@ export default function Sidebar({
         compact ? 'pt-5' : 'pt-8'
       }`}
     >
-      <nav className="flex-1 space-y-2">
+      <nav className="flex flex-1 gap-2 overflow-x-auto px-4 pb-3 md:block md:space-y-2 md:overflow-visible md:px-0 md:pb-0">
         {navItems.map((item) => (
           <NavLink
             key={item.path}

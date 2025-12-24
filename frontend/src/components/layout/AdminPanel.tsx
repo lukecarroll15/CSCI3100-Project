@@ -48,8 +48,8 @@ export default function AdminPanel() {
   };
 
   return (
-    <div className="mx-5 mb-5 rounded-lg border-2 border-gray-800 bg-white p-5">
-      <div className="mb-2 border-b-2 border-gray-800 pb-2 text-center text-sm font-bold">
+    <div className="mx-5 mb-5 rounded-2xl border border-neutral-200 bg-white/90 p-5 shadow-sm">
+      <div className="mb-4 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
         Admin Access
       </div>
       <div className="mb-3 space-y-2">
@@ -57,11 +57,11 @@ export default function AdminPanel() {
         {errorMsg && <div className="text-xs font-semibold text-red-600">{errorMsg}</div>}
         <Input
           type="text"
-          placeholder="Enter admin key"
+          placeholder="Enter Admin Key"
           maxLength={14}
           value={adminKey}
           onChange={handleKeyChange}
-          className="w-full px-2.5 text-center font-mono text-[10px] tracking-[0.08em]"
+          className="w-full px-3 text-center font-mono text-[11px] tracking-[0.12em]"
         />
       </div>
       <Button
@@ -79,16 +79,16 @@ export default function AdminPanel() {
             : 'border-red-600 bg-red-100 text-red-700'
         }`}
       >
-        <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
+        <span className="inline-flex items-center justify-center gap-2">
           {isAdmin ? (
             <>
-              <IconCheck className="h-4 w-4" strokeWidth={2.4} />
-              <span>Admin Access Active</span>
+              <IconCheck className="h-3.5 w-3.5" />
+              <span>Admin Access: Active</span>
             </>
           ) : (
             <>
-              <IconX className="h-4 w-4" strokeWidth={2.4} />
-              <span>Admin Access Inactive</span>
+              <IconX className="h-3.5 w-3.5" />
+              <span>Admin Access: Inactive</span>
             </>
           )}
         </span>

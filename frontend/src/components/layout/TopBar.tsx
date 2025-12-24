@@ -39,7 +39,7 @@ function AdminDashboardModal({
       onClick={onClose}
     >
       <div
-        className="animate-modal-in max-h-[80vh] w-[600px] overflow-y-auto rounded-lg border-2 border-gray-800 bg-white p-6 shadow-lg"
+        className="animate-modal-in max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border-2 border-gray-800 bg-white p-5 shadow-lg sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-6 text-2xl font-bold">Admin Dashboard</h2>
@@ -60,7 +60,10 @@ function AdminDashboardModal({
               <div className="space-y-2 rounded-lg border-2 border-gray-300 bg-gray-50 p-4">
                 {stats.admins.map((admin, idx) => (
                   <div key={idx} className="flex min-w-0 items-center justify-between text-sm">
-                    <span className="max-w-[220px] truncate font-semibold" title={admin.displayName}>
+                    <span
+                      className="max-w-[220px] truncate font-semibold"
+                      title={admin.displayName}
+                    >
                       {admin.displayName}
                     </span>
                     <span className="max-w-[240px] truncate text-gray-600" title={admin.email}>
@@ -152,12 +155,12 @@ export default function TopBar({
   };
 
   return (
-    <header className="flex h-[70px] items-center border-b-2 border-gray-800 bg-white px-8">
-      <div className="flex items-center gap-3">
+    <header className="relative flex flex-wrap items-center gap-3 border-b-2 border-gray-800 bg-white px-4 py-3 sm:px-6 md:h-[70px] md:flex-nowrap md:px-8">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-gray-800 bg-gray-100 text-xs">
           U
         </div>
-        <div className="flex items-center gap-2 rounded-md border-2 border-gray-500 bg-gray-50 px-4 py-2 text-base">
+        <div className="flex items-center gap-2 rounded-md border-2 border-gray-500 bg-gray-50 px-3 py-2 text-sm sm:px-4 sm:text-base">
           <span className="max-w-[180px] truncate" title={userName}>
             {userName}
           </span>
@@ -177,15 +180,15 @@ export default function TopBar({
         )}
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 text-center">
-        <div className="rounded-md border-2 border-gray-800 px-5 py-1 text-2xl font-bold">
+      <div className="order-3 w-full text-center md:absolute md:left-1/2 md:order-none md:w-auto md:-translate-x-1/2">
+        <div className="inline-flex rounded-md border-2 border-gray-800 px-4 py-1 text-xl font-bold sm:text-2xl">
           {companyName}
         </div>
       </div>
 
       <button
         onClick={onLogout}
-        className="ml-auto cursor-pointer rounded-md border-2 border-gray-800 bg-white px-5 py-2 text-base transition-all hover:-translate-y-0.5 hover:bg-gray-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200"
+        className="ml-auto cursor-pointer rounded-md border-2 border-gray-800 bg-white px-4 py-2 text-sm transition-all hover:-translate-y-0.5 hover:bg-gray-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200 sm:px-5 sm:text-base"
       >
         Logout
       </button>

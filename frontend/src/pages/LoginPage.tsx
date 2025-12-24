@@ -181,10 +181,7 @@ export default function LoginPage() {
       navigate('/');
     } catch (err) {
       showMessage(
-        getAuthErrorMessage(
-          err,
-          'We couldn’t verify the code. Please check it and try again.'
-        ),
+        getAuthErrorMessage(err, 'We couldn’t verify the code. Please check it and try again.'),
         'error',
         true
       );

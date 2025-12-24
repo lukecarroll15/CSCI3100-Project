@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import * as tasksApi from '../api/tasks';
@@ -718,7 +718,7 @@ export default function DashboardPage() {
         const map = new Map<string, FileItem>();
         filesByFolder.flat().forEach((file) => map.set(file._id, file));
         return Array.from(map.values());
-      } catch (err) {
+      } catch {
         return listFiles(null, 'all');
       }
     };
@@ -926,26 +926,6 @@ export default function DashboardPage() {
   }, [selectedTask, showTaskModal, isEditingTask]);
 
   useEffect(() => {
-    if (!showTaskModal || !selectedTask) return;
-    const handleEnter = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter') return;
-      const target = event.target as HTMLElement | null;
-      if (target && target.tagName === 'TEXTAREA') return;
-      if (isEditingTask) {
-        event.preventDefault();
-        handleSaveTaskEdits();
-        return;
-      }
-      if (isStatusDirty) {
-        event.preventDefault();
-        void handleConfirmStatusChange();
-      }
-    };
-    window.addEventListener('keydown', handleEnter);
-    return () => window.removeEventListener('keydown', handleEnter);
-  }, [showTaskModal, selectedTask, isEditingTask, isStatusDirty]);
-
-  useEffect(() => {
     if (!showStatusMenu) return;
     const handleClick = (event: MouseEvent) => {
       const target = event.target as Node | null;
@@ -995,7 +975,7 @@ export default function DashboardPage() {
     setShowStatusMenu(false);
   };
 
-  const handleConfirmStatusChange = async () => {
+  const handleConfirmStatusChange = useCallback(async () => {
     if (!selectedTask || !isStatusDirty) return;
     if (!isAdmin) {
       setCompleteError('Only admins can update task status.');
@@ -1016,7 +996,7 @@ export default function DashboardPage() {
       setCompleteError('Failed to update status. Please try again.');
       window.setTimeout(() => setCompleteError(''), 2200);
     }
-  };
+  }, [editTaskStatus, isAdmin, isStatusDirty, selectedTask]);
 
   const handleCancelEdit = () => {
     if (!selectedTask) return;
@@ -1034,7 +1014,7 @@ export default function DashboardPage() {
     setShowStatusMenu(false);
     setIsEditingTask(false);
   };
-  const handleSaveTaskEdits = async () => {
+  const handleSaveTaskEdits = useCallback(async () => {
     if (!selectedTask) return;
     if (!isAdmin) {
       setEditFormError('Only admins can edit tasks.');
@@ -1075,7 +1055,43 @@ export default function DashboardPage() {
       console.error('Failed to update task:', err);
       setEditFormError('Failed to update task. Please try again.');
     }
-  };
+  }, [
+    editTaskAssignees,
+    editTaskDepartment,
+    editTaskDescription,
+    editTaskDueDate,
+    editTaskName,
+    editTaskPriority,
+    isAdmin,
+    selectedTask,
+  ]);
+
+  useEffect(() => {
+    if (!showTaskModal || !selectedTask) return;
+    const handleEnter = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter') return;
+      const target = event.target as HTMLElement | null;
+      if (target && target.tagName === 'TEXTAREA') return;
+      if (isEditingTask) {
+        event.preventDefault();
+        handleSaveTaskEdits();
+        return;
+      }
+      if (isStatusDirty) {
+        event.preventDefault();
+        void handleConfirmStatusChange();
+      }
+    };
+    window.addEventListener('keydown', handleEnter);
+    return () => window.removeEventListener('keydown', handleEnter);
+  }, [
+    showTaskModal,
+    selectedTask,
+    isEditingTask,
+    isStatusDirty,
+    handleConfirmStatusChange,
+    handleSaveTaskEdits,
+  ]);
 
   const handleDeleteTask = (task: Task) => {
     if (!isAdmin) return;

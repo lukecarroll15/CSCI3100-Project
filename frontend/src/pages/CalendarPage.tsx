@@ -1283,26 +1283,6 @@ export default function CalendarPage() {
   );
 
   useEffect(() => {
-    if (!showTaskModal || !selectedTask) return;
-    const handleEnter = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter') return;
-      const target = event.target as HTMLElement | null;
-      if (target && target.tagName === 'TEXTAREA') return;
-      if (isEditingTask) {
-        event.preventDefault();
-        handleSaveTaskEdits();
-        return;
-      }
-      if (isStatusDirty) {
-        event.preventDefault();
-        void handleConfirmStatusChange();
-      }
-    };
-    window.addEventListener('keydown', handleEnter);
-    return () => window.removeEventListener('keydown', handleEnter);
-  }, [showTaskModal, selectedTask, isEditingTask, isStatusDirty]);
-
-  useEffect(() => {
     if (!showTaskModal && !showDayTasksModal) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -1557,7 +1537,7 @@ export default function CalendarPage() {
     setShowStatusMenu(false);
   };
 
-  const handleConfirmStatusChange = async () => {
+  const handleConfirmStatusChange = useCallback(async () => {
     if (!selectedTask || !isStatusDirty) return;
     if (!isAdmin) {
       setCompleteError('Only admins can update task status.');
@@ -1578,7 +1558,7 @@ export default function CalendarPage() {
       setCompleteError('Failed to update status. Please try again.');
       window.setTimeout(() => setCompleteError(''), 2200);
     }
-  };
+  }, [editTaskStatus, isAdmin, isStatusDirty, selectedTask]);
 
   const handleCancelEdit = () => {
     if (!selectedTask) return;
@@ -1597,7 +1577,7 @@ export default function CalendarPage() {
     setIsEditingTask(false);
   };
 
-  const handleSaveTaskEdits = async () => {
+  const handleSaveTaskEdits = useCallback(async () => {
     if (!selectedTask) return;
     if (!isAdmin) {
       setEditFormError('Only admins can edit tasks.');
@@ -1643,7 +1623,43 @@ export default function CalendarPage() {
       console.error('Failed to update task:', err);
       setEditFormError('Failed to update task. Please try again.');
     }
-  };
+  }, [
+    editTaskAssignees,
+    editTaskDepartment,
+    editTaskDescription,
+    editTaskDueDate,
+    editTaskName,
+    editTaskPriority,
+    isAdmin,
+    selectedTask,
+  ]);
+
+  useEffect(() => {
+    if (!showTaskModal || !selectedTask) return;
+    const handleEnter = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter') return;
+      const target = event.target as HTMLElement | null;
+      if (target && target.tagName === 'TEXTAREA') return;
+      if (isEditingTask) {
+        event.preventDefault();
+        handleSaveTaskEdits();
+        return;
+      }
+      if (isStatusDirty) {
+        event.preventDefault();
+        void handleConfirmStatusChange();
+      }
+    };
+    window.addEventListener('keydown', handleEnter);
+    return () => window.removeEventListener('keydown', handleEnter);
+  }, [
+    showTaskModal,
+    selectedTask,
+    isEditingTask,
+    isStatusDirty,
+    handleConfirmStatusChange,
+    handleSaveTaskEdits,
+  ]);
 
   const handleMarkComplete = (task: Task) => {
     if (!isAdmin) return;
@@ -1721,50 +1737,52 @@ export default function CalendarPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Filters - Combined on one row */}
-      <div className="mb-2 flex flex-wrap items-center gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-2">
-        <div className="flex flex-1 items-center gap-3">
-          <span className="text-xs font-bold uppercase text-neutral-400">Priority:</span>
-          <div className="flex flex-wrap gap-1">
-            {priorities.map((opt) => {
-              const isActive = priorityFilter === opt;
-              if (opt === 'all') {
+      {/* Filters */}
+      <div className="mb-2 flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+            <span className="text-xs font-bold uppercase text-neutral-400">Priority:</span>
+            <div className="flex flex-wrap gap-1">
+              {priorities.map((opt) => {
+                const isActive = priorityFilter === opt;
+                if (opt === 'all') {
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => setPriorityFilter(opt)}
+                      className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        isActive
+                          ? 'border-neutral-900 bg-neutral-900 text-white ring-1 ring-neutral-300 ring-offset-1 ring-offset-white'
+                          : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      All
+                    </button>
+                  );
+                }
+                const styles = PRIORITY_STYLES[opt];
                 return (
                   <button
                     key={opt}
                     onClick={() => setPriorityFilter(opt)}
                     className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                      isActive
-                        ? 'border-neutral-900 bg-neutral-900 text-white ring-1 ring-neutral-300 ring-offset-1 ring-offset-white'
-                        : 'border-neutral-300 bg-white text-neutral-600 hover:border-neutral-400'
+                      isActive ? styles.active : `bg-white ${styles.base}`
                     }`}
                     aria-pressed={isActive}
                   >
-                    All
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
                   </button>
                 );
-              }
-              const styles = PRIORITY_STYLES[opt];
-              return (
-                <button
-                  key={opt}
-                  onClick={() => setPriorityFilter(opt)}
-                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    isActive ? styles.active : `bg-white ${styles.base}`
-                  }`}
-                  aria-pressed={isActive}
-                >
-                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                </button>
-              );
-            })}
+              })}
+            </div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex-shrink-0">
             <ViewToggle view={view} onChange={setView} />
           </div>
         </div>
 
-        <div className="flex flex-1 items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-bold uppercase text-neutral-400">Department:</span>
           <div className="flex flex-wrap gap-1">
             <button

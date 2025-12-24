@@ -320,9 +320,7 @@ function drawWrappedText(
 
   const visibleLines = lines.slice(0, maxLines).map(fitLine);
   if (lines.length > maxLines && visibleLines.length) {
-    visibleLines[visibleLines.length - 1] = appendEllipsis(
-      visibleLines[visibleLines.length - 1]
-    );
+    visibleLines[visibleLines.length - 1] = appendEllipsis(visibleLines[visibleLines.length - 1]);
   }
 
   if (!words.length) {
@@ -1455,7 +1453,7 @@ export default function CanvasPage() {
         <div className="flex min-h-0 flex-1 flex-col rounded-2xl border-2 border-gray-800 bg-white p-4">
           <div
             ref={viewportRef}
-            className={`relative min-h-0 flex-1 w-full overflow-hidden overscroll-contain rounded-xl border border-gray-200 bg-white ${viewportCursor}`}
+            className={`relative min-h-0 w-full flex-1 overflow-hidden overscroll-contain rounded-xl border border-gray-200 bg-white ${viewportCursor}`}
             onPointerDown={handleBoardPointerDown}
             style={gridBackground}
           >
@@ -1527,9 +1525,7 @@ export default function CanvasPage() {
                 const hasText = node.text.trim().length > 0;
                 const textMaxLines = Math.max(
                   1,
-                  Math.floor(
-                    (node.height - NODE_TEXT_VERTICAL_PADDING * 2) / NODE_TEXT_LINE_HEIGHT
-                  )
+                  Math.floor((node.height - NODE_TEXT_VERTICAL_PADDING * 2) / NODE_TEXT_LINE_HEIGHT)
                 );
                 const textClampStyle: CSSProperties = {
                   display: '-webkit-box',
@@ -1593,7 +1589,10 @@ export default function CanvasPage() {
                         ].join(' ')}
                       >
                         {hasText ? (
-                          <span className="block whitespace-pre-wrap break-words" style={textClampStyle}>
+                          <span
+                            className="block whitespace-pre-wrap break-words"
+                            style={textClampStyle}
+                          >
                             {node.text}
                           </span>
                         ) : (

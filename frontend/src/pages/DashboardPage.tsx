@@ -484,10 +484,10 @@ function FilterButtons({
         <button
           key={type}
           onClick={() => onFilterChange(type)}
-          className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 font-medium transition-colors ${
+          className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-4 py-2 font-medium transition-colors ${
             activeFilter === type
-              ? 'border-gray-800 bg-gray-800 text-white'
-              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-500'
+              ? 'border-neutral-900 bg-neutral-900 text-white'
+              : 'border-neutral-400 bg-white text-neutral-900 hover:border-neutral-900 hover:bg-neutral-50'
           }`}
         >
           <span>{icon}</span>
@@ -592,7 +592,7 @@ function DueTodayCard({
   onOpenTask: (task: Task) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white/90 p-6 shadow-sm">
+    <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-sm sm:p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
@@ -667,7 +667,7 @@ function UpdatesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
-      <div className="animate-modal-in w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl">
+      <div className="animate-modal-in w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-6">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-neutral-900">Updates for Today</h3>
@@ -891,7 +891,7 @@ export default function DashboardPage() {
         const map = new Map<string, FileItem>();
         filesByFolder.flat().forEach((file) => map.set(file._id, file));
         return Array.from(map.values());
-      } catch (err) {
+      } catch {
         return listFiles(null, 'all');
       }
     };
@@ -1143,26 +1143,6 @@ export default function DashboardPage() {
   }, [selectedTask, showTaskModal, isEditingTask]);
 
   useEffect(() => {
-    if (!showTaskModal || !selectedTask) return;
-    const handleEnter = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter') return;
-      const target = event.target as HTMLElement | null;
-      if (target && target.tagName === 'TEXTAREA') return;
-      if (isEditingTask) {
-        event.preventDefault();
-        handleSaveTaskEdits();
-        return;
-      }
-      if (isStatusDirty) {
-        event.preventDefault();
-        void handleConfirmStatusChange();
-      }
-    };
-    window.addEventListener('keydown', handleEnter);
-    return () => window.removeEventListener('keydown', handleEnter);
-  }, [showTaskModal, selectedTask, isEditingTask, isStatusDirty]);
-
-  useEffect(() => {
     if (!showTaskModal && !showUpdatesModal && !showDeleteModal) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -1236,7 +1216,7 @@ export default function DashboardPage() {
     setShowStatusMenu(false);
   };
 
-  const handleConfirmStatusChange = async () => {
+  const handleConfirmStatusChange = useCallback(async () => {
     if (!selectedTask || !isStatusDirty) return;
     if (!isAdmin) {
       setCompleteError('Only admins can update task status.');
@@ -1257,7 +1237,7 @@ export default function DashboardPage() {
       setCompleteError('Failed to update status. Please try again.');
       window.setTimeout(() => setCompleteError(''), 2200);
     }
-  };
+  }, [editTaskStatus, isAdmin, isStatusDirty, selectedTask]);
 
   const handleCancelEdit = () => {
     if (!selectedTask) return;
@@ -1275,7 +1255,7 @@ export default function DashboardPage() {
     setShowStatusMenu(false);
     setIsEditingTask(false);
   };
-  const handleSaveTaskEdits = async () => {
+  const handleSaveTaskEdits = useCallback(async () => {
     if (!selectedTask) return;
     if (!isAdmin) {
       setEditFormError('Only admins can edit tasks.');
@@ -1321,7 +1301,43 @@ export default function DashboardPage() {
       console.error('Failed to update task:', err);
       setEditFormError('Failed to update task. Please try again.');
     }
-  };
+  }, [
+    editTaskAssignees,
+    editTaskDepartment,
+    editTaskDescription,
+    editTaskDueDate,
+    editTaskName,
+    editTaskPriority,
+    isAdmin,
+    selectedTask,
+  ]);
+
+  useEffect(() => {
+    if (!showTaskModal || !selectedTask) return;
+    const handleEnter = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter') return;
+      const target = event.target as HTMLElement | null;
+      if (target && target.tagName === 'TEXTAREA') return;
+      if (isEditingTask) {
+        event.preventDefault();
+        handleSaveTaskEdits();
+        return;
+      }
+      if (isStatusDirty) {
+        event.preventDefault();
+        void handleConfirmStatusChange();
+      }
+    };
+    window.addEventListener('keydown', handleEnter);
+    return () => window.removeEventListener('keydown', handleEnter);
+  }, [
+    showTaskModal,
+    selectedTask,
+    isEditingTask,
+    isStatusDirty,
+    handleConfirmStatusChange,
+    handleSaveTaskEdits,
+  ]);
 
   const handleDeleteTask = (task: Task) => {
     if (!isAdmin) return;
@@ -1348,7 +1364,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-full flex-col gap-6 lg:h-full">
       <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section className="flex min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white/90 p-6 shadow-sm">
+        <section className="flex min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-sm sm:p-6">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-neutral-900">Activity Feed</h2>
@@ -1413,7 +1429,7 @@ export default function DashboardPage() {
 
       {showTaskModal && selectedTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
-          <div className="animate-modal-in w-full max-w-xl rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl">
+          <div className="animate-modal-in w-full max-w-xl rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-bold text-neutral-900">Task Details</h3>
@@ -1978,7 +1994,7 @@ export default function DashboardPage() {
 
       {showDeleteModal && taskToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#07000b]/40 p-4">
-          <div className="animate-modal-in w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl">
+          <div className="animate-modal-in w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">Delete Task</h3>
               <button
