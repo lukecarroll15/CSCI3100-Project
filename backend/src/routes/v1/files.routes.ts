@@ -7,10 +7,11 @@ import {
   upload,
 } from '../../controllers/files.controller';
 import { requireAuth } from '../../middleware/auth';
+import { requireTeam } from '../../middleware/team';
 
 export const filesRouter = Router();
 
-filesRouter.use(requireAuth);
+filesRouter.use(requireAuth, requireTeam);
 
 filesRouter.get('/', handleListFiles);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -6,6 +6,7 @@ import CalendarPage from './pages/CalendarPage';
 import FilesPage from './pages/FilesPage';
 import CanvasPage from './pages/CanvasPage';
 import { RequireAuth } from './auth/RequireAuth';
+import { TeamProvider } from './teams/TeamProvider';
 
 export default function App() {
   return (
@@ -16,7 +17,9 @@ export default function App() {
         <Route
           element={
             <RequireAuth>
-              <AppLayout />
+              <TeamProvider>
+                <AppLayout />
+              </TeamProvider>
             </RequireAuth>
           }
         >

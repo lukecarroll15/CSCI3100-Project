@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: TEAM
-- Version: 0.1
+- Version: 0.2
 - Status: Draft
-- Last updated: 2025-12-21
+- Last updated: 2025-12-24
 - Owner: Group 02
 
 ## Course info
@@ -39,3 +39,5 @@
 
 - Contributions will be updated as work progresses.
 - Use this file as the single source of truth for team membership and contribution summary.
+- "Team" in the product (invite-only workspace) is a separate concept from the course group listed above.
+- Team owner/admin roles are documented in `docs/USER_MANUAL.md`.

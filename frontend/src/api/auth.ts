@@ -5,6 +5,8 @@ export type User = {
   email: string;
   displayName: string;
   role: 'user' | 'admin';
+  adminLevel?: 'owner' | 'admin' | null;
+  pendingTeamCreation?: boolean;
 };
 
 export type OtpPurpose = 'login' | 'signup';

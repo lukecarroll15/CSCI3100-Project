@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: ENVIRONMENT
-- Version: 0.2
+- Version: 0.3
 - Status: Draft
-- Last updated: 2025-12-22
+- Last updated: 2025-12-24
 - Owner: Group 02
 
 ## 1) Purpose
@@ -72,10 +72,18 @@ Minimum required values in `backend/.env`:
 
 | Variable            | Default | Description                                      |
 | ------------------- | ------- | ------------------------------------------------ |
-| ADMIN_KEY_AUTO_SEED | true    | Auto-seed one key in dev if none exists          |
+| ADMIN_KEY_AUTO_SEED | true    | Auto-seed a random key in dev if none exists     |
 | ADMIN_KEY_MAX_USES  | 5       | How many users can redeem a key                  |
 | ADMIN_KEY_TTL_DAYS  | 30      | Days until key expiry (0 disables expiry)        |
 | INITIAL_ADMIN_KEY   | unset   | If valid and no active key exists, seed this key |
+
+### Team invite policy
+
+| Variable             | Default | Description                         |
+| -------------------- | ------- | ----------------------------------- |
+| TEAM_INVITE_TTL_DAYS | 7       | Days until a pending invite expires |
+
+Invites only succeed for emails that already have a TaskFlow account.
 
 Provision an admin key manually (recommended for testing):
 
@@ -93,7 +101,9 @@ cd backend
 node scripts/checkLicence.mjs DEMO-KEYS-2025
 ```
 
-Auto-seed runs only in non-production and only when no active key exists.
+Auto-seed runs only in non-production and only when no active key exists. If `INITIAL_ADMIN_KEY`
+is set, it is always seeded first (even when `ADMIN_KEY_AUTO_SEED=false`). To disable all
+automatic key creation, set `ADMIN_KEY_AUTO_SEED=false` and leave `INITIAL_ADMIN_KEY` empty.
 
 ### Email delivery for OTP
 
@@ -185,6 +195,16 @@ Admin checks:
 
 - Activate key: `POST /api/v1/admin/activate`
 - Admin stats: `GET /api/v1/admin/stats`
+
+Team checks:
+
+- List my teams: `GET /api/v1/teams/mine`
+- Create team (team owner/key owner): `POST /api/v1/teams`
+- Invite member: `POST /api/v1/teams/:teamId/invites`
+- List members: `GET /api/v1/teams/:teamId/members`
+- Delete team (owner only): `DELETE /api/v1/teams/:teamId` with body `{ "name": "Team Name" }`
+
+Team-scoped APIs (tasks/files/folders/departments) require `X-Team-Id` or a `teamId` query parameter. The frontend sends `X-Team-Id` automatically based on the Team selector.
 
 ## 9) Troubleshooting
 

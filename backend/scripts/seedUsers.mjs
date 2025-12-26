@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, index: true, trim: true, lowercase: true },
     displayName: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    adminLevel: { type: String, enum: ['owner', 'admin'], default: null },
     githubId: { type: String, unique: true, sparse: true, index: true },
     githubUsername: { type: String, default: '' },
   },
@@ -23,6 +24,27 @@ const userSchema = new mongoose.Schema(
 );
 
 const User = mongoose.model('User', userSchema);
+
+const teamSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    inviteOnly: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
+const teamMembershipSchema = new mongoose.Schema(
+  {
+    teamId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
+  },
+  { timestamps: true }
+);
+
+const Team = mongoose.model('Team', teamSchema);
+const TeamMembership = mongoose.model('TeamMembership', teamMembershipSchema);
 
 const employeeNames = [
   { first: 'Sarah', last: 'Chen', admin: true },
@@ -66,11 +88,40 @@ async function seedUsers() {
     await User.deleteMany({});
     console.log('Existing users cleared');
 
+    console.log('Clearing existing teams...');
+    await TeamMembership.deleteMany({});
+    await Team.deleteMany({});
+    console.log('Existing teams cleared');
+
     // Generate and insert new users
     const users = generateUsers();
     console.log(`Inserting ${users.length} employee accounts...`);
-    await User.insertMany(users);
+    const insertedUsers = await User.insertMany(users);
     console.log(`✅ Successfully seeded ${users.length} users!`);
+
+    const adminUsers = insertedUsers.filter((u) => u.role === 'admin');
+    const owner = adminUsers[0] ?? insertedUsers[0];
+    await User.updateOne({ _id: owner._id }, { $set: { role: 'admin', adminLevel: 'owner' } });
+    if (adminUsers.length > 1) {
+      await User.updateMany(
+        { _id: { $in: adminUsers.filter((u) => !u._id.equals(owner._id)).map((u) => u._id) } },
+        { $set: { adminLevel: 'admin' } }
+      );
+    }
+    const team = await Team.create({
+      name: 'TaskFlow HQ',
+      createdBy: owner._id,
+      inviteOnly: true,
+    });
+
+    const memberships = insertedUsers.map((u) => ({
+      teamId: team._id,
+      userId: u._id,
+      role: u._id.equals(owner._id) ? 'owner' : u.role === 'admin' ? 'admin' : 'member',
+    }));
+
+    await TeamMembership.insertMany(memberships);
+    console.log(`✅ Created team "${team.name}" with ${memberships.length} members`);
 
     // Display summary
     const adminCount = users.filter((u) => u.role === 'admin').length;

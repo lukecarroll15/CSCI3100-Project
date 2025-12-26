@@ -4,8 +4,10 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { FileModel, type FileDoc } from '../models/File';
+import Folder from '../models/Folder';
 import { UserModel } from '../models/User';
 import { AppError } from '../errors/AppError';
+import { hasTeamAdminAccess } from '../middleware/team';
 
 // Ensure uploads directory exists
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
@@ -41,8 +43,11 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
     const userId = req.auth?.userId;
     if (!userId) throw new AppError(401, 'UNAUTHENTICATED', 'User not found');
 
+    const teamId = req.team?.teamId;
+    if (!teamId) throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+
     // Only admins can upload admin-only files
-    const isAdminOnly = req.auth?.role === 'admin' && req.body.isAdminOnly === 'true';
+    const isAdminOnly = hasTeamAdminAccess(req) && req.body.isAdminOnly === 'true';
     const isPrivate = req.body.isPrivate === 'true' && !isAdminOnly;
     const department = req.body.department || 'General';
     let folder = req.body.folder;
@@ -51,12 +56,20 @@ export async function handleUploadFile(req: Request, res: Response, next: NextFu
       folder = null;
     }
 
+    if (folder) {
+      const folderDoc = await Folder.findOne({ _id: folder, teamId }).lean();
+      if (!folderDoc) {
+        throw new AppError(404, 'FOLDER_NOT_FOUND', 'Folder not found');
+      }
+    }
+
     const fileDoc = await FileModel.create({
       originalName: req.file.originalname,
       storedName: req.file.filename,
       mimeType: req.file.mimetype,
       size: req.file.size,
       uploadedBy: userId,
+      teamId,
       department,
       folder,
       isAdminOnly,
@@ -79,12 +92,17 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
       user = await UserModel.findOne({ email: req.auth.email });
     }
 
-    const isAdmin = user?.role === 'admin' || req.auth?.role === 'admin';
+    const isAdmin = hasTeamAdminAccess(req);
+
+    const teamId = req.team?.teamId;
+    if (!teamId) {
+      throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+    }
 
     console.log(`[ListFiles] User: ${user?.email}, Role: ${user?.role}, IsAdmin: ${isAdmin}`);
 
     const { folder, access } = req.query;
-    const query: FilterQuery<FileDoc> = {};
+    const query: FilterQuery<FileDoc> = { teamId };
     const folderParam = typeof folder === 'string' ? folder : undefined;
     const accessParam = typeof access === 'string' ? access : 'all';
     const normalizedAccess = ['all', 'standard', 'admin', 'private'].includes(accessParam)
@@ -146,12 +164,14 @@ export async function handleListFiles(req: Request, res: Response, next: NextFun
 export async function handleDownloadFile(req: Request, res: Response, next: NextFunction) {
   try {
     const { fileId } = req.params;
-    const file = await FileModel.findById(fileId);
+    const teamId = req.team?.teamId;
+    if (!teamId) throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+
+    const file = await FileModel.findOne({ _id: fileId, teamId });
     if (!file) throw new AppError(404, 'NOT_FOUND', 'File not found');
 
     const userId = req.auth?.userId;
-    const user = await UserModel.findById(userId);
-    const isAdmin = user?.role === 'admin' || req.auth?.role === 'admin';
+    const isAdmin = hasTeamAdminAccess(req);
 
     if (file.isAdminOnly && !isAdmin) {
       throw new AppError(403, 'FORBIDDEN', 'Admin access required');
@@ -170,12 +190,14 @@ export async function handleDownloadFile(req: Request, res: Response, next: Next
 export async function handleDeleteFile(req: Request, res: Response, next: NextFunction) {
   try {
     const { fileId } = req.params;
-    const file = await FileModel.findById(fileId);
+    const teamId = req.team?.teamId;
+    if (!teamId) throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+
+    const file = await FileModel.findOne({ _id: fileId, teamId });
     if (!file) throw new AppError(404, 'NOT_FOUND', 'File not found');
 
     const userId = req.auth?.userId;
-    const user = await UserModel.findById(userId);
-    const isAdmin = user?.role === 'admin' || req.auth?.role === 'admin';
+    const isAdmin = hasTeamAdminAccess(req);
 
     if (file.isPrivate && file.uploadedBy.toString() !== userId) {
       throw new AppError(403, 'FORBIDDEN', 'Not authorized to delete this private file');

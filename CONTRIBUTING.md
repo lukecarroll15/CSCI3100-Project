@@ -57,9 +57,11 @@ Every PR should include:
 - [ ] Lint/format/typecheck pass
 - [ ] Automated tests pass (or documented why none)
 - [ ] `docs/TESTING.md` updated if test policy or admin key behavior changed
+- [ ] Role model docs updated if system owner/admin or team permissions changed
 - [ ] Manual test evidence recorded (if applicable)
 - [ ] Docs updated (README, ENVIRONMENT, USER_MANUAL, RELEASE_NOTES)
 - [ ] Requirement traceability updated (see `docs/TRACEABILITY.md`)
+- [ ] Team-scoped endpoints tested with `X-Team-Id` when applicable
 
 ## 7) Evidence and traceability
 

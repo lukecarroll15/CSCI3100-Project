@@ -9,6 +9,7 @@ export async function activateLicense(code: string) {
 
 export type AdminStats = {
   adminCount: number;
+  owner: { displayName: string; email: string } | null;
   admins: Array<{ displayName: string; email: string }>;
   activationKeys: Array<{
     key: string;

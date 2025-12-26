@@ -6,9 +6,10 @@ TaskFlow is a Jira-like web app for managing projects and tasks. This repo is th
 
 - Passwordless access with OTP and optional GitHub OAuth.
 - Explicit admin key activation with expiry/max-uses (pro lock demo).
+- Invite-only teams with scoped tasks/files (multi-team MVP).
 - Auditable testing evidence to show security and access control are real, not just UI.
 
-## Current scope (Release 0.1)
+## Current scope (Release 0.2)
 
 Implemented in this release:
 
@@ -16,15 +17,28 @@ Implemented in this release:
 - Optional GitHub OAuth login
 - Session-based authentication and current-user endpoint
 - Admin key activation (format, lookup, expiry, max uses)
-- Admin role UI indicators (badge, Admin Dashboard)
+- Teams: create team (team owner/key owner), invite by email (existing accounts only), auto-join on login
+- Admin Dashboard with owner/admin separation and activation key tracking
+- Team-scoped tasks with calendar and table views (multi-assignee for admins)
+- Team-scoped files and folders with admin-only and private access
+- Department management (admins only)
 - Health check endpoints
 
 Planned (not implemented yet):
 
 - Key-file upload
-- Project and task management
-- Multi-view boards (list, kanban, calendar, timeline)
-- Attachments and dashboard features
+- Kanban and timeline views
+- Advanced analytics and reporting
+- External integrations (email, storage, notifications)
+
+## Teams and roles (MVP)
+
+- Team owner (first activation key for a team): can create the team, view activation keys, invite members, and delete teams.
+- Team admin (additional activation key users or promoted admins): can open Admin Dashboard, invite members, and manage shared team tasks, files, and departments.
+- Team member: can manage personal tasks/files and work on assigned shared tasks.
+- Team member: can view assigned tasks, manage personal tasks, upload standard/private files, and delete their own files/folders.
+
+Team access is invite-only and requires a pre-registered account. Invited users join automatically on first login (the app calls `/teams/mine` to accept pending invites). The frontend sends the active team via the `X-Team-Id` header on API requests.
 
 ## Course requirement coverage (status)
 
@@ -80,6 +94,8 @@ npm run test:backend
 cd backend
 npm run admin:key:generate -- DEMO-KEYS-2025
 ```
+
+For team testing steps, see `docs/TESTING.md` and `docs/USER_MANUAL.md`.
 
 ## Documentation index
 

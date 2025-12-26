@@ -60,6 +60,8 @@ const EnvSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
 
+  TEAM_INVITE_TTL_DAYS: z.coerce.number().int().positive().default(7),
+
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 

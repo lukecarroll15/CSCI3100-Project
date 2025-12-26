@@ -39,3 +39,5 @@ If AI tools were used for any deliverable (code, docs, diagrams), record them he
 - Do not commit secrets (tokens, API keys, passwords) into the repo.
 - Prefer linking to original sources rather than copying large blocks.
 - Team membership and contributions are recorded in `docs/TEAM.md`.
+- Team invite and access control features were implemented without adding new third-party libraries.
+- Recent role and access updates did not introduce new third-party assets.

@@ -3,6 +3,7 @@ import type { FilterQuery } from 'mongoose';
 import Folder, { FOLDER_DEPARTMENT, type IFolder } from '../models/Folder';
 import { FileModel, type FileDoc } from '../models/File';
 import { AppError } from '../errors/AppError';
+import { hasTeamAdminAccess } from '../middleware/team';
 
 const MAX_FOLDER_DEPTH = 4;
 const MAX_FOLDER_NAME_LENGTH = 48;
@@ -21,9 +22,13 @@ export const createFolder = async (req: Request, res: Response, next: NextFuncti
     }
 
     const userId = req.auth?.userId;
+    const teamId = req.team?.teamId;
 
     if (!userId) {
       return next(new AppError(401, 'UNAUTHENTICATED', 'User not found'));
+    }
+    if (!teamId) {
+      return next(new AppError(400, 'TEAM_REQUIRED', 'Team context required'));
     }
 
     const trimmedName = typeof name === 'string' ? name.trim() : '';
@@ -53,6 +58,9 @@ export const createFolder = async (req: Request, res: Response, next: NextFuncti
         if (!parent) {
           return next(new AppError(404, 'NOT_FOUND', 'Parent folder not found'));
         }
+        if (parent.teamId.toString() !== teamId) {
+          return next(new AppError(403, 'FORBIDDEN', 'Parent folder belongs to another team'));
+        }
         depth += 1;
         if (depth > MAX_FOLDER_DEPTH) {
           return next(
@@ -67,6 +75,7 @@ export const createFolder = async (req: Request, res: Response, next: NextFuncti
       name: trimmedName,
       parentFolder: parentFolder || null,
       createdBy: userId,
+      teamId,
       department: FOLDER_DEPARTMENT,
       isPrivate,
     });
@@ -106,13 +115,17 @@ export const listFolders = async (req: Request, res: Response, next: NextFunctio
       !!departmentParam && !['all', 'all files', 'general'].includes(departmentLower);
     const filterFolderDepartment = departmentLower === FOLDER_DEPARTMENT.toLowerCase();
     const userId = req.auth?.userId;
-    const isAdmin = req.auth?.role === 'admin';
+    const isAdmin = hasTeamAdminAccess(req);
+    const teamId = req.team?.teamId;
 
     if (!userId) {
       return next(new AppError(401, 'UNAUTHENTICATED', 'User not found'));
     }
+    if (!teamId) {
+      return next(new AppError(400, 'TEAM_REQUIRED', 'Team context required'));
+    }
 
-    const query: FilterQuery<IFolder> = {};
+    const query: FilterQuery<IFolder> = { teamId };
 
     if (allParam === 'true') {
       // Fetch all folders, ignore parentFolder
@@ -151,7 +164,7 @@ export const listFolders = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const fileQuery: FilterQuery<FileDoc> = { folder: { $in: folderIds } };
+    const fileQuery: FilterQuery<FileDoc> = { teamId, folder: { $in: folderIds } };
     if (hasDepartmentFilter && departmentParam) {
       fileQuery.department = departmentParam;
     }
@@ -176,7 +189,10 @@ export const listFolders = async (req: Request, res: Response, next: NextFunctio
       fileQuery.$or = accessConditions;
     }
 
-    const foldersWithAnyFiles = await FileModel.distinct('folder', { folder: { $in: folderIds } });
+    const foldersWithAnyFiles = await FileModel.distinct('folder', {
+      teamId,
+      folder: { $in: folderIds },
+    });
     const foldersWithAccess = await FileModel.distinct('folder', fileQuery);
     const anyFilesSet = new Set(foldersWithAnyFiles.map((id) => id.toString()));
     const accessSet = new Set(foldersWithAccess.map((id) => id.toString()));
@@ -222,10 +238,29 @@ export const listFolders = async (req: Request, res: Response, next: NextFunctio
 export const deleteFolder = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const teamId = req.team?.teamId;
+    if (!teamId) {
+      return next(new AppError(400, 'TEAM_REQUIRED', 'Team context required'));
+    }
+
+    const auth = req.auth;
+    if (!auth) {
+      return next(new AppError(401, 'UNAUTHENTICATED', 'Authentication required'));
+    }
+
+    const folder = await Folder.findOne({ _id: id, teamId });
+    if (!folder) {
+      return next(new AppError(404, 'NOT_FOUND', 'Folder not found'));
+    }
+
+    const isAdmin = hasTeamAdminAccess(req);
+    if (!isAdmin && folder.createdBy.toString() !== auth.userId) {
+      return next(new AppError(403, 'FORBIDDEN', 'Not authorized to delete this folder'));
+    }
 
     // Check if folder has subfolders or files
-    const subfoldersCount = await Folder.countDocuments({ parentFolder: id });
-    const filesCount = await FileModel.countDocuments({ folder: id });
+    const subfoldersCount = await Folder.countDocuments({ parentFolder: id, teamId });
+    const filesCount = await FileModel.countDocuments({ folder: id, teamId });
 
     if (subfoldersCount > 0 || filesCount > 0) {
       return next(
@@ -237,10 +272,7 @@ export const deleteFolder = async (req: Request, res: Response, next: NextFuncti
       );
     }
 
-    const folder = await Folder.findByIdAndDelete(id);
-    if (!folder) {
-      return next(new AppError(404, 'NOT_FOUND', 'Folder not found'));
-    }
+    await Folder.findOneAndDelete({ _id: id, teamId });
 
     res.status(204).send();
   } catch (error) {
