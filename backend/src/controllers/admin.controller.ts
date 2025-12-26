@@ -234,7 +234,7 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
       .lean();
     const ownerMember = members.find((member) => member.role === 'owner') ?? null;
     const adminMembers = members.filter((member) => member.role === 'admin');
-    const adminCount = (ownerMember ? 1 : 0) + adminMembers.length;
+    const adminCount = adminMembers.length;
 
     const now = new Date();
     const validKeys = await LicenceKeyModel.find(

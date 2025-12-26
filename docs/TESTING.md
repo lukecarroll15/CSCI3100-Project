@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: TESTING
-- Version: 0.3
+- Version: 0.6
 - Status: Draft
-- Last updated: 2025-12-24
+- Last updated: 2025-12-25
 - Owner: Group 02
 
 ## 0) Quickstart (local)
@@ -35,18 +35,14 @@ npm run dev
 ```
 
 - Log in with OTP
-- Open **Admin Access**
-- Try invalid format -> expect format error
-- Try unknown key -> expect invalid key error
-- Try valid key -> expect the Team Setup window (first activation becomes Team Owner)
-- Enter a team name (e.g. "Alpha Team") and submit
-- Confirm the Admin Dashboard button appears after team creation
-- Invite another email as **Member** (email must already be registered)
-- Log out, log in as the invited user
-- Confirm the **Team** selector shows "Alpha Team" and data is scoped to that team
-- Optional: activate the same key with a second account to become a team admin, then verify the Admin Dashboard is available without re-entering a key and admins can invite members only
-- Optional: delete a team (owner only) by typing the exact team name
-- Optional: assign a task to multiple assignees as an admin and verify each assignee can see it
+- Activate a valid key (owner)
+- Finish Team Setup (must create a team name)
+- Invite a member (existing account only)
+- Verify Calendar view, List view, and Completed list load
+- Open **Dashboard** and verify Activity Feed, Updates modal, and Due Today list
+- Create tasks and change status
+- Open **Files** and verify grid/list view, upload, and filters
+- Open **Canvas** and verify create, edit, and export
 
 ## 1) Test plan
 
@@ -54,9 +50,12 @@ npm run dev
 
 - Verify OTP and GitHub authentication flows.
 - Verify admin key activation policy (format, lookup, expiry, max uses).
-- Show server-side enforcement so UI bypasses do not grant admin.
+- Verify team setup gating (owner must create team before others can activate).
+- Verify task rules (personal vs shared, multi-assignee, status updates).
+- Verify Dashboard activity feed and updates.
+- Verify Files and folder access rules, filters, and uploads.
+- Verify Canvas board creation, persistence, and export flows.
 - Provide auditable evidence for course requirements.
-- Ensure documentation steps match observable behavior (docs are testable deliverables).
 
 ### 1.2 Scope
 
@@ -68,30 +67,31 @@ In scope (current release):
 - Teams: invite-only membership and team-scoped access
 - Team roles (owner/admin/member) and team delete
 - Task management (create, assign, update status)
-- Calendar and dashboard views
+- Calendar, list, and completed views
+- Dashboard activity feed, updates modal, and due-today list
 - Files/folders with admin-only and private access
+- Department management (admin-only)
+- Canvas (nodes, connectors, autosave, export)
 - Health endpoints
 
 Out of scope (not implemented yet):
 
 - Key-file upload
 - Kanban and timeline views
-- Attachment encryption at rest
-- Attachment encryption at rest
 - Performance/load testing
 
 ### 1.3 Test levels and strategy
 
 - Unit: validate admin key formatting and helper logic.
-- Integration: API endpoints with MongoDB (OTP + admin key endpoints).
+- Integration: API endpoints with MongoDB (OTP + admin key + team endpoints).
 - System/UI: manual flows through the frontend.
 - Black-box tests for requirement behavior, white-box tests for edge cases.
 
 ### 1.4 Test design techniques
 
-- Equivalence classes (valid format vs invalid format vs unknown key).
-- Boundary values (empty input, max uses, expiry time).
-- Negative tests (invalid OTP, expired key, already admin).
+- Equivalence classes (valid vs invalid formats, valid vs invalid inputs).
+- Boundary values (max uses, expiry time, max lengths).
+- Negative tests (invalid OTP, expired key, unauthorized actions).
 - Regression tests added when bugs are fixed.
 
 ### 1.5 Entry and exit criteria
@@ -104,7 +104,7 @@ Entry criteria:
 
 Exit criteria:
 
-- All representative test cases executed.
+- Representative test cases executed.
 - Critical failures recorded with evidence.
 - Traceability updated.
 
@@ -116,7 +116,7 @@ Exit criteria:
 ### 1.7 Schedule and resources
 
 - Run automated tests on every PR and before release.
-- Run UI smoke tests for admin access after key-policy changes.
+- Run Calendar/Files UI smoke tests for each UI change.
 
 ## 2) Environment and test data
 
@@ -129,7 +129,8 @@ Test users:
 
 - UserA: normal user
 - UserB: normal user, activates admin key
-  Test teams:
+
+Test teams:
 
 - Team Alpha: created by the team owner (key owner)
 - Member user invited by email
@@ -145,14 +146,16 @@ Test admin key:
 - Expiry: `ADMIN_KEY_TTL_DAYS` (default 30). Use `0` to disable expiry.
 - Auto-seed: `ADMIN_KEY_AUTO_SEED` (default true in dev). Runs only in non-production and only when no active key exists.
 - Explicit seed: `INITIAL_ADMIN_KEY` is always used when provided, even if `ADMIN_KEY_AUTO_SEED=false`.
-- Manual provisioning:
+- Team setup: the first activation becomes the team owner and must create the team name before others can activate.
+
+Manual provisioning:
 
 ```bash
 cd backend
 npm run admin:key:generate -- DEMO-KEYS-2025
 ```
 
-- Check a key in MongoDB:
+Check a key in MongoDB:
 
 ```bash
 cd backend
@@ -165,9 +168,9 @@ node scripts/checkLicence.mjs DEMO-KEYS-2025
 - Invites only work for existing accounts; users must sign up first.
 - Invites auto-accept when the invited user calls `GET /api/v1/teams/mine` (frontend does this on load).
 - Team-scoped APIs require the `X-Team-Id` header (frontend sets it from the Team selector).
-- Team owners can create teams and share activation keys; team admins can invite members only.
-- Team owner/admin can manage shared team data; member-created tasks are personal to the creator.
-- Members see assigned tasks plus their own personal tasks; admins see shared tasks (personal tasks stay private).
+- Team owners can create teams and share activation keys; owners can invite admins, admins invite members only.
+- Member-created tasks are personal; admins cannot view or edit them.
+- Admin/owner-created tasks assigned to others are shared across admins.
 
 ## 5) Manual API checks (optional, CLI)
 
@@ -198,6 +201,13 @@ curl -s http://localhost:5001/api/v1/tasks \
   -H "X-Team-Id: TEAM_ID"
 ```
 
+5. Fetch Canvas (per user):
+
+```bash
+curl -s http://localhost:5001/api/v1/canvas \
+  -H "Cookie: taskflow_session=YOUR_COOKIE"
+```
+
 ## 6) Coverage summary (course requirement)
 
 | Component                        | Covered? | How tested                                  | Notes                               |
@@ -208,7 +218,11 @@ curl -s http://localhost:5001/api/v1/tasks \
 | Teams + invites                  | Yes      | `backend/src/test/teams.test.ts`            | Auto-join on `/teams/mine`          |
 | Admin Dashboard roles            | Yes      | Manual UI tests                             | Owner vs admin separation           |
 | Tasks + assignment rules         | Yes      | Manual UI tests                             | Personal vs shared task visibility  |
+| Calendar + list views            | Yes      | Manual UI tests                             | Filters, status, completed list     |
+| Dashboard activity feed          | Yes      | Manual UI tests                             | Activity feed, updates modal        |
 | Files/folders access control     | Yes      | Manual UI tests                             | Admin-only and private access       |
+| Department management            | Yes      | Manual UI tests                             | Admin-only, cascades on delete      |
+| Canvas board                     | Yes      | Manual UI tests                             | Autosave + export                   |
 | Key-file upload                  | No       | Not implemented                             | Future work                         |
 | Attachment encryption            | No       | Not implemented                             | Future work                         |
 | Performance testing              | No       | Not implemented                             | Future work                         |
@@ -226,104 +240,49 @@ Test files:
 - `backend/src/test/admin.test.ts`
 - `backend/src/test/auth.test.ts`
 - `backend/src/test/health.test.ts`
+- `backend/src/test/teams.test.ts`
+- `backend/src/test/full-features.test.ts`
 
 Note: tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
 
 ## 8) Representative test cases
 
-### Admin key activation (licence/pro lock demo)
+### Admin key activation
 
-| ID        | Type     | Steps                         | Expected                |
-| --------- | -------- | ----------------------------- | ----------------------- |
-| TC-LIC-01 | Positive | Submit valid key              | 200, user becomes admin |
-| TC-LIC-02 | Negative | Submit invalid format         | 400 INVALID_CODE_FORMAT |
-| TC-LIC-03 | Negative | Submit unknown key            | 400 INVALID_CODE        |
-| TC-LIC-04 | Negative | Submit expired key            | 400 KEY_EXPIRED         |
-| TC-LIC-05 | Negative | Submit exhausted key          | 400 KEY_EXHAUSTED       |
-| TC-LIC-06 | Negative | Submit key when already admin | 400 ALREADY_ADMIN       |
-| TC-LIC-07 | Security | GET admin stats as user       | 403 FORBIDDEN           |
-| TC-LIC-08 | Positive | GET admin stats as admin      | 200 with admin data     |
+| ID        | Type     | Steps                           | Expected                |
+| --------- | -------- | ------------------------------- | ----------------------- |
+| TC-LIC-01 | Positive | Submit valid key                | 200, user becomes admin |
+| TC-LIC-02 | Negative | Submit invalid format           | 400 INVALID_CODE_FORMAT |
+| TC-LIC-03 | Negative | Submit unknown key              | 400 INVALID_CODE        |
+| TC-LIC-04 | Negative | Submit expired key              | 400 KEY_EXPIRED         |
+| TC-LIC-05 | Negative | Submit exhausted key            | 400 KEY_EXHAUSTED       |
+| TC-LIC-06 | Negative | Submit key when admin           | 400 ALREADY_ADMIN       |
+| TC-LIC-07 | Security | GET admin stats user            | 403 FORBIDDEN           |
+| TC-LIC-08 | Positive | GET admin stats admin           | 200 with admin data     |
+| TC-LIC-09 | Negative | Activate key while team pending | 409 TEAM_PENDING        |
 
 ### Team membership (invite-only)
 
-| ID         | Type     | Steps                                | Expected                             |
-| ---------- | -------- | ------------------------------------ | ------------------------------------ |
-| TC-TEAM-01 | Positive | Admin creates team + invite by email | 201 invite created                   |
-| TC-TEAM-02 | Positive | Invited user calls `/teams/mine`     | Team appears in list, membership set |
-| TC-TEAM-03 | Negative | Non-member accesses team-scoped APIs | 403 NOT_TEAM_MEMBER                  |
+| ID         | Type     | Steps                                     | Expected                             |
+| ---------- | -------- | ----------------------------------------- | ------------------------------------ |
+| TC-TEAM-01 | Positive | Team owner creates team + invite by email | 201 invite created                   |
+| TC-TEAM-02 | Positive | Invited user calls `/teams/mine`          | Team appears in list, membership set |
+| TC-TEAM-03 | Negative | Invite unknown email                      | 404 ACCOUNT_NOT_FOUND                |
+| TC-TEAM-04 | Positive | Owner invites admin by email              | 201 invite created with admin role   |
 
-### OTP authentication
+### Tasks (personal vs shared)
 
-| ID       | Type     | Steps                    | Expected         |
-| -------- | -------- | ------------------------ | ---------------- |
-| TC-UM-01 | Positive | Request OTP (signup)     | 200 OTP issued   |
-| TC-UM-02 | Positive | Verify OTP (signup)      | 200 user created |
-| TC-UM-03 | Positive | Request OTP (login)      | 200 OTP issued   |
-| TC-UM-04 | Positive | Verify OTP (login)       | 200 session set  |
-| TC-UM-05 | Positive | Current user + logout    | 200 then 401     |
-| TC-UM-06 | Negative | Verify OTP wrong/expired | 400 OTP error    |
+| ID         | Type     | Steps                                  | Expected                                |
+| ---------- | -------- | -------------------------------------- | --------------------------------------- |
+| TC-TASK-01 | Positive | Member creates task                    | Task visible only to creator            |
+| TC-TASK-02 | Positive | Admin creates task assigned to member  | Task visible to assignee and admins     |
+| TC-TASK-03 | Negative | Member edits someone else's task       | 403 FORBIDDEN                           |
+| TC-TASK-04 | Positive | Assignee changes status on shared task | Status updates without full edit rights |
 
-### GitHub OAuth
+### Dashboard (activity feed)
 
-| ID          | Type     | Steps                      | Expected            |
-| ----------- | -------- | -------------------------- | ------------------- |
-| TC-OAUTH-01 | Negative | Start OAuth without config | Redirect with error |
-| TC-OAUTH-02 | Positive | OAuth login success        | Redirect to app     |
-| TC-OAUTH-03 | Security | Tamper OAuth state         | Redirect with error |
-
-## 7) Manual UI tests (end-to-end)
-
-UI-ADMIN-01 Admin Access UI:
-
-1. Log in as a normal user.
-2. Open **Admin Access** panel.
-3. Enter `ABC123` -> expect format error.
-4. Enter `AAAA-BBBB-CCCC` (unknown) -> expect invalid key error.
-5. Enter a valid key -> expect Team Setup window, then Admin Dashboard button after naming the team.
-
-OTP UI:
-
-1. Sign up with OTP.
-2. Log out and log in again with OTP.
-3. Verify the session badge and access to protected pages.
-
-UI-TASK-01 Task assignment rules:
-
-1. As a team admin, create a task and assign it to a member.
-2. Log in as that member -> the task is visible and status can be updated, but details cannot be edited.
-3. Log in as another member -> the task is not visible.
-4. As a member, create a personal task -> only the creator can see/edit it (admins do not).
-
-UI-FILE-01 File access and delete rules:
-
-1. Admin uploads an admin-only file -> members cannot see it.
-2. Member uploads a private file -> only the uploader can see it.
-3. Member can delete their own files/folders but not others.
-
-UI-DASH-01 Dashboard visibility:
-
-1. Admin sees shared task/file updates in the dashboard.
-2. Member sees assigned tasks, their own personal tasks, and accessible files.
-
-## 8) Troubleshooting
-
-- Key not accepted:
-  - Check format is `AAAA-BBBB-CCCC`.
-  - Use `node scripts/checkLicence.mjs <KEY>` to verify it exists.
-  - Ensure key is not revoked/exhausted/expired.
-- OTP not received:
-  - Start Mailpit or check backend logs in dev.
-- Tests failing with DB drop errors:
-  - Confirm backend test command uses `--test-concurrency=1`.
-
-## 9) Test execution log
-
-Record executions here (fill before submission):
-
-| Date | Tester | Scope | Result | Evidence link |
-| ---- | ------ | ----- | ------ | ------------- |
-|      |        |       |        |               |
-
-## 10) Evidence storage
-
-Store evidence under `docs/process/` and register it in `docs/process/EVIDENCE_INDEX.md`.
+| ID         | Type | Steps                                            | Expected                                                         |
+| ---------- | ---- | ------------------------------------------------ | ---------------------------------------------------------------- |
+| UI-DASH-01 | UI   | Open Dashboard; review Activity Feed             | Items are grouped by day with time, type, and metadata           |
+| UI-DASH-02 | UI   | Click **X update(s)** and review today’s updates | Only today’s items are listed; clicking opens details or Files   |
+| UI-DASH-03 | UI   | Review **Due Today** list and open a task        | Due-today tasks appear; Task Details opens and can update status |

@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: PROCESS_EVIDENCE
-- Version: 0.2
+- Version: 0.6
 - Status: Draft
-- Last updated: 2025-12-24
+- Last updated: 2025-12-25
 - Owner: Group 02
 
 ## 1) Purpose
@@ -19,8 +19,13 @@ The course requires an auditable software development process. This folder store
 - Testing evidence (screenshots, logs)
 - Demo checklists (optional)
 - Evidence index: `EVIDENCE_INDEX.md`
-- Team invite and team-scoped access evidence (screenshots/logs)
-- Task assignment and file permission evidence (screenshots/logs)
+- Team invite and team-scoped access evidence
+- Dashboard activity feed and updates evidence
+- Calendar and task management evidence
+- Files/folders access evidence
+- Department management evidence
+- Canvas board evidence (creation, persistence, export)
+- Admin key activation and Team Setup evidence
 
 ## 3) Naming conventions
 
@@ -44,4 +49,4 @@ This creates a trace from requirements -> implementation -> tests -> evidence.
 3. Implement the change in a branch.
 4. Open a PR and record testing results.
 5. Store screenshots/logs under `evidence/`.
-6. Update `docs/TRACEABILITY.md`.
+6. Update `docs/TRACEABILITY.md` and `docs/process/EVIDENCE_INDEX.md`.
