@@ -21,6 +21,7 @@ const CreateTeamSchema = z.object({
 
 const InviteSchema = z.object({
   email: z.string().email(),
+  role: z.enum(['admin', 'member']).optional(),
 });
 
 const UpdateMemberRoleSchema = z.object({
@@ -213,7 +214,10 @@ export async function handleCreateInvite(req: Request, res: Response, next: Next
 
     const parsed = InviteSchema.parse(req.body);
     const email = normalizeEmail(parsed.email);
-    const role: TeamInviteRole = 'member';
+    const role: TeamInviteRole = parsed.role ?? 'member';
+    if (role === 'admin' && membership?.role !== 'owner') {
+      throw new AppError(403, 'FORBIDDEN', 'Only team owners can invite admins');
+    }
     const existingUser = await UserModel.findOne({ email }).select('_id').lean();
     if (!existingUser) {
       throw new AppError(

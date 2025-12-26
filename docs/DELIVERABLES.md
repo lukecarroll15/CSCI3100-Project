@@ -1,5 +1,13 @@
 # Deliverables Map (Course)
 
+## Document control
+
+- Document: DELIVERABLES
+- Version: 0.6
+- Status: Draft
+- Last updated: 2025-12-25
+- Owner: Group 02
+
 This file maps repository documents to the course submission PDFs and to the project requirements. Update this file before each submission.
 
 ## 1) Course deliverables (R1)
@@ -16,7 +24,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 - R1.4 Release Notes and User Manual
   - PDF: `docs/submission/Group02_Release_Notes_User_Manual.pdf`
   - Source: `docs/RELEASE_NOTES.md` + `docs/USER_MANUAL.md`
-  - Note: includes team owner/admin roles, team invite flow, and team delete rules
+  - Note: includes team roles, invite flow, Dashboard, Calendar, Files, and Canvas behavior
 
 ## 2) Auditable process (R5)
 
@@ -30,7 +38,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 ## 3) Source control (R6)
 
 - GitHub repository with history: branches, commits, PRs
-- Release tags (recommended): `v0.1.0`, `v0.2.0`, etc.
+- Release tags (recommended): `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.x.x`
 
 ## 4) Internal supporting docs (not submitted as PDFs)
 

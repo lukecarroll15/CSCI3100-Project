@@ -24,20 +24,19 @@ Log any icons, images, or fonts used in the UI.
 
 | Asset | Source URL | License | Where used | Attribution added |
 | ----- | ---------- | ------- | ---------- | ----------------- |
-|       |            |         |            |                   |
+| None  | N/A        | N/A     | N/A        | N/A               |
 
 ## 4) AI tool assistance
 
 If AI tools were used for any deliverable (code, docs, diagrams), record them here.
 
-| Tool | Scope of use | Human review performed | Reviewer | Date |
-| ---- | ------------ | ---------------------- | -------- | ---- |
-|      |              |                        |          |      |
+| Tool                       | Scope of use                                                                            | Human review performed | Reviewer     | Date       |
+| -------------------------- | --------------------------------------------------------------------------------------- | ---------------------- | ------------ | ---------- |
+| OpenAI ChatGPT (Codex CLI) | Dashboard + Calendar + Files UI updates, access control checks, documentation alignment | Yes                    | Project team | 2025-12-25 |
 
 ## 5) Notes
 
 - Do not commit secrets (tokens, API keys, passwords) into the repo.
 - Prefer linking to original sources rather than copying large blocks.
 - Team membership and contributions are recorded in `docs/TEAM.md`.
-- Team invite and access control features were implemented without adding new third-party libraries.
-- Recent role and access updates did not introduce new third-party assets.
+- UI design references: shadcn/ui patterns and Apple Calendar inspiration; no code or assets were copied.

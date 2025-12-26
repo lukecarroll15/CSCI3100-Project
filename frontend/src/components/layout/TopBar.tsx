@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import SelectMenu from '../ui/SelectMenu';
 import { getAdminStats, type AdminStats } from '../../api/admin';
 import { ApiRequestError } from '../../api/client';
-import { createTeamInvite, deleteTeam, type TeamSummary } from '../../api/teams';
+import {
+  createTeamInvite,
+  deleteTeam,
+  type TeamInviteRole,
+  type TeamSummary,
+} from '../../api/teams';
 
 type Props = {
   userName?: string;
@@ -62,6 +67,8 @@ function AdminDashboardModal({
   const [inviteLoading, setInviteLoading] = useState(false);
   const ownedTeams = teams.filter((team) => team.role === 'owner');
   const activeTeam = teams.find((team) => team.id === activeTeamId) ?? null;
+  const [inviteRole, setInviteRole] = useState<TeamInviteRole>('member');
+  const isOwner = activeTeam?.role === 'owner';
   const [deleteTeamId, setDeleteTeamId] = useState(activeTeamId ?? '');
   const [deleteTeamName, setDeleteTeamName] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -87,6 +94,16 @@ function AdminDashboardModal({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOwner) {
+      setInviteRole('member');
+    }
+  }, [isOwner]);
+
+  useEffect(() => {
+    setInviteRole('member');
+  }, [activeTeamId]);
+
+  useEffect(() => {
     setDeleteTeamName('');
     setDeleteError('');
     setDeleteNotice('');
@@ -102,12 +119,17 @@ function AdminDashboardModal({
       setInviteError('Invite email is required');
       return;
     }
+    const role: TeamInviteRole = isOwner ? inviteRole : 'member';
     setInviteError('');
     setInviteNotice('');
     setInviteLoading(true);
     try {
-      await createTeamInvite(activeTeam.id, email, 'member');
-      setInviteNotice('Invite created. The user joins after logging in.');
+      await createTeamInvite(activeTeam.id, email, role);
+      setInviteNotice(
+        role === 'admin'
+          ? 'Invite created. The user joins as an admin after logging in.'
+          : 'Invite created. The user joins after logging in.'
+      );
       setInviteEmail('');
       if (onTeamsRefresh) {
         await onTeamsRefresh();
@@ -126,7 +148,7 @@ function AdminDashboardModal({
     }
     const team = ownedTeams.find((item) => item.id === deleteTeamId);
     if (!team) {
-      setDeleteError('You can only delete teams you own.');
+      setDeleteError('You can only delete team(s) you own.');
       return;
     }
     if (deleteTeamName.trim() !== team.name) {
@@ -176,7 +198,12 @@ function AdminDashboardModal({
 
   const ownedTeamOptions = ownedTeams.map((team) => ({ value: team.id, label: team.name }));
   const deleteTarget = ownedTeams.find((team) => team.id === deleteTeamId) ?? null;
+  const deleteLabelName = deleteTarget?.name ?? activeTeam?.name ?? 'TEAM';
   const isDeleteMatch = deleteTarget ? deleteTeamName.trim() === deleteTarget.name : false;
+  const inviteRoleOptions = [
+    { value: 'member', label: 'Member' },
+    { value: 'admin', label: 'Admin' },
+  ];
 
   if (!isOpen) return null;
 
@@ -199,7 +226,7 @@ function AdminDashboardModal({
               <>
                 {/* Admin Count */}
                 <div className="mb-6 rounded-lg border-2 border-gray-300 bg-gray-50 p-4">
-                  <p className="text-sm font-semibold text-gray-600">Total Admins</p>
+                  <p className="text-sm font-semibold text-gray-600">Total Admin(s)</p>
                   <p className="text-3xl font-bold">{stats.adminCount}</p>
                 </div>
 
@@ -229,7 +256,7 @@ function AdminDashboardModal({
                     </div>
                   </div>
                   <div>
-                    <h3 className="mb-3 font-bold">Admins</h3>
+                    <h3 className="mb-3 font-bold">Admin(s)</h3>
                     <div className="space-y-2 rounded-lg border-2 border-gray-300 bg-gray-50 p-4">
                       {stats.admins.length === 0 ? (
                         <p className="text-sm text-gray-500">No additional admins</p>
@@ -261,7 +288,7 @@ function AdminDashboardModal({
                 {/* Activation Keys */}
                 {isSystemOwner ? (
                   <div className="mb-6">
-                    <h3 className="mb-3 font-bold">Active Activation Keys</h3>
+                    <h3 className="mb-3 font-bold">Active Activation Key(s)</h3>
                     {stats.activationKeys.length === 0 ? (
                       <p className="text-sm text-gray-500">No active keys available</p>
                     ) : (
@@ -298,7 +325,7 @@ function AdminDashboardModal({
 
             {/* Team Management */}
             <div className="mb-6">
-              <h3 className="mb-3 font-bold">Teams</h3>
+              <h3 className="mb-3 font-bold">Team(s)</h3>
               <div className="rounded-lg border-2 border-gray-300 bg-gray-50 p-4">
                 {teams.length === 0 ? (
                   <p className="text-sm text-gray-500">No teams created yet</p>
@@ -339,9 +366,19 @@ function AdminDashboardModal({
                     placeholder="member@example.com"
                     className="flex-1 rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
                   />
-                  <div className="flex items-center rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 sm:w-[150px]">
-                    Member only
-                  </div>
+                  {isOwner ? (
+                    <SelectMenu
+                      value={inviteRole}
+                      placeholder="Role"
+                      options={inviteRoleOptions}
+                      onChange={(value) => setInviteRole(value as TeamInviteRole)}
+                      className="sm:w-[150px]"
+                    />
+                  ) : (
+                    <div className="flex items-center rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 sm:w-[150px]">
+                      Member only
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={handleInvite}
@@ -363,7 +400,7 @@ function AdminDashboardModal({
                   onClick={openDeleteModal}
                   className="w-full cursor-pointer rounded-md border-2 border-red-500 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:-translate-y-0.5 hover:bg-red-100 hover:shadow-sm"
                 >
-                  Open Delete Window
+                  DELETE {deleteLabelName}
                 </button>
               </div>
             ) : null}
@@ -431,7 +468,7 @@ function AdminDashboardModal({
                 disabled={!isDeleteMatch || deleteLoading}
                 className="cursor-pointer rounded-lg border-2 border-red-500 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:-translate-y-0.5 hover:bg-red-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {deleteLoading ? 'Deleting...' : 'Delete Team'}
+                {deleteLoading ? 'Deleting...' : `DELETE ${deleteLabelName}`}
               </button>
             </div>
           </div>

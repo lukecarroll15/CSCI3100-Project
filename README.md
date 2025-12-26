@@ -1,52 +1,54 @@
 # TaskFlow (CSCI3100 Software Engineering Project)
 
-TaskFlow is a Jira-like web app for managing projects and tasks. This repo is the course project deliverable for CSCI3100 Software Engineering.
+TaskFlow is a Jira-like web app for managing team tasks, files, and collaboration. This repo is the course project deliverable for CSCI3100 Software Engineering.
 
-## Why TaskFlow (differentiator)
+Release: v0.x.x (MVP)
 
-- Passwordless access with OTP and optional GitHub OAuth.
-- Explicit admin key activation with expiry/max-uses (pro lock demo).
-- Invite-only teams with scoped tasks/files (multi-team MVP).
-- Auditable testing evidence to show security and access control are real, not just UI.
+## Product highlights
 
-## Current scope (Release 0.2)
+- Email OTP login with optional GitHub OAuth.
+- Invite-only teams with owner/admin/member roles.
+- Activation keys for admin access and team creation.
+- Task calendar, list, and completed views with clear access rules.
+- Dashboard with activity feed, daily updates, and due-today reminders.
+- Files and folders with standard/admin-only/private visibility.
+- Personal Canvas board for individual brainstorming.
+
+## Current scope (v0.x.x)
+
+Dashboard scope locked on 2025-12-25.
 
 Implemented in this release:
 
-- Email OTP sign up, login, logout
-- Optional GitHub OAuth login
-- Session-based authentication and current-user endpoint
-- Admin key activation (format, lookup, expiry, max uses)
-- Teams: create team (team owner/key owner), invite by email (existing accounts only), auto-join on login
-- Admin Dashboard with owner/admin separation and activation key tracking
-- Team-scoped tasks with calendar and table views (multi-assignee for admins)
-- Team-scoped files and folders with admin-only and private access
-- Department management (admins only)
-- Health check endpoints
+- Auth: OTP signup/login, optional GitHub OAuth, session-based auth.
+- Admin access: activation keys, Admin Dashboard, required team setup.
+- Teams: create team, invite members, auto-join on login, team-scoped data.
+- Tasks: create/edit/delete, multi-assignee for admins, status updates, priority/department filters, day drill-down, month/year picker.
+- Departments: admin-only create/delete shared by Calendar and Files.
+- Files: folder tree, grid/list views, filters (type/department/access), upload/download/preview, private and admin-only access.
+- Dashboard: activity feed (tasks + files), daily updates modal, due-today task list.
+- Canvas: sticky notes/cards/shapes, connectors, pan/zoom, undo/redo, export, autosave.
+- Health check endpoints.
 
 Planned (not implemented yet):
 
-- Key-file upload
-- Kanban and timeline views
-- Advanced analytics and reporting
-- External integrations (email, storage, notifications)
+- Key-file upload.
+- Kanban and timeline views.
+- Advanced analytics and reporting.
+- External integrations (email, storage, notifications).
 
 ## Teams and roles (MVP)
 
-- Team owner (first activation key for a team): can create the team, view activation keys, invite members, and delete teams.
-- Team admin (additional activation key users or promoted admins): can open Admin Dashboard, invite members, and manage shared team tasks, files, and departments.
-- Team member: can manage personal tasks/files and work on assigned shared tasks.
-- Team member: can view assigned tasks, manage personal tasks, upload standard/private files, and delete their own files/folders.
+- Team owner (first activation key use): creates the team, views activation keys, invites members or admins, deletes the team.
+- Team admin (additional key use or promoted): opens Admin Dashboard, invites members, manages shared team data.
+- Team member: sees assigned tasks plus their own personal tasks, manages their own files/folders.
 
-Team access is invite-only and requires a pre-registered account. Invited users join automatically on first login (the app calls `/teams/mine` to accept pending invites). The frontend sends the active team via the `X-Team-Id` header on API requests.
+Important rules:
 
-## Course requirement coverage (status)
-
-- Global database: MongoDB (done)
-- User interface: React UI (done for auth)
-- User management: signup/login/logout (done)
-- License management: admin activation key (partial; key-file upload not implemented)
-- Application-specific features (n-1 features): planned for later releases
+- Invites only work for existing accounts (users must sign up before being invited).
+- Owners can invite admins; admins can only invite members.
+- The first key holder must finish Team Setup (team name) before anyone else can use the key.
+- Team-scoped APIs require `X-Team-Id`. The frontend sets this automatically.
 
 ## Quickstart (local development)
 
@@ -65,8 +67,8 @@ cp frontend/.env.example frontend/.env
 
 3. Edit `backend/.env`
 
-- Set `MONGO_URI`
-- Set `SESSION_SECRET` (>= 20 characters)
+- Set `MONGO_URI`.
+- Set `SESSION_SECRET` (>= 20 characters).
 
 4. Run the system
 
@@ -81,7 +83,7 @@ Full setup guide: `docs/ENVIRONMENT.md`
 
 ## Testing
 
-- Full test plan and cases: `docs/TESTING.md`
+- Full test plan and cases: `docs/TESTING.md`.
 - Backend tests:
 
 ```bash
@@ -95,7 +97,7 @@ cd backend
 npm run admin:key:generate -- DEMO-KEYS-2025
 ```
 
-For team testing steps, see `docs/TESTING.md` and `docs/USER_MANUAL.md`.
+For team, Dashboard, Calendar, Files, and Canvas testing steps, see `docs/TESTING.md` and `docs/USER_MANUAL.md`.
 
 ## Documentation index
 
@@ -109,12 +111,8 @@ For team testing steps, see `docs/TESTING.md` and `docs/USER_MANUAL.md`.
 - Process evidence: `docs/process/README.md`
 - Traceability matrix: `docs/TRACEABILITY.md`
 
-## Process and quality
-
-- Team workflow: `CONTRIBUTING.md`
-- Evidence and audit trail: `docs/process/`
-
 ## Notes
 
 - Do not commit secrets. Keep `.env` files local.
 - Features listed as "planned" are documented in the SRS but not yet implemented.
+- Canvas data is stored per user and capped to keep storage and performance predictable.

@@ -3,14 +3,14 @@
 ## Document control
 
 - Document: ENVIRONMENT
-- Version: 0.3
+- Version: 0.6
 - Status: Draft
-- Last updated: 2025-12-24
+- Last updated: 2025-12-25
 - Owner: Group 02
 
 ## 1) Purpose
 
-This document enables a teammate or TA to set up and run TaskFlow from scratch. Follow the steps in order.
+This guide helps a teammate or TA set up and run TaskFlow locally. Follow the steps in order.
 
 ## 2) Supported authentication methods
 
@@ -68,7 +68,7 @@ Minimum required values in `backend/.env`:
 | OTP_MAX_ATTEMPTS       | 5       | Max invalid attempts           |
 | OTP_BCRYPT_ROUNDS      | 10      | Hash cost for OTP storage      |
 
-### Admin key policy (licence/pro lock demo)
+### Admin key policy (activation key flow)
 
 | Variable            | Default | Description                                      |
 | ------------------- | ------- | ------------------------------------------------ |
@@ -77,13 +77,11 @@ Minimum required values in `backend/.env`:
 | ADMIN_KEY_TTL_DAYS  | 30      | Days until key expiry (0 disables expiry)        |
 | INITIAL_ADMIN_KEY   | unset   | If valid and no active key exists, seed this key |
 
-### Team invite policy
+Important behavior:
 
-| Variable             | Default | Description                         |
-| -------------------- | ------- | ----------------------------------- |
-| TEAM_INVITE_TTL_DAYS | 7       | Days until a pending invite expires |
-
-Invites only succeed for emails that already have a TaskFlow account.
+- The first valid activation becomes the team owner and must create a team name to finish setup.
+- Until the owner finishes team setup, other activation attempts return `TEAM_PENDING`.
+- If a team key expires, the backend rotates it and keeps the same usage limits.
 
 Provision an admin key manually (recommended for testing):
 
@@ -104,6 +102,14 @@ node scripts/checkLicence.mjs DEMO-KEYS-2025
 Auto-seed runs only in non-production and only when no active key exists. If `INITIAL_ADMIN_KEY`
 is set, it is always seeded first (even when `ADMIN_KEY_AUTO_SEED=false`). To disable all
 automatic key creation, set `ADMIN_KEY_AUTO_SEED=false` and leave `INITIAL_ADMIN_KEY` empty.
+
+### Team invite policy
+
+| Variable             | Default | Description                         |
+| -------------------- | ------- | ----------------------------------- |
+| TEAM_INVITE_TTL_DAYS | 7       | Days until a pending invite expires |
+
+Invites only succeed for emails that already have a TaskFlow account.
 
 ### Email delivery for OTP
 
@@ -219,9 +225,9 @@ Or change `PORT` in `backend/.env` and restart.
 
 ### CORS / cookies not working
 
-- Ensure `CORS_ORIGIN` matches the frontend URL
-- Ensure frontend requests send cookies (`credentials: "include"`)
-- Use `http://localhost` consistently
+- Ensure `CORS_ORIGIN` matches the frontend URL.
+- Ensure frontend requests send cookies (`credentials: "include"`).
+- Use `http://localhost` consistently.
 
 ### GitHub login shows "not configured"
 

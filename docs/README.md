@@ -1,6 +1,6 @@
 # Documentation Index
 
-This folder stores course deliverables and developer documentation. Each document is written so a marker or TA can understand the system, reproduce the environment, and audit the development process.
+This folder contains the official course deliverables and supporting documentation for TaskFlow. Each file is written so a marker or teammate can understand the system, set it up, and verify scope.
 
 ## Main deliverables (submission sources)
 
@@ -9,8 +9,6 @@ This folder stores course deliverables and developer documentation. Each documen
 - `USER_MANUAL.md` - end-user guide for the current release
 - `RELEASE_NOTES.md` - release scope, changes, and known issues
 - `DELIVERABLES.md` - mapping from repo docs to submission PDFs
-
-Team access (invite-only), team owner/admin roles, and task/file visibility rules are documented in `USER_MANUAL.md` and `TESTING.md`.
 
 ## Supporting docs
 
@@ -25,3 +23,5 @@ Team access (invite-only), team owner/admin roles, and task/file visibility rule
 - `process/DECISION_LOG.md` - architecture and design decisions
 - `process/MEETING_MINUTES_TEMPLATE.md` - meeting minutes template
 - `process/` - meeting minutes, evidence, and links
+
+If you are looking for how Dashboard, Calendar, Files, and Canvas behavior is verified, start with `TESTING.md` and `USER_MANUAL.md`.

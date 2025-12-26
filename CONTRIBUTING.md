@@ -1,14 +1,14 @@
 # Contributing (Team Workflow)
 
-This repo supports the CSCI3100 Software Engineering project. The goal is a clean, auditable trail from requirements to implementation, testing, and evidence.
+This repo supports the CSCI3100 Software Engineering project. The goal is a clear, auditable trail from requirements to implementation, testing, and evidence.
 
 ## 1) Workflow summary
 
-1. Create or link a requirement ID (from the SRS) for your change.
-2. Open an issue describing the change and acceptance criteria.
+1. Link a requirement ID from the SRS (e.g., `FR-UM-1`, `NFR-SEC-1`).
+2. Open an issue with scope and acceptance criteria.
 3. Work on a short-lived branch.
 4. Open a PR early (draft is fine).
-5. Add test evidence and update docs.
+5. Update tests, docs, and evidence.
 
 ## 2) Branching
 
@@ -39,7 +39,7 @@ If you use another style, keep it short and descriptive.
 Every PR should include:
 
 - Summary of what and why
-- Linked requirement IDs (e.g., `FR-UM-1`, `NFR-SEC-1`)
+- Linked requirement IDs
 - Testing steps + results
 - Screenshots for UI changes
 - Updates to docs and evidence (if applicable)
@@ -56,12 +56,12 @@ Every PR should include:
 - [ ] Code compiles and runs locally
 - [ ] Lint/format/typecheck pass
 - [ ] Automated tests pass (or documented why none)
-- [ ] `docs/TESTING.md` updated if test policy or admin key behavior changed
-- [ ] Role model docs updated if system owner/admin or team permissions changed
 - [ ] Manual test evidence recorded (if applicable)
 - [ ] Docs updated (README, ENVIRONMENT, USER_MANUAL, RELEASE_NOTES)
-- [ ] Requirement traceability updated (see `docs/TRACEABILITY.md`)
+- [ ] Requirement traceability updated (`docs/TRACEABILITY.md`)
+- [ ] Evidence index updated (`docs/process/EVIDENCE_INDEX.md`)
 - [ ] Team-scoped endpoints tested with `X-Team-Id` when applicable
+- [ ] Team Setup and admin access flows verified if modified
 
 ## 7) Evidence and traceability
 

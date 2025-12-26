@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: TEAM
-- Version: 0.2
+- Version: 0.6
 - Status: Draft
-- Last updated: 2025-12-24
+- Last updated: 2025-12-25
 - Owner: Group 02
 
 ## Course info
@@ -16,19 +16,19 @@
 
 ## Group members
 
-| Name                | Student ID |
-| ------------------- | ---------- |
-| Luke Carroll        | 1155255972 |
-| Archie Hamilton     | 1155256512 |
-| Chun Wang YIP       | 1155192968 |
-| Hou Fong CHAN       | TBD        |
-| Sakib Rumman HASSAN | TBD        |
+| Name            | Student ID |
+| --------------- | ---------- |
+| Luke Carroll    | 1155255972 |
+| Archie Hamilton | 1155256512 |
+| Chun Wang YIP   | 1155192968 |
+| Hou Fong CHAN   | TBD        |
 
 ## Current contributions (to date)
 
 - Luke Carroll: initial project backbone template; implemented Tailwind CSS and HTML form based on Archie Hamilton's wireframe.
 - Archie Hamilton: UI wireframe design for the authentication layout.
 - Chun Wang YIP: converted the template into a working TypeScript codebase, set up CI workflow, implemented OTP + GitHub OAuth authentication, and built the login/sign-up UI.
+- Team (post-auth phase): Calendar, Files, and Dashboard implementation; department management; role-based access refinements; admin key flow; and documentation updates.
 
 ## Document ownership (SC2 drafts)
 
@@ -39,5 +39,5 @@
 
 - Contributions will be updated as work progresses.
 - Use this file as the single source of truth for team membership and contribution summary.
-- "Team" in the product (invite-only workspace) is a separate concept from the course group listed above.
+- "Team" in the product (invite-only workspace) is separate from the course group listed above.
 - Team owner/admin roles are documented in `docs/USER_MANUAL.md`.
