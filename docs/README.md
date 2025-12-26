@@ -10,6 +10,8 @@ This folder stores course deliverables and developer documentation. Each documen
 - `RELEASE_NOTES.md` - release scope, changes, and known issues
 - `DELIVERABLES.md` - mapping from repo docs to submission PDFs
 
+Team access (invite-only), team owner/admin roles, and task/file visibility rules are documented in `USER_MANUAL.md` and `TESTING.md`.
+
 ## Supporting docs
 
 - `ATTRIBUTION.md` - third-party code and AI tool disclosure

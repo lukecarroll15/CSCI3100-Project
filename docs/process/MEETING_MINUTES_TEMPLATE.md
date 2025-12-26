@@ -14,7 +14,9 @@
 
 ## Agenda
 
--
+- 
+- Team access or invite flow changes (if any)
+- Team owner/admin role updates (if any)
 
 ## Progress since last meeting
 

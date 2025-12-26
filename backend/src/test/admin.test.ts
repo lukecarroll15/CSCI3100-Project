@@ -8,6 +8,8 @@ import { createApp } from '../app';
 import { env } from '../config/env';
 import { UserModel } from '../models/User';
 import { LicenceKeyModel } from '../models/LicenceKey';
+import { TeamModel } from '../models/Team';
+import { TeamMembershipModel } from '../models/TeamMembership';
 
 const app = createApp();
 
@@ -165,32 +167,60 @@ test('POST /api/v1/admin/activate rejects already-admin accounts', async () => {
   assert.equal(res.body?.error?.code, 'ALREADY_ADMIN');
 });
 
-test('GET /api/v1/admin/stats is forbidden for non-admin', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
+test('GET /api/v1/admin/stats is forbidden for team members', async () => {
+  const owner = await UserModel.create({
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    role: 'admin',
+  });
+  const member = await UserModel.create({
+    email: 'member@example.com',
+    displayName: 'Member',
+    role: 'user',
+  });
+  const team = await TeamModel.create({ name: 'Alpha', createdBy: owner._id });
+  await TeamMembershipModel.create({ teamId: team._id, userId: owner._id, role: 'owner' });
+  await TeamMembershipModel.create({ teamId: team._id, userId: member._id, role: 'member' });
 
-  const res = await request(app).get('/api/v1/admin/stats').set('Cookie', sessionCookieFor(user));
+  const res = await request(app)
+    .get('/api/v1/admin/stats')
+    .set('Cookie', sessionCookieFor(member))
+    .set('X-Team-Id', team._id.toString());
 
   assert.equal(res.status, 403);
   assert.equal(res.body?.error?.code, 'FORBIDDEN');
 });
 
-test('GET /api/v1/admin/stats returns admin data for admin users', async () => {
+test('GET /api/v1/admin/stats returns admin data for team admins', async () => {
+  const owner = await UserModel.create({
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    role: 'admin',
+  });
   const admin = await UserModel.create({
     email: 'admin@example.com',
     displayName: 'Admin',
-    role: 'admin',
+    role: 'user',
   });
+  const team = await TeamModel.create({ name: 'Alpha', createdBy: owner._id });
+  await TeamMembershipModel.create({ teamId: team._id, userId: owner._id, role: 'owner' });
+  await TeamMembershipModel.create({ teamId: team._id, userId: admin._id, role: 'admin' });
   await LicenceKeyModel.create({
     key: 'ZZZZ-YYYY-XXXX',
     redeemed: false,
     usesCount: 1,
     maxUses: 5,
     revoked: false,
+    teamId: team._id,
   });
 
-  const res = await request(app).get('/api/v1/admin/stats').set('Cookie', sessionCookieFor(admin));
+  const res = await request(app)
+    .get('/api/v1/admin/stats')
+    .set('Cookie', sessionCookieFor(admin))
+    .set('X-Team-Id', team._id.toString());
 
   assert.equal(res.status, 200);
   assert.equal(typeof res.body?.adminCount, 'number');
   assert.ok(Array.isArray(res.body?.activationKeys));
+  assert.equal(res.body?.activationKeys?.length ?? 0, 0);
 });

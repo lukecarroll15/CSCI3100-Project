@@ -25,7 +25,7 @@ export type CreateTaskPayload = {
   description?: string;
   priority: Priority;
   department: Department;
-  assignee?: string[];
+  assignee: string[];
   dueDate: string;
 };
 

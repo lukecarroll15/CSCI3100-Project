@@ -16,6 +16,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 - R1.4 Release Notes and User Manual
   - PDF: `docs/submission/Group02_Release_Notes_User_Manual.pdf`
   - Source: `docs/RELEASE_NOTES.md` + `docs/USER_MANUAL.md`
+  - Note: includes team owner/admin roles, team invite flow, and team delete rules
 
 ## 2) Auditable process (R5)
 

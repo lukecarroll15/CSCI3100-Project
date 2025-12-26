@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: PROCESS_EVIDENCE
-- Version: 0.1
+- Version: 0.2
 - Status: Draft
-- Last updated: 2025-12-21
+- Last updated: 2025-12-24
 - Owner: Group 02
 
 ## 1) Purpose
@@ -19,6 +19,8 @@ The course requires an auditable software development process. This folder store
 - Testing evidence (screenshots, logs)
 - Demo checklists (optional)
 - Evidence index: `EVIDENCE_INDEX.md`
+- Team invite and team-scoped access evidence (screenshots/logs)
+- Task assignment and file permission evidence (screenshots/logs)
 
 ## 3) Naming conventions
 

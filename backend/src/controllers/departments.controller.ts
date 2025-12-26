@@ -6,6 +6,7 @@ import Folder, { FOLDER_DEPARTMENT } from '../models/Folder';
 import { FileModel } from '../models/File';
 import { TaskModel } from '../models/Task';
 import { AppError } from '../errors/AppError';
+import { hasTeamAdminAccess } from '../middleware/team';
 
 const DEFAULT_DEPARTMENTS = [
   'General',
@@ -20,13 +21,18 @@ const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 
 export async function handleListDepartments(req: Request, res: Response, next: NextFunction) {
   try {
-    let departments = await DepartmentModel.find().sort({ name: 1 });
+    const teamId = req.team?.teamId;
+    if (!teamId) {
+      throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+    }
+
+    let departments = await DepartmentModel.find({ teamId }).sort({ name: 1 });
 
     // Seed defaults if empty
     if (departments.length === 0) {
-      const docs = DEFAULT_DEPARTMENTS.map((name) => ({ name }));
+      const docs = DEFAULT_DEPARTMENTS.map((name) => ({ name, teamId }));
       await DepartmentModel.insertMany(docs);
-      departments = await DepartmentModel.find().sort({ name: 1 });
+      departments = await DepartmentModel.find({ teamId }).sort({ name: 1 });
     }
 
     res.json(departments);
@@ -41,8 +47,13 @@ export async function handleCreateDepartment(req: Request, res: Response, next: 
     if (!auth) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
-    if (auth.role !== 'admin') {
-      throw new AppError(403, 'FORBIDDEN', 'Admin access required');
+    if (!hasTeamAdminAccess(req)) {
+      throw new AppError(403, 'FORBIDDEN', 'Team admin access required');
+    }
+
+    const teamId = req.team?.teamId;
+    if (!teamId) {
+      throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
     }
 
     const { name } = req.body;
@@ -57,6 +68,7 @@ export async function handleCreateDepartment(req: Request, res: Response, next: 
     }
 
     const exists = await DepartmentModel.findOne({
+      teamId,
       name: { $regex: new RegExp(`^${name}$`, 'i') },
     });
     if (exists) throw new AppError(400, 'ALREADY_EXISTS', 'Department already exists');
@@ -64,6 +76,7 @@ export async function handleCreateDepartment(req: Request, res: Response, next: 
     const dept = await DepartmentModel.create({
       name,
       createdBy: req.auth?.userId,
+      teamId,
     });
 
     res.status(201).json(dept);
@@ -78,12 +91,17 @@ export async function handleDeleteDepartment(req: Request, res: Response, next: 
     if (!auth) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
-    if (auth.role !== 'admin') {
-      throw new AppError(403, 'FORBIDDEN', 'Admin access required');
+    if (!hasTeamAdminAccess(req)) {
+      throw new AppError(403, 'FORBIDDEN', 'Team admin access required');
     }
 
     const { id } = req.params;
-    const department = await DepartmentModel.findById(id);
+    const teamId = req.team?.teamId;
+    if (!teamId) {
+      throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+    }
+
+    const department = await DepartmentModel.findOne({ _id: id, teamId });
     if (!department) {
       throw new AppError(404, 'NOT_FOUND', 'Department not found');
     }
@@ -96,8 +114,8 @@ export async function handleDeleteDepartment(req: Request, res: Response, next: 
       throw new AppError(400, 'BAD_REQUEST', `${FOLDER_DEPARTMENT} department cannot be deleted`);
     }
 
-    const taskCount = await TaskModel.countDocuments({ department: department.name });
-    const files = await FileModel.find({ department: department.name });
+    const taskCount = await TaskModel.countDocuments({ department: department.name, teamId });
+    const files = await FileModel.find({ department: department.name, teamId });
     const fileCount = files.length;
     const forceDelete = String(req.query.force || '').toLowerCase() === 'true';
 
@@ -120,19 +138,19 @@ export async function handleDeleteDepartment(req: Request, res: Response, next: 
           }
         })
       );
-      await FileModel.deleteMany({ department: department.name });
+      await FileModel.deleteMany({ department: department.name, teamId });
     }
 
     if (taskCount > 0) {
-      await TaskModel.deleteMany({ department: department.name });
+      await TaskModel.deleteMany({ department: department.name, teamId });
     }
 
     await Folder.updateMany(
-      { department: department.name },
+      { department: department.name, teamId },
       { $set: { department: FOLDER_DEPARTMENT } }
     );
 
-    await DepartmentModel.findByIdAndDelete(id);
+    await DepartmentModel.findOneAndDelete({ _id: id, teamId });
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -145,19 +163,24 @@ export async function handleGetDepartmentUsage(req: Request, res: Response, next
     if (!auth) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
-    if (auth.role !== 'admin') {
-      throw new AppError(403, 'FORBIDDEN', 'Admin access required');
+    if (!hasTeamAdminAccess(req)) {
+      throw new AppError(403, 'FORBIDDEN', 'Team admin access required');
     }
 
     const { id } = req.params;
-    const department = await DepartmentModel.findById(id);
+    const teamId = req.team?.teamId;
+    if (!teamId) {
+      throw new AppError(400, 'TEAM_REQUIRED', 'Team context required');
+    }
+
+    const department = await DepartmentModel.findOne({ _id: id, teamId });
     if (!department) {
       throw new AppError(404, 'NOT_FOUND', 'Department not found');
     }
 
     const [taskCount, fileCount] = await Promise.all([
-      TaskModel.countDocuments({ department: department.name }),
-      FileModel.countDocuments({ department: department.name }),
+      TaskModel.countDocuments({ department: department.name, teamId }),
+      FileModel.countDocuments({ department: department.name, teamId }),
     ]);
 
     res.json({ taskCount, fileCount });

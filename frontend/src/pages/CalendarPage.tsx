@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent, useEffect, useRef } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useTeams } from '../teams/useTeams';
 import {
   createDepartment,
   deleteDepartment,
@@ -8,14 +9,14 @@ import {
   type DepartmentUsage,
   type Department as DepartmentOption,
 } from '../api/departments';
+import { getTeamMembers, type TeamMember } from '../api/teams';
 import * as tasksApi from '../api/tasks';
+import MultiSelectMenu from '../components/ui/MultiSelectMenu';
 import { IconCheck, IconX } from '../components/ui/Icons';
 
 type Priority = 'high' | 'medium' | 'low';
 type Department = tasksApi.Department;
 type ViewMode = 'calendar' | 'table' | 'completed';
-
-type UserOption = { name: string; email: string };
 
 type Task = {
   id: string;
@@ -30,32 +31,10 @@ type Task = {
   completedAt?: string;
   completedAtIso?: string;
   editedAt?: string;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
 };
-
-const mockUsers: UserOption[] = [
-  { name: 'Sarah Chen', email: 'sarah.chen@taskflow.com' },
-  { name: 'Michael Rodriguez', email: 'michael.rodriguez@taskflow.com' },
-  { name: 'Emily Thompson', email: 'emily.thompson@taskflow.com' },
-  { name: 'David Park', email: 'david.park@taskflow.com' },
-  { name: 'Jessica Williams', email: 'jessica.williams@taskflow.com' },
-  { name: 'Kevin Zhang', email: 'kevin.zhang@taskflow.com' },
-  { name: 'Amanda Foster', email: 'amanda.foster@taskflow.com' },
-  { name: 'Ryan Patel', email: 'ryan.patel@taskflow.com' },
-  { name: 'Lauren Martinez', email: 'lauren.martinez@taskflow.com' },
-  { name: 'James Kim', email: 'james.kim@taskflow.com' },
-  { name: 'Olivia Johnson', email: 'olivia.johnson@taskflow.com' },
-  { name: 'Daniel Lee', email: 'daniel.lee@taskflow.com' },
-  { name: 'Sophia Anderson', email: 'sophia.anderson@taskflow.com' },
-  { name: 'Marcus Brown', email: 'marcus.brown@taskflow.com' },
-  { name: 'Rachel Davis', email: 'rachel.davis@taskflow.com' },
-  { name: 'Alex Wilson', email: 'alex.wilson@taskflow.com' },
-  { name: 'Jordan Taylor', email: 'jordan.taylor@taskflow.com' },
-  { name: 'Morgan Garcia', email: 'morgan.garcia@taskflow.com' },
-  { name: 'Casey Moore', email: 'casey.moore@taskflow.com' },
-  { name: 'Harper Jackson', email: 'harper.jackson@taskflow.com' },
-];
 
 const priorities: Array<Priority | 'all'> = ['all', 'high', 'medium', 'low'];
 
@@ -63,11 +42,9 @@ const ALL_DEPARTMENTS_LABEL = 'All';
 const MAX_TASK_NAME_LENGTH = 80;
 const MAX_TASK_DESCRIPTION_LENGTH = 280;
 const MAX_DEPARTMENT_NAME_LENGTH = 32;
-const MAX_ASSIGNEE_NAME_LENGTH = 32;
 const TABLE_NAME_MAX = 24;
 const TABLE_ASSIGNEE_MAX = 22;
 const TABLE_DEPARTMENT_MAX = 18;
-const ASSIGNEE_CHIP_MAX = 18;
 const WEEKDAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_LABELS = [
   'January',
@@ -85,6 +62,12 @@ const MONTH_LABELS = [
 ];
 const STATUSES: Array<Task['status']> = ['Not Started', 'In Progress', 'Completed'];
 const CALENDAR_UI_STATE_KEY = 'calendarState:v1';
+const ROLE_LABELS: Record<TeamMember['role'], string> = {
+  owner: 'OWNER',
+  admin: 'ADMIN',
+  member: 'MEMBER',
+};
+const ROLE_ORDER: Record<TeamMember['role'], number> = { owner: 0, admin: 1, member: 2 };
 
 const PRIORITY_STYLES: Record<
   Priority,
@@ -152,6 +135,9 @@ const normalizeAssignees = (assignee: string | string[] | undefined) => {
   return Array.from(new Set(cleaned)).filter((name) => name.toLowerCase() !== 'unassigned');
 };
 
+const formatMemberLabel = (name: string, role?: TeamMember['role']) =>
+  role ? `${name} (${ROLE_LABELS[role]})` : name;
+
 const formatAssignees = (assignees: string[]) =>
   assignees.length ? assignees.join(', ') : 'Unassigned';
 
@@ -215,6 +201,7 @@ const mapApiTask = (task: tasksApi.Task): Task => ({
   completedAt: task.completedAt ? formatDisplayDate(new Date(task.completedAt)) : undefined,
   completedAtIso: task.completedAt ?? undefined,
   editedAt: task.editedAt ?? undefined,
+  createdBy: task.createdBy,
   createdAt: task.createdAt,
   updatedAt: task.updatedAt,
 });
@@ -456,7 +443,7 @@ function TableView({
   sortKey,
   sortDir,
   onSort,
-  isAdmin,
+  canChangeStatus,
   onComplete,
   showCompleteColumn = true,
   onNonAdmin,
@@ -470,7 +457,7 @@ function TableView({
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (key: SortKey) => void;
-  isAdmin: boolean;
+  canChangeStatus: (task: Task) => boolean;
   onComplete: (task: Task) => void;
   showCompleteColumn?: boolean;
   onNonAdmin?: () => void;
@@ -564,19 +551,19 @@ function TableView({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!isAdmin) {
+                      if (!canChangeStatus(task)) {
                         onNonAdmin?.();
                         return;
                       }
                       onComplete(task);
                     }}
                     className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
-                      isAdmin
+                      canChangeStatus(task)
                         ? 'cursor-pointer border-emerald-200 text-emerald-500 transition-colors hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600'
                         : 'cursor-not-allowed border-neutral-200 text-neutral-300'
                     }`}
                     aria-label={`Mark ${task.name} complete`}
-                    aria-disabled={!isAdmin}
+                    aria-disabled={!canChangeStatus(task)}
                   >
                     <IconCheck className="h-3.5 w-3.5" />
                   </button>
@@ -588,19 +575,19 @@ function TableView({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!isAdmin) {
+                      if (!canChangeStatus(task)) {
                         onNonAdmin?.();
                         return;
                       }
                       onIncomplete?.(task);
                     }}
                     className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
-                      isAdmin
+                      canChangeStatus(task)
                         ? 'cursor-pointer border-neutral-300 text-neutral-500 transition-colors hover:border-rose-500 hover:bg-rose-50 hover:text-rose-600'
                         : 'cursor-not-allowed border-neutral-200 text-neutral-300'
                     }`}
                     aria-label={`Mark ${task.name} incomplete`}
-                    aria-disabled={!isAdmin}
+                    aria-disabled={!canChangeStatus(task)}
                   >
                     <IconX className="h-3.5 w-3.5" />
                   </button>
@@ -616,7 +603,7 @@ function TableView({
 
 function CalendarView({
   filteredTasks,
-  isAdmin,
+  canChangeStatus,
   onComplete,
   onNonAdmin,
   onOpenDetails,
@@ -625,7 +612,7 @@ function CalendarView({
   onChangeDate,
 }: {
   filteredTasks: Task[];
-  isAdmin: boolean;
+  canChangeStatus: (task: Task) => boolean;
   onComplete: (task: Task) => void;
   onNonAdmin?: () => void;
   onOpenDetails: (task: Task) => void;
@@ -861,7 +848,7 @@ function CalendarView({
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (!isAdmin) {
+                          if (!canChangeStatus(task)) {
                             onNonAdmin?.();
                             return;
                           }
@@ -869,7 +856,7 @@ function CalendarView({
                         }}
                         className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-emerald-200 text-[10px] text-emerald-500 transition-colors hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:text-neutral-300"
                         aria-label={`Mark ${task.name} complete`}
-                        disabled={!isAdmin}
+                        disabled={!canChangeStatus(task)}
                       >
                         <IconCheck className="h-3 w-3" />
                       </button>
@@ -887,7 +874,13 @@ function CalendarView({
 
 export default function CalendarPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { activeTeamId, isTeamAdmin, activeTeam } = useTeams();
+  const isAdmin = isTeamAdmin;
+
+  const userIdentifiers = useMemo(() => {
+    if (!user) return [] as string[];
+    return [user.displayName, user.email].filter(Boolean).map((value) => value.toLowerCase());
+  }, [user]);
   const [tasksState, setTasksState] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -914,9 +907,8 @@ export default function CalendarPage() {
   const [taskDate, setTaskDate] = useState('');
   const [taskDepartment, setTaskDepartment] = useState<Department | ''>('');
   const [taskDescription, setTaskDescription] = useState('');
-  const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
-  const [assigneeQuery, setAssigneeQuery] = useState('');
-  const [showAssigneeSuggestions, setShowAssigneeSuggestions] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [taskAssignee, setTaskAssignee] = useState<string[]>([]);
   const [formError, setFormError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMonth, setDatePickerMonth] = useState(() => new Date());
@@ -937,9 +929,7 @@ export default function CalendarPage() {
   const [editTaskDepartment, setEditTaskDepartment] = useState<Department | ''>('');
   const [editTaskDueDate, setEditTaskDueDate] = useState('');
   const [editTaskDescription, setEditTaskDescription] = useState('');
-  const [editTaskAssignees, setEditTaskAssignees] = useState<string[]>([]);
-  const [editAssigneeQuery, setEditAssigneeQuery] = useState('');
-  const [showEditAssigneeSuggestions, setShowEditAssigneeSuggestions] = useState(false);
+  const [editTaskAssignee, setEditTaskAssignee] = useState<string[]>([]);
   const [editTaskStatus, setEditTaskStatus] = useState<Task['status']>('Not Started');
   const [editFormError, setEditFormError] = useState('');
   const [showStatusMenu, setShowStatusMenu] = useState(false);
@@ -1020,6 +1010,7 @@ export default function CalendarPage() {
   }, [hasHydrated]);
   // Load tasks from API
   useEffect(() => {
+    if (!activeTeamId) return;
     const loadTasks = async () => {
       try {
         const apiTasks = await tasksApi.getTasks();
@@ -1032,7 +1023,143 @@ export default function CalendarPage() {
       }
     };
     loadTasks();
-  }, []);
+  }, [activeTeamId]);
+
+  useEffect(() => {
+    if (!activeTeamId) {
+      setTeamMembers([]);
+      return;
+    }
+    if (!isAdmin) {
+      setTeamMembers([]);
+      return;
+    }
+    let active = true;
+    const loadMembers = async () => {
+      try {
+        const members = await getTeamMembers(activeTeamId);
+        if (!active) return;
+        setTeamMembers(members);
+      } catch (err) {
+        console.error('Failed to load team members:', err);
+        if (!active) return;
+        setTeamMembers([]);
+      }
+    };
+    void loadMembers();
+    return () => {
+      active = false;
+    };
+  }, [activeTeamId, isAdmin]);
+
+  const selfName = (user?.displayName || user?.email || '').trim();
+  const selfRole = activeTeam?.role as TeamMember['role'] | undefined;
+  const selfDisplayRole = useMemo(() => selfRole ?? 'member', [selfRole]);
+  const assigneeOptions = useMemo(() => {
+    const buildOption = (name: string, role?: TeamMember['role']) => ({
+      value: name,
+      label: formatMemberLabel(name, role),
+    });
+    if (!selfName && teamMembers.length === 0) return [];
+
+    if (!isAdmin) {
+      return selfName ? [buildOption(selfName, selfDisplayRole)] : [];
+    }
+
+    const sorted = [...teamMembers].sort((a, b) => {
+      const roleOrder = ROLE_ORDER[a.role] - ROLE_ORDER[b.role];
+      if (roleOrder !== 0) return roleOrder;
+      const nameA = (a.displayName || a.email || '').toLowerCase();
+      const nameB = (b.displayName || b.email || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const options = sorted
+      .map((member) => {
+        const name = (member.displayName || member.email || '').trim();
+        if (!name) return null;
+        return buildOption(name, member.role);
+      })
+      .filter((option): option is { value: string; label: string } => Boolean(option));
+
+    if (
+      selfName &&
+      !options.some((option) => option.value.toLowerCase() === selfName.toLowerCase())
+    ) {
+      options.push(buildOption(selfName, selfDisplayRole));
+    }
+
+    if (!options.length && selfName) {
+      options.push(buildOption(selfName, selfDisplayRole));
+    }
+
+    return options;
+  }, [isAdmin, selfDisplayRole, selfName, teamMembers]);
+
+  const resolveAssigneeValues = useCallback(
+    (assignees: string[]) => {
+      const valid = assignees.filter((assignee) =>
+        assigneeOptions.some((option) => option.value === assignee)
+      );
+      if (valid.length > 0) return valid;
+      if (
+        selfName &&
+        assigneeOptions.some((option) => option.value.toLowerCase() === selfName.toLowerCase())
+      ) {
+        return [selfName];
+      }
+      if (assigneeOptions.length > 0) return [assigneeOptions[0].value];
+      return [];
+    },
+    [assigneeOptions, selfName]
+  );
+
+  const isTaskCreator = useCallback(
+    (task: Task) => Boolean(user?.id && task.createdBy === user.id),
+    [user?.id]
+  );
+
+  const isAssignee = useCallback(
+    (task: Task) =>
+      task.assignee.some((assignee) => userIdentifiers.includes(assignee.toLowerCase())),
+    [userIdentifiers]
+  );
+
+  const canEditTask = useCallback(
+    (task: Task) => isAdmin || isTaskCreator(task),
+    [isAdmin, isTaskCreator]
+  );
+
+  const canChangeStatus = useCallback(
+    (task: Task) => canEditTask(task) || isAssignee(task),
+    [canEditTask, isAssignee]
+  );
+
+  const canDeleteTask = useCallback((task: Task) => canEditTask(task), [canEditTask]);
+
+  useEffect(() => {
+    if (!assigneeOptions.length) {
+      if (taskAssignee.length > 0) {
+        setTaskAssignee([]);
+      }
+      return;
+    }
+
+    const valid = taskAssignee.filter((value) =>
+      assigneeOptions.some((option) => option.value === value)
+    );
+    if (valid.length === 0) {
+      const selfOption =
+        selfName &&
+        assigneeOptions.find((option) => option.value.toLowerCase() === selfName.toLowerCase());
+      setTaskAssignee([selfOption?.value ?? assigneeOptions[0].value]);
+      return;
+    }
+
+    if (valid.length !== taskAssignee.length) {
+      setTaskAssignee(valid);
+    }
+  }, [assigneeOptions, selfName, taskAssignee]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -1049,6 +1176,7 @@ export default function CalendarPage() {
   }, [hasHydrated, selectedTask, tasksState]);
 
   useEffect(() => {
+    if (!activeTeamId) return;
     const loadDepartments = async () => {
       try {
         const departments = await listDepartments();
@@ -1063,7 +1191,7 @@ export default function CalendarPage() {
       }
     };
     loadDepartments();
-  }, []);
+  }, [activeTeamId]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -1232,35 +1360,13 @@ export default function CalendarPage() {
     setEditTaskDepartment(selectedTask.department);
     setEditTaskDueDate(toInputDate(new Date(selectedTask.dueDateIso)));
     setEditTaskDescription(selectedTask.description ?? '');
-    setEditTaskAssignees(selectedTask.assignee);
+    setEditTaskAssignee(resolveAssigneeValues(selectedTask.assignee));
     setEditTaskStatus(selectedTask.status);
-    setEditAssigneeQuery('');
-    setShowEditAssigneeSuggestions(false);
     setEditFormError('');
     setShowEditDatePicker(false);
     setIsEditingTask(false);
     setShowStatusMenu(false);
-  }, [selectedTask, showTaskModal, isEditingTask]);
-
-  const assigneeMatches = useMemo(() => {
-    const query = assigneeQuery.trim().toLowerCase();
-    if (query.length < 1) return [] as UserOption[];
-    const selected = new Set(taskAssignees.map((name) => name.toLowerCase()));
-    return mockUsers.filter(
-      (u) =>
-        `${u.name} ${u.email}`.toLowerCase().includes(query) && !selected.has(u.name.toLowerCase())
-    );
-  }, [assigneeQuery, taskAssignees]);
-
-  const editAssigneeMatches = useMemo(() => {
-    const query = editAssigneeQuery.trim().toLowerCase();
-    if (query.length < 1) return [] as UserOption[];
-    const selected = new Set(editTaskAssignees.map((name) => name.toLowerCase()));
-    return mockUsers.filter(
-      (u) =>
-        `${u.name} ${u.email}`.toLowerCase().includes(query) && !selected.has(u.name.toLowerCase())
-    );
-  }, [editAssigneeQuery, editTaskAssignees]);
+  }, [resolveAssigneeValue, selectedTask, showTaskModal, isEditingTask]);
 
   const selectedDate = useMemo(() => parseInputDate(taskDate), [taskDate]);
   const editSelectedDate = useMemo(() => parseInputDate(editTaskDueDate), [editTaskDueDate]);
@@ -1280,6 +1386,18 @@ export default function CalendarPage() {
   const isStatusDirty = useMemo(
     () => !!selectedTask && editTaskStatus !== selectedTask.status,
     [editTaskStatus, selectedTask]
+  );
+  const canEditSelectedTask = useMemo(
+    () => (selectedTask ? canEditTask(selectedTask) : false),
+    [canEditTask, selectedTask]
+  );
+  const canChangeSelectedStatus = useMemo(
+    () => (selectedTask ? canChangeStatus(selectedTask) : false),
+    [canChangeStatus, selectedTask]
+  );
+  const canDeleteSelectedTask = useMemo(
+    () => (selectedTask ? canDeleteTask(selectedTask) : false),
+    [canDeleteTask, selectedTask]
   );
 
   useEffect(() => {
@@ -1364,17 +1482,8 @@ export default function CalendarPage() {
   };
 
   const handleAddTaskClick = () => {
-    if (isAdmin) {
-      setShowAddModal(true);
-      setAddTaskError('');
-      return;
-    }
-
-    setAddTaskError('Only admins can add tasks.');
-    setShake(true);
-
-    window.setTimeout(() => setShake(false), 450);
-    window.setTimeout(() => setAddTaskError(''), 2400);
+    setShowAddModal(true);
+    setAddTaskError('');
   };
 
   const handleAddDepartmentClick = () => {
@@ -1487,6 +1596,10 @@ export default function CalendarPage() {
       setFormError(`Description must be ${MAX_TASK_DESCRIPTION_LENGTH} characters or fewer.`);
       return;
     }
+    if (taskAssignee.length === 0) {
+      setFormError('Please select an assignee.');
+      return;
+    }
 
     const parsedDate = parseInputDate(taskDate);
     if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
@@ -1495,13 +1608,13 @@ export default function CalendarPage() {
     }
 
     try {
-      const assignees = normalizeAssignees(taskAssignees);
+      const assignees = normalizeAssignees(taskAssignee);
       const newTask = await tasksApi.createTask({
         name: trimmedName,
         description: trimmedDescription || undefined,
         priority: taskPriority,
         department: taskDepartment,
-        assignee: assignees.length ? assignees : undefined,
+        assignee: assignees,
         dueDate: parsedDate.toISOString(),
       });
 
@@ -1514,9 +1627,7 @@ export default function CalendarPage() {
       setTaskDate('');
       setTaskDepartment('');
       setTaskDescription('');
-      setTaskAssignees([]);
-      setAssigneeQuery('');
-      setShowAssigneeSuggestions(false);
+      setTaskAssignee([]);
       setShowDatePicker(false);
       setFormError('');
     } catch (err) {
@@ -1527,8 +1638,8 @@ export default function CalendarPage() {
 
   const handleStatusChange = (nextStatus: Task['status']) => {
     if (!selectedTask) return;
-    if (!isAdmin) {
-      setCompleteError('Only admins can update task status.');
+    if (!canChangeStatus(selectedTask)) {
+      setCompleteError('Only assignees or task creators can update task status.');
       window.setTimeout(() => setCompleteError(''), 2200);
       setShowStatusMenu(false);
       return;
@@ -1539,8 +1650,8 @@ export default function CalendarPage() {
 
   const handleConfirmStatusChange = useCallback(async () => {
     if (!selectedTask || !isStatusDirty) return;
-    if (!isAdmin) {
-      setCompleteError('Only admins can update task status.');
+    if (!canChangeStatus(selectedTask)) {
+      setCompleteError('Only assignees or task creators can update task status.');
       window.setTimeout(() => setCompleteError(''), 2200);
       return;
     }
@@ -1558,7 +1669,7 @@ export default function CalendarPage() {
       setCompleteError('Failed to update status. Please try again.');
       window.setTimeout(() => setCompleteError(''), 2200);
     }
-  }, [editTaskStatus, isAdmin, isStatusDirty, selectedTask]);
+  }, [canChangeStatus, editTaskStatus, isStatusDirty, selectedTask]);
 
   const handleCancelEdit = () => {
     if (!selectedTask) return;
@@ -1567,10 +1678,8 @@ export default function CalendarPage() {
     setEditTaskDepartment(selectedTask.department);
     setEditTaskDueDate(toInputDate(new Date(selectedTask.dueDateIso)));
     setEditTaskDescription(selectedTask.description ?? '');
-    setEditTaskAssignees(selectedTask.assignee);
+    setEditTaskAssignee(resolveAssigneeValues(selectedTask.assignee));
     setEditTaskStatus(selectedTask.status);
-    setEditAssigneeQuery('');
-    setShowEditAssigneeSuggestions(false);
     setEditFormError('');
     setShowEditDatePicker(false);
     setShowStatusMenu(false);
@@ -1579,8 +1688,8 @@ export default function CalendarPage() {
 
   const handleSaveTaskEdits = useCallback(async () => {
     if (!selectedTask) return;
-    if (!isAdmin) {
-      setEditFormError('Only admins can edit tasks.');
+    if (!canEditTask(selectedTask)) {
+      setEditFormError('Only task creators or team admins can edit task details.');
       return;
     }
     const trimmedName = editTaskName.trim();
@@ -1597,6 +1706,10 @@ export default function CalendarPage() {
       setEditFormError(`Description must be ${MAX_TASK_DESCRIPTION_LENGTH} characters or fewer.`);
       return;
     }
+    if (editTaskAssignee.length === 0) {
+      setEditFormError('Please select an assignee.');
+      return;
+    }
 
     const parsedDate = parseInputDate(editTaskDueDate);
     if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
@@ -1610,7 +1723,7 @@ export default function CalendarPage() {
         description: trimmedDescription || undefined,
         priority: editTaskPriority,
         department: editTaskDepartment,
-        assignee: normalizeAssignees(editTaskAssignees),
+        assignee: normalizeAssignees(editTaskAssignee),
         dueDate: parsedDate.toISOString(),
       };
       const updated = await tasksApi.updateTask(selectedTask.id, payload);
@@ -1624,13 +1737,13 @@ export default function CalendarPage() {
       setEditFormError('Failed to update task. Please try again.');
     }
   }, [
-    editTaskAssignees,
+    editTaskAssignee,
     editTaskDepartment,
     editTaskDescription,
     editTaskDueDate,
     editTaskName,
     editTaskPriority,
-    isAdmin,
+    canEditTask,
     selectedTask,
   ]);
 
@@ -1662,13 +1775,16 @@ export default function CalendarPage() {
   ]);
 
   const handleMarkComplete = (task: Task) => {
-    if (!isAdmin) return;
+    if (!canChangeStatus(task)) {
+      handleNonAdminAttempt();
+      return;
+    }
     setTaskToComplete(task);
     setShowCompleteModal(true);
   };
 
   const handleNonAdminAttempt = () => {
-    setCompleteError('Only admins can mark tasks complete.');
+    setCompleteError('Only assignees or task creators can update task status.');
     window.setTimeout(() => setCompleteError(''), 2200);
   };
 
@@ -1690,7 +1806,10 @@ export default function CalendarPage() {
   };
 
   const handleMarkIncomplete = (task: Task) => {
-    if (!isAdmin) return;
+    if (!canChangeStatus(task)) {
+      handleNonAdminAttempt();
+      return;
+    }
     setTaskToRestore(task);
     setShowIncompleteModal(true);
   };
@@ -1713,7 +1832,11 @@ export default function CalendarPage() {
   };
 
   const handleDeleteTask = (task: Task) => {
-    if (!isAdmin) return;
+    if (!canDeleteTask(task)) {
+      setCompleteError('Only task creators or team admins can delete tasks.');
+      window.setTimeout(() => setCompleteError(''), 2200);
+      return;
+    }
     setTaskToDelete(task);
     setShowDeleteModal(true);
   };
@@ -1872,7 +1995,7 @@ export default function CalendarPage() {
             sortKey={sortKey}
             sortDir={sortDir}
             onSort={handleSort}
-            isAdmin={isAdmin}
+            canChangeStatus={canChangeStatus}
             onComplete={handleMarkComplete}
             onNonAdmin={handleNonAdminAttempt}
             onOpenDetails={(task) => {
@@ -1883,7 +2006,7 @@ export default function CalendarPage() {
         ) : view === 'calendar' ? (
           <CalendarView
             filteredTasks={filteredTasks}
-            isAdmin={isAdmin}
+            canChangeStatus={canChangeStatus}
             onComplete={handleMarkComplete}
             onNonAdmin={handleNonAdminAttempt}
             onOpenDetails={(task) => {
@@ -1900,7 +2023,7 @@ export default function CalendarPage() {
             sortKey={sortKey}
             sortDir={sortDir}
             onSort={handleSort}
-            isAdmin={isAdmin}
+            canChangeStatus={canChangeStatus}
             onComplete={() => {}}
             showCompleteColumn={false}
             showIncompleteColumn={true}
@@ -2053,8 +2176,8 @@ export default function CalendarPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!isAdmin) {
-                      setCompleteError('Only admins can edit tasks.');
+                    if (!canEditSelectedTask) {
+                      setCompleteError('Only task creators or team admins can edit task details.');
                       window.setTimeout(() => setCompleteError(''), 2200);
                       return;
                     }
@@ -2065,7 +2188,7 @@ export default function CalendarPage() {
                     setIsEditingTask(true);
                     setEditFormError('');
                   }}
-                  disabled={!isAdmin}
+                  disabled={!canEditSelectedTask}
                   className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-neutral-200 text-neutral-500 transition-colors transition-transform hover:scale-[1.03] hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-neutral-100 disabled:text-neutral-300 disabled:hover:bg-transparent"
                   title={isEditingTask ? 'Cancel editing' : 'Edit task'}
                   aria-label={isEditingTask ? 'Cancel editing' : 'Edit task'}
@@ -2309,99 +2432,13 @@ export default function CalendarPage() {
                   <div className="font-semibold">Assigned To</div>
                   {isEditingTask ? (
                     <div className="mt-1">
-                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-2">
-                        {editTaskAssignees.map((assignee) => (
-                          <span
-                            key={assignee}
-                            className="inline-flex max-w-[180px] items-center gap-1 rounded-full bg-neutral-900 px-2 py-1 text-xs font-semibold text-white"
-                          >
-                            <span className="truncate" title={assignee}>
-                              {truncateText(assignee, ASSIGNEE_CHIP_MAX)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEditTaskAssignees((prev) =>
-                                  prev.filter((item) => item !== assignee)
-                                )
-                              }
-                              className="cursor-pointer text-white/70 hover:text-white"
-                              aria-label={`Remove ${assignee}`}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                        <input
-                          type="search"
-                          value={editAssigneeQuery}
-                          onChange={(event) => {
-                            setEditAssigneeQuery(event.target.value);
-                            setShowEditAssigneeSuggestions(true);
-                          }}
-                          maxLength={MAX_ASSIGNEE_NAME_LENGTH}
-                          onFocus={() => {
-                            if (editAssigneeQuery.trim().length >= 1)
-                              setShowEditAssigneeSuggestions(true);
-                          }}
-                          onKeyDown={(event) => {
-                            if (
-                              (event.key === 'Enter' || event.key === ',') &&
-                              editAssigneeQuery.trim()
-                            ) {
-                              event.preventDefault();
-                              const next = normalizeAssignees([
-                                ...editTaskAssignees,
-                                editAssigneeQuery.trim(),
-                              ]);
-                              setEditTaskAssignees(next);
-                              setEditAssigneeQuery('');
-                              setShowEditAssigneeSuggestions(false);
-                              return;
-                            }
-                            if (
-                              event.key === 'Backspace' &&
-                              !editAssigneeQuery &&
-                              editTaskAssignees.length
-                            ) {
-                              setEditTaskAssignees((prev) => prev.slice(0, -1));
-                            }
-                          }}
-                          onBlur={() =>
-                            setTimeout(() => setShowEditAssigneeSuggestions(false), 120)
-                          }
-                          className="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-1 text-sm text-neutral-700 focus:outline-none"
-                          placeholder={
-                            editTaskAssignees.length
-                              ? 'Add another person'
-                              : 'Search or type a name'
-                          }
-                        />
-                      </div>
-                      {editAssigneeMatches.length > 0 && showEditAssigneeSuggestions && (
-                        <div className="relative">
-                          <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-lg">
-                            {editAssigneeMatches.map((user) => (
-                              <button
-                                key={user.email}
-                                type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => {
-                                  setEditTaskAssignees((prev) =>
-                                    normalizeAssignees([...prev, user.name])
-                                  );
-                                  setEditAssigneeQuery('');
-                                  setShowEditAssigneeSuggestions(false);
-                                }}
-                                className="flex w-full cursor-pointer flex-col items-start px-3 py-2 text-left text-sm hover:bg-neutral-50"
-                              >
-                                <span className="font-semibold">{user.name}</span>
-                                <span className="text-xs text-neutral-500">{user.email}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <MultiSelectMenu
+                        values={editTaskAssignee}
+                        placeholder="Select assignee"
+                        options={assigneeOptions}
+                        onChange={setEditTaskAssignee}
+                        disabled={!isAdmin}
+                      />
                     </div>
                   ) : (
                     <div
@@ -2421,14 +2458,14 @@ export default function CalendarPage() {
                         if (isEditingTask) {
                           return;
                         }
-                        if (!isAdmin) {
-                          setCompleteError('Only admins can update task status.');
+                        if (!canChangeSelectedStatus) {
+                          setCompleteError('Only assignees or task creators can update task status.');
                           window.setTimeout(() => setCompleteError(''), 2200);
                           return;
                         }
                         setShowStatusMenu((prev) => !prev);
                       }}
-                      disabled={!isAdmin || isEditingTask}
+                      disabled={!canChangeSelectedStatus || isEditingTask}
                       className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition-colors hover:border-neutral-300 disabled:cursor-not-allowed disabled:border-neutral-100 disabled:text-neutral-300"
                       aria-haspopup="menu"
                       aria-expanded={showStatusMenu}
@@ -2514,7 +2551,7 @@ export default function CalendarPage() {
             )}
 
             <div className="mt-6 flex items-center justify-end gap-3">
-              {isAdmin && (
+              {canDeleteSelectedTask && (
                 <button
                   onClick={() => {
                     setShowTaskModal(false);
@@ -2544,7 +2581,7 @@ export default function CalendarPage() {
                 </>
               ) : (
                 <>
-                  {isAdmin && (
+                  {canChangeSelectedStatus && (
                     <button
                       onClick={() => void handleConfirmStatusChange()}
                       disabled={!isStatusDirty}
@@ -2759,94 +2796,19 @@ export default function CalendarPage() {
                 />
               </div>
 
-              {isAdmin && (
-                <div>
-                  <label className="mb-1 block text-sm font-semibold">Assign To (optional)</label>
-                  <div className="relative">
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2 py-2">
-                      {taskAssignees.map((assignee) => (
-                        <span
-                          key={assignee}
-                          className="inline-flex max-w-[180px] items-center gap-1 rounded-full bg-neutral-900 px-2 py-1 text-xs font-semibold text-white"
-                        >
-                          <span className="truncate" title={assignee}>
-                            {truncateText(assignee, ASSIGNEE_CHIP_MAX)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setTaskAssignees((prev) => prev.filter((item) => item !== assignee))
-                            }
-                            className="cursor-pointer text-white/70 hover:text-white"
-                            aria-label={`Remove ${assignee}`}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                      <input
-                        type="search"
-                        value={assigneeQuery}
-                        onChange={(e) => {
-                          setAssigneeQuery(e.target.value);
-                          setShowAssigneeSuggestions(true);
-                        }}
-                        maxLength={MAX_ASSIGNEE_NAME_LENGTH}
-                        onFocus={() => {
-                          if (assigneeQuery.trim().length >= 1) setShowAssigneeSuggestions(true);
-                        }}
-                        onKeyDown={(event) => {
-                          if (
-                            (event.key === 'Enter' || event.key === ',') &&
-                            assigneeQuery.trim()
-                          ) {
-                            event.preventDefault();
-                            const next = normalizeAssignees([
-                              ...taskAssignees,
-                              assigneeQuery.trim(),
-                            ]);
-                            setTaskAssignees(next);
-                            setAssigneeQuery('');
-                            setShowAssigneeSuggestions(false);
-                            return;
-                          }
-                          if (event.key === 'Backspace' && !assigneeQuery && taskAssignees.length) {
-                            setTaskAssignees((prev) => prev.slice(0, -1));
-                          }
-                        }}
-                        onBlur={() => setTimeout(() => setShowAssigneeSuggestions(false), 120)}
-                        className="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-1 text-sm text-neutral-700 focus:outline-none"
-                        placeholder={
-                          taskAssignees.length ? 'Add another person' : 'Search or type a name'
-                        }
-                      />
-                    </div>
-                    {assigneeMatches.length > 0 && showAssigneeSuggestions && (
-                      <div className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-lg">
-                        {assigneeMatches.map((user) => (
-                          <button
-                            key={user.email}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setTaskAssignees((prev) => normalizeAssignees([...prev, user.name]));
-                              setAssigneeQuery('');
-                              setShowAssigneeSuggestions(false);
-                            }}
-                            className="flex w-full cursor-pointer flex-col items-start px-3 py-2 text-left text-sm hover:bg-neutral-50"
-                          >
-                            <span className="font-semibold">{user.name}</span>
-                            <span className="text-xs text-neutral-500">{user.email}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Press Enter to add multiple assignees.
-                  </p>
-                </div>
-              )}
+              <div>
+                <label className="mb-1 block text-sm font-semibold">Assign To *</label>
+                <MultiSelectMenu
+                  values={taskAssignee}
+                  placeholder="Select assignee"
+                  options={assigneeOptions}
+                  onChange={setTaskAssignee}
+                  disabled={!isAdmin}
+                />
+                {!isAdmin ? (
+                  <p className="mt-1 text-xs text-neutral-500">Assigned to your account.</p>
+                ) : null}
+              </div>
 
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-semibold">Description (optional)</label>
@@ -2875,7 +2837,7 @@ export default function CalendarPage() {
                     setShowAddModal(false);
                     setFormError('');
                     setShowDatePicker(false);
-                    setShowAssigneeSuggestions(false);
+                    setTaskAssignee([]);
                   }}
                   className="cursor-pointer rounded-lg border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
                 >

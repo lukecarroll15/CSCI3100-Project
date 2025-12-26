@@ -7,6 +7,7 @@ const FileSchema = new Schema(
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    teamId: { type: Schema.Types.ObjectId, ref: 'Team', required: true, index: true },
     department: { type: String, default: 'General' },
     folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
     isAdminOnly: { type: Boolean, default: false },

@@ -9,6 +9,8 @@ import { env } from '../config/env';
 import { UserModel } from '../models/User';
 import { FileModel } from '../models/File';
 import FolderModel from '../models/Folder';
+import { TeamModel } from '../models/Team';
+import { TeamMembershipModel } from '../models/TeamMembership';
 
 const app = createApp();
 
@@ -22,6 +24,23 @@ function createSessionCookie(user: { _id: mongoose.Types.ObjectId; email: string
     expiresIn: '1h',
   });
   return `taskflow_session=${token}`;
+}
+
+async function createTeamFor(
+  user: { _id: mongoose.Types.ObjectId },
+  name = 'Demo Team'
+): Promise<mongoose.Types.ObjectId> {
+  const team = await TeamModel.create({ name, createdBy: user._id, inviteOnly: true });
+  await TeamMembershipModel.create({ teamId: team._id, userId: user._id, role: 'owner' });
+  return team._id;
+}
+
+async function addTeamMember(
+  teamId: mongoose.Types.ObjectId,
+  user: { _id: mongoose.Types.ObjectId },
+  role: 'member' | 'admin' = 'member'
+) {
+  await TeamMembershipModel.create({ teamId, userId: user._id, role });
 }
 
 before(async () => {
@@ -50,16 +69,21 @@ test('Feature: Department Management', async (t) => {
       role: 'admin',
     });
     const adminCookie = createSessionCookie(admin);
+    const teamId = await createTeamFor(admin);
 
     // Create
     const resCreate = await request(app)
       .post('/api/v1/departments')
       .set('Cookie', [adminCookie])
+      .set('X-Team-Id', teamId.toString())
       .send({ name: 'Engineering' });
     assert.equal(resCreate.status, 201);
 
     // List
-    const resList = await request(app).get('/api/v1/departments').set('Cookie', [adminCookie]);
+    const resList = await request(app)
+      .get('/api/v1/departments')
+      .set('Cookie', [adminCookie])
+      .set('X-Team-Id', teamId.toString());
     assert.equal(resList.status, 200);
     const departments = resList.body as DepartmentResponse[];
     assert.ok(departments.some((department) => department.name === 'Engineering'));
@@ -74,11 +98,13 @@ test('Feature: Folder Organization', async (t) => {
       role: 'admin',
     });
     const adminCookie = createSessionCookie(admin);
+    const teamId = await createTeamFor(admin);
 
     // 1. Create Root
     const resRoot = await request(app)
       .post('/api/v1/folders')
       .set('Cookie', [adminCookie])
+      .set('X-Team-Id', teamId.toString())
       .send({ name: 'Engineering', department: 'Engineering' });
 
     assert.equal(resRoot.status, 201);
@@ -88,11 +114,15 @@ test('Feature: Folder Organization', async (t) => {
     const resNested = await request(app)
       .post('/api/v1/folders')
       .set('Cookie', [adminCookie])
+      .set('X-Team-Id', teamId.toString())
       .send({ name: 'Docs', parentFolder: rootFolderId, department: 'Engineering' });
     assert.equal(resNested.status, 201);
 
     // 3. List Tree
-    const resList = await request(app).get('/api/v1/folders?all=true').set('Cookie', [adminCookie]);
+    const resList = await request(app)
+      .get('/api/v1/folders?all=true')
+      .set('Cookie', [adminCookie])
+      .set('X-Team-Id', teamId.toString());
 
     assert.equal(resList.status, 200);
     const folders = resList.body as FolderResponse[];
@@ -120,10 +150,13 @@ test('Feature: File Management & Security', async (t) => {
 
     const adminCookie = createSessionCookie(admin);
     const userCookie = createSessionCookie(user);
+    const teamId = await createTeamFor(admin);
+    await addTeamMember(teamId, user, 'member');
 
     const folder = await FolderModel.create({
       name: 'Public Docs',
       createdBy: admin._id,
+      teamId,
       department: 'General',
     });
 
@@ -132,6 +165,7 @@ test('Feature: File Management & Security', async (t) => {
     const resUpload = await request(app)
       .post('/api/v1/files') // Fixed URL
       .set('Cookie', [userCookie])
+      .set('X-Team-Id', teamId.toString())
       .field('department', 'General')
       .field('folder', folder._id.toString())
       .attach('file', buffer, 'test.txt');
@@ -146,6 +180,7 @@ test('Feature: File Management & Security', async (t) => {
       mimeType: 'text/plain',
       size: 100,
       uploadedBy: admin._id,
+      teamId,
       department: 'General',
       folder: folder._id, // Must be in the same folder to be tested
       isAdminOnly: true,
@@ -154,7 +189,8 @@ test('Feature: File Management & Security', async (t) => {
     // 3. User Check
     const userRes = await request(app)
       .get(`/api/v1/files?folder=${folder._id}`)
-      .set('Cookie', [userCookie]);
+      .set('Cookie', [userCookie])
+      .set('X-Team-Id', teamId.toString());
 
     const userFiles = userRes.body as FileResponse[];
     assert.ok(userFiles.some((file) => file.originalName === 'test.txt'));
@@ -166,7 +202,8 @@ test('Feature: File Management & Security', async (t) => {
     // 4. Admin Check
     const adminRes = await request(app)
       .get(`/api/v1/files?folder=${folder._id}`)
-      .set('Cookie', [adminCookie]);
+      .set('Cookie', [adminCookie])
+      .set('X-Team-Id', teamId.toString());
 
     const adminFiles = adminRes.body as FileResponse[];
     assert.ok(adminFiles.some((file) => file.originalName === 'test.txt'));

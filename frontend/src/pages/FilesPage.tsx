@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import mammoth from 'mammoth';
 import { useAuth } from '../auth/useAuth';
+import { useTeams } from '../teams/useTeams';
 import { ApiRequestError } from '../api/client';
 import { listFiles, uploadFile, deleteFile, getDownloadUrl, type FileItem } from '../api/files';
 import {
@@ -291,7 +292,9 @@ function FileIcon({ fileName, isFolder }: { fileName: string; isFolder?: boolean
 
 export default function FilesPage() {
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { activeTeamId, isTeamAdmin } = useTeams();
+  const isAdmin = isTeamAdmin;
+  const userId = user?.id;
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const uploadMenuRef = useRef<HTMLDivElement | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -345,6 +348,35 @@ export default function FilesPage() {
   const [hasHydrated, setHasHydrated] = useState(false);
   const restoreStateRef = useRef<Partial<FilesUiState> | null>(null);
 
+  const canDeleteFolder = useCallback(
+    (folder: FolderItem) => {
+      if (isAdmin) return true;
+      return folder.createdBy?._id === userId;
+    },
+    [isAdmin, userId]
+  );
+
+  const canDeleteFile = useCallback(
+    (file: FileItem) => {
+      if (isAdmin) return true;
+      return file.uploadedBy?._id === userId;
+    },
+    [isAdmin, userId]
+  );
+
+  useEffect(() => {
+    if (!activeTeamId) return;
+    folderFilesMapRef.current = {};
+    setFolderFilesMap({});
+    setCurrentFolderId(null);
+    setExpandedFolderIds([]);
+    setFiles([]);
+    setFolders([]);
+    setAllFolders([]);
+    setFolderTree([]);
+    setDepartments([]);
+  }, [activeTeamId]);
+
   const persistUiState = useCallback((partial: Partial<FilesUiState>) => {
     try {
       const stored = localStorage.getItem(FILES_UI_STATE_KEY);
@@ -373,15 +405,17 @@ export default function FilesPage() {
   }
 
   const loadDepartments = useCallback(async () => {
+    if (!activeTeamId) return;
     try {
       const data = await listDepartments();
       setDepartments(data);
     } catch (error) {
       console.error('Failed to load departments', error);
     }
-  }, []);
+  }, [activeTeamId]);
 
   const loadFolderTree = useCallback(async () => {
+    if (!activeTeamId) return;
     try {
       const allFolders = await listAllFolders();
       const tree = buildFolderTree(allFolders);
@@ -390,20 +424,25 @@ export default function FilesPage() {
     } catch (error) {
       console.error('Failed to load folder tree', error);
     }
-  }, []);
+  }, [activeTeamId]);
 
-  const loadFolderFiles = useCallback(async (folderId: string) => {
-    if (folderFilesMapRef.current[folderId]) return;
-    try {
-      const data = await listFiles(folderId, 'all');
-      folderFilesMapRef.current = { ...folderFilesMapRef.current, [folderId]: data };
-      setFolderFilesMap(folderFilesMapRef.current);
-    } catch (error) {
-      console.error('Failed to load folder files', error);
-    }
-  }, []);
+  const loadFolderFiles = useCallback(
+    async (folderId: string) => {
+      if (!activeTeamId) return;
+      if (folderFilesMapRef.current[folderId]) return;
+      try {
+        const data = await listFiles(folderId, 'all');
+        folderFilesMapRef.current = { ...folderFilesMapRef.current, [folderId]: data };
+        setFolderFilesMap(folderFilesMapRef.current);
+      } catch (error) {
+        console.error('Failed to load folder files', error);
+      }
+    },
+    [activeTeamId]
+  );
 
   const loadData = useCallback(async () => {
+    if (!activeTeamId) return;
     try {
       setLoading(true);
       setError(null);
@@ -420,7 +459,7 @@ export default function FilesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentFolderId, accessFilter, deptFilter]);
+  }, [accessFilter, activeTeamId, currentFolderId, deptFilter]);
 
   const orderedDepartments = useMemo(() => {
     const reserved = FOLDER_DEPARTMENT.toLowerCase();
@@ -1105,8 +1144,8 @@ export default function FilesPage() {
         </header>
 
         {/* Filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 lg:mb-8">
-          <div className="flex items-center gap-3">
+        <div className="mb-6 space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-3 lg:mb-8">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-bold uppercase text-neutral-400">File Type:</span>
             <div className="flex gap-1">
               {FILE_TYPES.map((type) => (
@@ -1125,7 +1164,7 @@ export default function FilesPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-bold uppercase text-neutral-400">Department:</span>
             <div className="flex flex-wrap gap-1">
               {orderedDepartments.map((dept) => {
@@ -1184,7 +1223,7 @@ export default function FilesPage() {
               ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-bold uppercase text-neutral-400">Access:</span>
             <div className="flex gap-1">
               {[
@@ -1295,26 +1334,28 @@ export default function FilesPage() {
                       </span>
                     </p>
 
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
-                      }}
-                      className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
-                      aria-label="Delete folder"
-                      title="Delete"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                        <path
-                          d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
+                    {canDeleteFolder(folder) ? (
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
+                        }}
+                        className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
+                        aria-label="Delete folder"
+                        title="Delete"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                          <path
+                            d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    ) : null}
                   </div>
                 ))}
 
@@ -1438,26 +1479,28 @@ export default function FilesPage() {
                       </span>
                     </p>
 
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setConfirmAction({ type: 'file', id: file._id, name: file.originalName });
-                      }}
-                      className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
-                      aria-label="Delete file"
-                      title="Delete"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                        <path
-                          d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
+                    {canDeleteFile(file) ? (
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setConfirmAction({ type: 'file', id: file._id, name: file.originalName });
+                        }}
+                        className="absolute right-2 top-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-neutral-400 opacity-0 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:opacity-100"
+                        aria-label="Delete file"
+                        title="Delete"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                          <path
+                            d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1537,26 +1580,32 @@ export default function FilesPage() {
                         {new Date(folder.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setConfirmAction({ type: 'folder', id: folder._id, name: folder.name });
-                          }}
-                          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
-                          aria-label="Delete folder"
-                          title="Delete"
-                        >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                            <path
-                              d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.6"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
+                        {canDeleteFolder(folder) ? (
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setConfirmAction({
+                                type: 'folder',
+                                id: folder._id,
+                                name: folder.name,
+                              });
+                            }}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                            aria-label="Delete folder"
+                            title="Delete"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                              <path
+                                d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -1675,34 +1724,36 @@ export default function FilesPage() {
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="1.6"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          </a>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setConfirmAction({
-                                type: 'file',
-                                id: file._id,
-                                name: file.originalName,
-                              });
-                            }}
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
-                            aria-label="Delete file"
-                            title="Delete"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                              <path
-                                d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.6"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </button>
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </a>
+                          {canDeleteFile(file) ? (
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setConfirmAction({
+                                  type: 'file',
+                                  id: file._id,
+                                  name: file.originalName,
+                                });
+                              }}
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                              aria-label="Delete file"
+                              title="Delete"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                                <path
+                                  d="M9 4h6m-8 3h10m-1 0-.6 11a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2L7 7"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

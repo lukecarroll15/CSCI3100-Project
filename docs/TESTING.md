@@ -3,17 +3,19 @@
 ## Document control
 
 - Document: TESTING
-- Version: 0.2
+- Version: 0.3
 - Status: Draft
-- Last updated: 2025-12-22
+- Last updated: 2025-12-24
 - Owner: Group 02
 
 ## 0) Quickstart (local)
 
-1. Provision an admin key (recommended manual provisioning)
+1. Provision an admin key
 
-- Set in `backend/.env`: `ADMIN_KEY_AUTO_SEED=false`
-- Generate a key:
+- Option A (explicit key): set in `backend/.env`:
+  - `ADMIN_KEY_AUTO_SEED=false`
+  - `INITIAL_ADMIN_KEY=DEMO-KEYS-2025`
+- Option B (CLI): set `ADMIN_KEY_AUTO_SEED=false` and generate a key:
 
 ```bash
 cd backend
@@ -36,7 +38,15 @@ npm run dev
 - Open **Admin Access**
 - Try invalid format -> expect format error
 - Try unknown key -> expect invalid key error
-- Try valid key -> expect Admin badge + Admin Dashboard button
+- Try valid key -> expect Admin Dashboard button (first activation becomes Team Owner)
+- Open **Admin Dashboard**
+- Create a team (e.g. "Alpha Team") as the Team Owner (key owner)
+- Invite another email as **Member** (email must already be registered)
+- Log out, log in as the invited user
+- Confirm the **Team** selector shows "Alpha Team" and data is scoped to that team
+- Optional: activate the same key with a second account to become a team admin, then verify the Admin Dashboard is available without re-entering a key and admins can invite members only
+- Optional: delete a team (owner only) by typing the exact team name
+ - Optional: assign a task to multiple assignees as an admin and verify each assignee can see it
 
 ## 1) Test plan
 
@@ -55,14 +65,18 @@ In scope (current release):
 - OTP auth APIs: `/auth/request-otp`, `/auth/verify-otp`, `/auth/logout`
 - GitHub OAuth login (manual)
 - Admin key activation and admin stats
-- Admin role UI indicators (badge, Admin Dashboard)
+- Teams: invite-only membership and team-scoped access
+- Team roles (owner/admin/member) and team delete
+- Task management (create, assign, update status)
+- Calendar and dashboard views
+- Files/folders with admin-only and private access
 - Health endpoints
 
 Out of scope (not implemented yet):
 
 - Key-file upload
-- Project/task management and board views
-- Attachments and dashboard data services
+- Kanban and timeline views
+- Attachment encryption at rest
 - Attachment encryption at rest
 - Performance/load testing
 
@@ -115,6 +129,10 @@ Test users:
 
 - UserA: normal user
 - UserB: normal user, activates admin key
+Test teams:
+
+- Team Alpha: created by the team owner (key owner)
+- Member user invited by email
 
 Test admin key:
 
@@ -126,6 +144,7 @@ Test admin key:
 - Max uses: `ADMIN_KEY_MAX_USES` (default 5).
 - Expiry: `ADMIN_KEY_TTL_DAYS` (default 30). Use `0` to disable expiry.
 - Auto-seed: `ADMIN_KEY_AUTO_SEED` (default true in dev). Runs only in non-production and only when no active key exists.
+- Explicit seed: `INITIAL_ADMIN_KEY` is always used when provided, even if `ADMIN_KEY_AUTO_SEED=false`.
 - Manual provisioning:
 
 ```bash
@@ -140,20 +159,61 @@ cd backend
 node scripts/checkLicence.mjs DEMO-KEYS-2025
 ```
 
-## 4) Coverage summary (course requirement)
+## 4) Team access policy (source of truth)
+
+- Teams are invite-only; members must be invited by email.
+- Invites only work for existing accounts; users must sign up first.
+- Invites auto-accept when the invited user calls `GET /api/v1/teams/mine` (frontend does this on load).
+- Team-scoped APIs require the `X-Team-Id` header (frontend sets it from the Team selector).
+- Team owners can create teams and invite admins; team admins can invite members only.
+- Team owner/admin can manage shared team data; member-created tasks are personal to the creator.
+- Members see assigned tasks plus their own personal tasks; admins see shared tasks (personal tasks stay private).
+
+## 5) Manual API checks (optional, CLI)
+
+1. Log in via OTP in the browser to obtain the session cookie.
+2. Use the cookie in curl:
+
+```bash
+curl -s -X POST http://localhost:5001/api/v1/teams \
+  -H "Content-Type: application/json" \
+  -H "Cookie: taskflow_session=YOUR_COOKIE" \
+  -d '{"name":"Alpha Team"}'
+```
+
+3. Invite a member:
+
+```bash
+curl -s -X POST http://localhost:5001/api/v1/teams/TEAM_ID/invites \
+  -H "Content-Type: application/json" \
+  -H "Cookie: taskflow_session=YOUR_COOKIE" \
+  -d '{"email":"member@example.com","role":"member"}'
+```
+
+4. Access team-scoped data:
+
+```bash
+curl -s http://localhost:5001/api/v1/tasks \
+  -H "Cookie: taskflow_session=YOUR_COOKIE" \
+  -H "X-Team-Id: TEAM_ID"
+```
+
+## 6) Coverage summary (course requirement)
 
 | Component                        | Covered? | How tested                                  | Notes                               |
 | -------------------------------- | -------- | ------------------------------------------- | ----------------------------------- |
 | OTP auth (request/verify/logout) | Yes      | `backend/src/test/auth.test.ts` + manual UI | Core auth path                      |
 | GitHub OAuth                     | Partial  | Manual tests in browser                     | Requires OAuth config               |
 | Admin key activation             | Yes      | `backend/src/test/admin.test.ts` + UI smoke | Format, unknown, expired, exhausted |
-| Admin role UI indicators         | Partial  | Manual UI tests                             | Server-side resource gating TBD     |
+| Teams + invites                  | Yes      | `backend/src/test/teams.test.ts`            | Auto-join on `/teams/mine`          |
+| Admin Dashboard roles            | Yes      | Manual UI tests                             | Owner vs admin separation           |
+| Tasks + assignment rules         | Yes      | Manual UI tests                             | Personal vs shared task visibility  |
+| Files/folders access control     | Yes      | Manual UI tests                             | Admin-only and private access       |
 | Key-file upload                  | No       | Not implemented                             | Future work                         |
-| Projects/tasks/boards            | No       | Not implemented                             | Future work                         |
-| Attachments + encryption         | No       | Not implemented                             | Future work                         |
+| Attachment encryption            | No       | Not implemented                             | Future work                         |
 | Performance testing              | No       | Not implemented                             | Future work                         |
 
-## 5) Automated tests
+## 7) Automated tests
 
 Run backend tests from repo root:
 
@@ -169,7 +229,7 @@ Test files:
 
 Note: tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
 
-## 6) Representative test cases
+## 8) Representative test cases
 
 ### Admin key activation (licence/pro lock demo)
 
@@ -183,6 +243,14 @@ Note: tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
 | TC-LIC-06 | Negative | Submit key when already admin | 400 ALREADY_ADMIN       |
 | TC-LIC-07 | Security | GET admin stats as user       | 403 FORBIDDEN           |
 | TC-LIC-08 | Positive | GET admin stats as admin      | 200 with admin data     |
+
+### Team membership (invite-only)
+
+| ID        | Type     | Steps                                 | Expected                             |
+| --------- | -------- | ------------------------------------- | ------------------------------------ |
+| TC-TEAM-01| Positive | Admin creates team + invite by email  | 201 invite created                   |
+| TC-TEAM-02| Positive | Invited user calls `/teams/mine`      | Team appears in list, membership set |
+| TC-TEAM-03| Negative | Non-member accesses team-scoped APIs  | 403 NOT_TEAM_MEMBER                  |
 
 ### OTP authentication
 
@@ -211,13 +279,31 @@ UI-ADMIN-01 Admin Access UI:
 2. Open **Admin Access** panel.
 3. Enter `ABC123` -> expect format error.
 4. Enter `AAAA-BBBB-CCCC` (unknown) -> expect invalid key error.
-5. Enter a valid key -> expect Admin badge and Admin Dashboard button.
+5. Enter a valid key -> expect Admin Dashboard button and owner/admin list.
 
 OTP UI:
 
 1. Sign up with OTP.
 2. Log out and log in again with OTP.
 3. Verify the session badge and access to protected pages.
+
+UI-TASK-01 Task assignment rules:
+
+1. As a team admin, create a task and assign it to a member.
+2. Log in as that member -> the task is visible and status can be updated, but details cannot be edited.
+3. Log in as another member -> the task is not visible.
+4. As a member, create a personal task -> only the creator can see/edit it (admins do not).
+
+UI-FILE-01 File access and delete rules:
+
+1. Admin uploads an admin-only file -> members cannot see it.
+2. Member uploads a private file -> only the uploader can see it.
+3. Member can delete their own files/folders but not others.
+
+UI-DASH-01 Dashboard visibility:
+
+1. Admin sees shared task/file updates in the dashboard.
+2. Member sees assigned tasks, their own personal tasks, and accessible files.
 
 ## 8) Troubleshooting
 

@@ -51,6 +51,15 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
     headers['Content-Type'] = 'application/json';
   }
 
+  try {
+    const teamId = localStorage.getItem('taskflow_active_team_id');
+    if (teamId) {
+      headers['X-Team-Id'] = teamId;
+    }
+  } catch {
+    // Ignore storage access errors (private mode, blocked storage).
+  }
+
   const method = (init.method ?? 'GET').toUpperCase();
   const canRetry = method === 'GET';
   const request = () =>

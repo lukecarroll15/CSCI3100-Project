@@ -54,7 +54,13 @@ export async function handleVerifyOtp(req: Request, res: Response, next: NextFun
 
     setSessionCookie(res, { userId, email: user.email, role: user.role });
     res.json({
-      user: { id: userId, email: user.email, displayName: user.displayName, role: user.role },
+      user: {
+        id: userId,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        adminLevel: user.adminLevel ?? null,
+      },
     });
   } catch (err) {
     next(err);

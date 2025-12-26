@@ -30,6 +30,7 @@ const taskSchema = new mongoose.Schema(
     },
     completedAt: Date,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    teamId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: true },
   },
   { timestamps: true }
 );
@@ -43,6 +44,17 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', userSchema);
+
+const teamSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    inviteOnly: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
+
+const Team = mongoose.model('Team', teamSchema);
 
 // Sample task templates by department
 const taskTemplates = {
@@ -266,6 +278,16 @@ async function seedTasks() {
 
     console.log(`Using admin user: ${adminUser.email}`);
 
+    let team = await Team.findOne();
+    if (!team) {
+      team = await Team.create({
+        name: 'TaskFlow HQ',
+        createdBy: adminUser._id,
+        inviteOnly: true,
+      });
+      console.log(`Created team "${team.name}"`);
+    }
+
     // Fetch all users from database
     console.log('Fetching employee list...');
     const userList = await User.find({});
@@ -290,6 +312,7 @@ async function seedTasks() {
     const tasksWithCreator = tasks.map((task) => ({
       ...task,
       createdBy: adminUser._id,
+      teamId: team._id,
     }));
 
     console.log(`Inserting ${tasksWithCreator.length} sample tasks...`);

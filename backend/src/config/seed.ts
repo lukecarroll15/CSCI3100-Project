@@ -15,14 +15,16 @@ import {
  */
 export async function seedInitialActivationKey(): Promise<void> {
   if (env.NODE_ENV === 'production') return;
-  if (!env.ADMIN_KEY_AUTO_SEED) return;
 
   const exists = await LicenceKeyModel.exists({ redeemed: false, revoked: false });
   if (exists) return;
 
   const fromEnvRaw = process.env.INITIAL_ADMIN_KEY;
   const fromEnv = typeof fromEnvRaw === 'string' ? normalizeAdminKey(fromEnvRaw) : '';
-  const key = fromEnv && isValidAdminKeyFormat(fromEnv) ? fromEnv : generateRandomAdminKey12();
+  const hasExplicitKey = Boolean(fromEnv && isValidAdminKeyFormat(fromEnv));
+  if (!env.ADMIN_KEY_AUTO_SEED && !hasExplicitKey) return;
+
+  const key = hasExplicitKey ? fromEnv : generateRandomAdminKey12();
   const expiresAt = getAdminKeyExpiryDate(env.ADMIN_KEY_TTL_DAYS);
 
   await LicenceKeyModel.create({

@@ -6,7 +6,7 @@ const TaskSchema = new Schema(
     description: { type: String, default: '' },
     priority: { type: String, enum: ['high', 'medium', 'low'], required: true },
     department: { type: String, required: true, trim: true },
-    assignee: { type: [String], default: ['Unassigned'] },
+    assignee: { type: [String], default: [] },
     dueDate: { type: Date, required: true },
     status: {
       type: String,
@@ -16,6 +16,7 @@ const TaskSchema = new Schema(
     completedAt: { type: Date },
     editedAt: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    teamId: { type: Schema.Types.ObjectId, ref: 'Team', required: true, index: true },
   },
   { timestamps: true }
 );

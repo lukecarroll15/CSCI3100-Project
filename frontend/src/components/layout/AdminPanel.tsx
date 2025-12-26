@@ -5,6 +5,7 @@ import Input from '../ui/Input';
 import { IconCheck, IconX } from '../ui/Icons';
 import { activateLicense } from '../../api/admin';
 import { useAuth } from '../../auth/useAuth';
+import { useTeams } from '../../teams/useTeams';
 import { ApiRequestError } from '../../api/client';
 import { formatAdminKey, isValidAdminKeyFormat } from '../../utils/adminKey';
 
@@ -17,10 +18,11 @@ function getErrorMessage(err: unknown): string {
 export default function AdminPanel() {
   const [adminKey, setAdminKey] = useState('');
   const { user, refreshMe } = useAuth();
+  const { isTeamAdmin } = useTeams();
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || isTeamAdmin;
 
   const handleKeyChange = (e: ChangeEvent<HTMLInputElement>) => {
     setAdminKey(formatAdminKey(e.target.value));
