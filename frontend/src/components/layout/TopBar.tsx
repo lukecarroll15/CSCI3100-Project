@@ -2,13 +2,7 @@ import { useEffect, useState } from 'react';
 import SelectMenu from '../ui/SelectMenu';
 import { getAdminStats, type AdminStats } from '../../api/admin';
 import { ApiRequestError } from '../../api/client';
-import {
-  createTeam,
-  createTeamInvite,
-  deleteTeam,
-  type TeamInviteRole,
-  type TeamSummary,
-} from '../../api/teams';
+import { createTeamInvite, deleteTeam, type TeamSummary } from '../../api/teams';
 
 type Props = {
   userName?: string;
@@ -62,13 +56,7 @@ function AdminDashboardModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  const [teamName, setTeamName] = useState('');
-  const [teamCreateError, setTeamCreateError] = useState('');
-  const [teamCreateNotice, setTeamCreateNotice] = useState('');
-  const [teamCreateLoading, setTeamCreateLoading] = useState(false);
-
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<TeamInviteRole>('member');
   const [inviteError, setInviteError] = useState('');
   const [inviteNotice, setInviteNotice] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -79,6 +67,7 @@ function AdminDashboardModal({
   const [deleteError, setDeleteError] = useState('');
   const [deleteNotice, setDeleteNotice] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (!ownedTeams.length) return;
@@ -92,46 +81,16 @@ function AdminDashboardModal({
   }, [activeTeamId, deleteTeamId, ownedTeams]);
 
   useEffect(() => {
-    if (!isSystemOwner && inviteRole !== 'member') {
-      setInviteRole('member');
+    if (!isOpen) {
+      setShowDeleteModal(false);
     }
-  }, [inviteRole, isSystemOwner]);
+  }, [isOpen]);
 
   useEffect(() => {
     setDeleteTeamName('');
     setDeleteError('');
     setDeleteNotice('');
   }, [deleteTeamId]);
-
-  const handleCreateTeam = async () => {
-    if (!isSystemOwner) {
-      setTeamCreateError('Only the system owner can create teams.');
-      return;
-    }
-    const name = teamName.trim();
-    if (!name) {
-      setTeamCreateError('Team name is required');
-      return;
-    }
-    setTeamCreateError('');
-    setTeamCreateNotice('');
-    setTeamCreateLoading(true);
-    try {
-      const created = await createTeam(name);
-      setTeamCreateNotice('Team created');
-      setTeamName('');
-      if (onTeamsRefresh) {
-        await onTeamsRefresh();
-      }
-      if (onTeamChange) {
-        onTeamChange(created.id);
-      }
-    } catch (err) {
-      setTeamCreateError(getErrorMessage(err));
-    } finally {
-      setTeamCreateLoading(false);
-    }
-  };
 
   const handleInvite = async () => {
     const email = inviteEmail.trim();
@@ -147,8 +106,7 @@ function AdminDashboardModal({
     setInviteNotice('');
     setInviteLoading(true);
     try {
-      const roleToUse: TeamInviteRole = isSystemOwner ? inviteRole : 'member';
-      await createTeamInvite(activeTeam.id, email, roleToUse);
+      await createTeamInvite(activeTeam.id, email, 'member');
       setInviteNotice('Invite created. The user joins after logging in.');
       setInviteEmail('');
       if (onTeamsRefresh) {
@@ -182,6 +140,7 @@ function AdminDashboardModal({
       await deleteTeam(deleteTeamId, team.name);
       setDeleteNotice('Team deleted.');
       setDeleteTeamName('');
+      setShowDeleteModal(false);
       if (onTeamsRefresh) {
         await onTeamsRefresh();
       }
@@ -198,13 +157,26 @@ function AdminDashboardModal({
     }
   };
 
+  const openDeleteModal = () => {
+    setDeleteError('');
+    setDeleteNotice('');
+    setDeleteTeamName('');
+    if (!deleteTeamId && ownedTeams.length > 0) {
+      setDeleteTeamId(ownedTeams[0].id);
+    }
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteError('');
+    setDeleteNotice('');
+    setDeleteTeamName('');
+  };
+
   const ownedTeamOptions = ownedTeams.map((team) => ({ value: team.id, label: team.name }));
   const deleteTarget = ownedTeams.find((team) => team.id === deleteTeamId) ?? null;
   const isDeleteMatch = deleteTarget ? deleteTeamName.trim() === deleteTarget.name : false;
-  const inviteRoleOptions = [
-    { value: 'member', label: 'Member' },
-    { value: 'admin', label: 'Admin' },
-  ];
 
   if (!isOpen) return null;
 
@@ -345,37 +317,6 @@ function AdminDashboardModal({
               </div>
             </div>
 
-            {isSystemOwner ? (
-              <div className="mb-6">
-                <h3 className="mb-3 font-bold">Create Team</h3>
-                {teamCreateError ? (
-                  <p className="mb-2 text-sm font-medium text-red-600">{teamCreateError}</p>
-                ) : teamCreateNotice ? (
-                  <p className="mb-2 text-sm font-medium text-green-700">{teamCreateNotice}</p>
-                ) : null}
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input
-                    type="text"
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Team name"
-                    className="flex-1 rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={handleCreateTeam}
-                    disabled={teamCreateLoading}
-                    className="rounded-md border-2 border-gray-800 bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {teamCreateLoading ? 'Creating...' : 'Create'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-6 text-sm text-gray-500">
-                Only the system owner can create teams.
-              </div>
-            )}
-
             <div className="mb-6">
               <h3 className="mb-3 font-bold">Invite Member</h3>
               {inviteError ? (
@@ -398,19 +339,9 @@ function AdminDashboardModal({
                     placeholder="member@example.com"
                     className="flex-1 rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
                   />
-                  {isSystemOwner ? (
-                    <SelectMenu
-                      value={inviteRole}
-                      placeholder="Role"
-                      options={inviteRoleOptions}
-                      onChange={(next) => setInviteRole(next as TeamInviteRole)}
-                      className="sm:w-[150px]"
-                    />
-                  ) : (
-                    <div className="flex items-center rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 sm:w-[150px]">
-                      Member only
-                    </div>
-                  )}
+                  <div className="flex items-center rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 sm:w-[150px]">
+                    Member only
+                  </div>
                 </div>
                 <button
                   onClick={handleInvite}
@@ -425,37 +356,15 @@ function AdminDashboardModal({
             {ownedTeams.length > 0 ? (
               <div className="mb-6">
                 <h3 className="mb-3 font-bold text-red-600">Delete Team</h3>
-                {deleteError ? (
-                  <p className="mb-2 text-sm font-medium text-red-600">{deleteError}</p>
-                ) : deleteNotice ? (
-                  <p className="mb-2 text-sm font-medium text-green-700">{deleteNotice}</p>
-                ) : null}
-                <div className="space-y-2">
-                  <SelectMenu
-                    value={deleteTeamId}
-                    placeholder="Select team"
-                    options={ownedTeamOptions}
-                    onChange={setDeleteTeamId}
-                  />
-                  <input
-                    type="text"
-                    value={deleteTeamName}
-                    onChange={(event) => setDeleteTeamName(event.target.value)}
-                    onPaste={(event) => event.preventDefault()}
-                    onCopy={(event) => event.preventDefault()}
-                    onCut={(event) => event.preventDefault()}
-                    onDrop={(event) => event.preventDefault()}
-                    placeholder={deleteTarget ? `Type "${deleteTarget.name}" to confirm` : 'Team name'}
-                    className="w-full rounded-md border-2 border-red-200 bg-white px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
-                  />
-                  <button
-                    onClick={handleDeleteTeam}
-                    disabled={!isDeleteMatch || deleteLoading}
-                    className="w-full rounded-md border-2 border-red-500 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:-translate-y-0.5 hover:bg-red-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {deleteLoading ? 'Deleting...' : 'Delete Team'}
-                  </button>
-                </div>
+                <p className="mb-3 text-sm text-gray-600">
+                  Permanently remove a team and revoke its activation key.
+                </p>
+                <button
+                  onClick={openDeleteModal}
+                  className="w-full cursor-pointer rounded-md border-2 border-red-500 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:-translate-y-0.5 hover:bg-red-100 hover:shadow-sm"
+                >
+                  Open Delete Window
+                </button>
               </div>
             ) : null}
 
@@ -468,6 +377,66 @@ function AdminDashboardModal({
           </>
         )}
       </div>
+      {showDeleteModal ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#07000b]/40 p-4"
+          onClick={(event) => {
+            event.stopPropagation();
+            closeDeleteModal();
+          }}
+        >
+          <div
+            className="animate-modal-in w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-neutral-900">Delete Team</h3>
+            <p className="mt-1 text-sm text-neutral-600">
+              Type the exact team name to confirm. This action is permanent.
+            </p>
+            {deleteError ? (
+              <p className="mt-3 text-sm font-medium text-red-600">{deleteError}</p>
+            ) : deleteNotice ? (
+              <p className="mt-3 text-sm font-medium text-green-700">{deleteNotice}</p>
+            ) : null}
+            <div className="mt-4 space-y-2">
+              <SelectMenu
+                value={deleteTeamId}
+                placeholder="Select team"
+                options={ownedTeamOptions}
+                onChange={setDeleteTeamId}
+              />
+              <input
+                type="text"
+                value={deleteTeamName}
+                onChange={(event) => setDeleteTeamName(event.target.value)}
+                onPaste={(event) => event.preventDefault()}
+                onCopy={(event) => event.preventDefault()}
+                onCut={(event) => event.preventDefault()}
+                onDrop={(event) => event.preventDefault()}
+                placeholder={deleteTarget ? `Type "${deleteTarget.name}" to confirm` : 'Team name'}
+                className="w-full rounded-md border-2 border-red-200 bg-white px-3 py-2 text-sm focus:border-red-300 focus:outline-none"
+              />
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="cursor-pointer rounded-lg border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTeam}
+                disabled={!isDeleteMatch || deleteLoading}
+                className="cursor-pointer rounded-lg border-2 border-red-500 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-all hover:-translate-y-0.5 hover:bg-red-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Team'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

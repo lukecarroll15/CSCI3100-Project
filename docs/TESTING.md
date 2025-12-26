@@ -38,15 +38,15 @@ npm run dev
 - Open **Admin Access**
 - Try invalid format -> expect format error
 - Try unknown key -> expect invalid key error
-- Try valid key -> expect Admin Dashboard button (first activation becomes Team Owner)
-- Open **Admin Dashboard**
-- Create a team (e.g. "Alpha Team") as the Team Owner (key owner)
+- Try valid key -> expect the Team Setup window (first activation becomes Team Owner)
+- Enter a team name (e.g. "Alpha Team") and submit
+- Confirm the Admin Dashboard button appears after team creation
 - Invite another email as **Member** (email must already be registered)
 - Log out, log in as the invited user
 - Confirm the **Team** selector shows "Alpha Team" and data is scoped to that team
 - Optional: activate the same key with a second account to become a team admin, then verify the Admin Dashboard is available without re-entering a key and admins can invite members only
 - Optional: delete a team (owner only) by typing the exact team name
- - Optional: assign a task to multiple assignees as an admin and verify each assignee can see it
+- Optional: assign a task to multiple assignees as an admin and verify each assignee can see it
 
 ## 1) Test plan
 
@@ -129,7 +129,7 @@ Test users:
 
 - UserA: normal user
 - UserB: normal user, activates admin key
-Test teams:
+  Test teams:
 
 - Team Alpha: created by the team owner (key owner)
 - Member user invited by email
@@ -165,7 +165,7 @@ node scripts/checkLicence.mjs DEMO-KEYS-2025
 - Invites only work for existing accounts; users must sign up first.
 - Invites auto-accept when the invited user calls `GET /api/v1/teams/mine` (frontend does this on load).
 - Team-scoped APIs require the `X-Team-Id` header (frontend sets it from the Team selector).
-- Team owners can create teams and invite admins; team admins can invite members only.
+- Team owners can create teams and share activation keys; team admins can invite members only.
 - Team owner/admin can manage shared team data; member-created tasks are personal to the creator.
 - Members see assigned tasks plus their own personal tasks; admins see shared tasks (personal tasks stay private).
 
@@ -187,7 +187,7 @@ curl -s -X POST http://localhost:5001/api/v1/teams \
 curl -s -X POST http://localhost:5001/api/v1/teams/TEAM_ID/invites \
   -H "Content-Type: application/json" \
   -H "Cookie: taskflow_session=YOUR_COOKIE" \
-  -d '{"email":"member@example.com","role":"member"}'
+  -d '{"email":"member@example.com"}'
 ```
 
 4. Access team-scoped data:
@@ -246,11 +246,11 @@ Note: tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
 
 ### Team membership (invite-only)
 
-| ID        | Type     | Steps                                 | Expected                             |
-| --------- | -------- | ------------------------------------- | ------------------------------------ |
-| TC-TEAM-01| Positive | Admin creates team + invite by email  | 201 invite created                   |
-| TC-TEAM-02| Positive | Invited user calls `/teams/mine`      | Team appears in list, membership set |
-| TC-TEAM-03| Negative | Non-member accesses team-scoped APIs  | 403 NOT_TEAM_MEMBER                  |
+| ID         | Type     | Steps                                | Expected                             |
+| ---------- | -------- | ------------------------------------ | ------------------------------------ |
+| TC-TEAM-01 | Positive | Admin creates team + invite by email | 201 invite created                   |
+| TC-TEAM-02 | Positive | Invited user calls `/teams/mine`     | Team appears in list, membership set |
+| TC-TEAM-03 | Negative | Non-member accesses team-scoped APIs | 403 NOT_TEAM_MEMBER                  |
 
 ### OTP authentication
 
@@ -279,7 +279,7 @@ UI-ADMIN-01 Admin Access UI:
 2. Open **Admin Access** panel.
 3. Enter `ABC123` -> expect format error.
 4. Enter `AAAA-BBBB-CCCC` (unknown) -> expect invalid key error.
-5. Enter a valid key -> expect Admin Dashboard button and owner/admin list.
+5. Enter a valid key -> expect Team Setup window, then Admin Dashboard button after naming the team.
 
 OTP UI:
 

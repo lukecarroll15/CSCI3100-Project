@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { AppError } from '../errors/AppError';
-import { TeamModel } from '../models/Team';
 import { TeamMembershipModel, type TeamRole } from '../models/TeamMembership';
 
 export type TeamContext = { teamId: string; role: TeamRole };

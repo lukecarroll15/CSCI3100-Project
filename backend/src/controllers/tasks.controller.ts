@@ -124,8 +124,8 @@ export async function handleGetTasks(req: Request, res: Response, next: NextFunc
       })
     );
 
-    const filteredTasks = visibleTasks.filter(
-      (task): task is (typeof tasks)[number] => Boolean(task)
+    const filteredTasks = visibleTasks.filter((task): task is (typeof tasks)[number] =>
+      Boolean(task)
     );
     return res.json({ tasks: filteredTasks });
   } catch (err) {
@@ -266,8 +266,7 @@ export async function handleUpdateTask(req: Request, res: Response, next: NextFu
     if (nextAssignees) {
       if (creatorMeta.role === 'member') {
         const isSelfOnly =
-          nextAssignees.length === 1 &&
-          isAssigneeMatch(nextAssignees, creatorMeta.identifiers);
+          nextAssignees.length === 1 && isAssigneeMatch(nextAssignees, creatorMeta.identifiers);
         if (!isSelfOnly) {
           throw new AppError(
             400,

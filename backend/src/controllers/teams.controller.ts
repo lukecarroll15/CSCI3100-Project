@@ -39,7 +39,6 @@ function assertTeamId(teamId: string) {
   }
 }
 
-
 async function loadMembership(teamId: string, userId: string) {
   return TeamMembershipModel.findOne({ teamId, userId }).lean();
 }
@@ -92,11 +91,7 @@ export async function handleCreateTeam(req: Request, res: Response, next: NextFu
 
     const pendingKey = await getPendingOwnerKey(auth.userId);
     if (!pendingKey) {
-      throw new AppError(
-        403,
-        'FORBIDDEN',
-        'Team creation requires ownership of an activation key'
-      );
+      throw new AppError(403, 'FORBIDDEN', 'Team creation requires ownership of an activation key');
     }
 
     const parsed = CreateTeamSchema.parse(req.body);
@@ -113,10 +108,7 @@ export async function handleCreateTeam(req: Request, res: Response, next: NextFu
       role: 'owner',
     });
 
-    await LicenceKeyModel.updateOne(
-      { _id: pendingKey._id },
-      { $set: { teamId: team._id } }
-    );
+    await LicenceKeyModel.updateOne({ _id: pendingKey._id }, { $set: { teamId: team._id } });
 
     res.status(201).json({
       team: {
@@ -161,9 +153,7 @@ export async function handleListMyTeams(req: Request, res: Response, next: NextF
           role: membership.role,
         };
       })
-      .filter(
-        (team): team is { id: string; name: string; role: TeamRole } => Boolean(team)
-      );
+      .filter((team): team is { id: string; name: string; role: TeamRole } => Boolean(team));
 
     res.json({ teams });
   } catch (err) {
@@ -189,7 +179,11 @@ export async function handleListTeamMembers(req: Request, res: Response, next: N
       .lean();
 
     const payload = members.map((member) => {
-      const user = member.userId as unknown as { _id: Types.ObjectId; displayName: string; email: string };
+      const user = member.userId as unknown as {
+        _id: Types.ObjectId;
+        displayName: string;
+        email: string;
+      };
       return {
         userId: user?._id?.toString(),
         displayName: user?.displayName ?? '',

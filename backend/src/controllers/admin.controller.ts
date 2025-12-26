@@ -41,7 +41,9 @@ type LicenceKeyCreateOptions = {
 async function createLicenceKeyRecord(options: LicenceKeyCreateOptions) {
   const key = await generateUniqueLicenceKey();
   const expiresAt =
-    options.expiresAt !== undefined ? options.expiresAt : getAdminKeyExpiryDate(env.ADMIN_KEY_TTL_DAYS);
+    options.expiresAt !== undefined
+      ? options.expiresAt
+      : getAdminKeyExpiryDate(env.ADMIN_KEY_TTL_DAYS);
   return LicenceKeyModel.create({
     key,
     ownerUserId: options.ownerUserId ?? null,
@@ -68,10 +70,7 @@ async function rotateExpiredTeamKey(key: {
     usesCount: key.usesCount ?? 0,
     maxUses: key.maxUses ?? env.ADMIN_KEY_MAX_USES,
   });
-  await LicenceKeyModel.updateOne(
-    { _id: key._id },
-    { $set: { revoked: true, redeemed: true } }
-  );
+  await LicenceKeyModel.updateOne({ _id: key._id }, { $set: { revoked: true, redeemed: true } });
   return nextKey.toObject();
 }
 
@@ -233,9 +232,7 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
     const members = await TeamMembershipModel.find({ teamId })
       .populate('userId', 'displayName email')
       .lean();
-    const ownerMember =
-      members.find((member) => member.role === 'owner') ??
-      null;
+    const ownerMember = members.find((member) => member.role === 'owner') ?? null;
     const adminMembers = members.filter((member) => member.role === 'admin');
     const adminCount = (ownerMember ? 1 : 0) + adminMembers.length;
 
@@ -268,8 +265,8 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
       const filtered = validKeys.filter(
         (key) => !expiredKeys.some((expired) => expired._id.equals(key._id))
       );
-      activeKeys = [...filtered, ...replacements].sort((a, b) =>
-        b.createdAt.getTime() - a.createdAt.getTime()
+      activeKeys = [...filtered, ...replacements].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
       );
     }
 
@@ -277,8 +274,8 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
       adminCount,
       owner: ownerMember
         ? {
-            displayName: (ownerMember.userId as { displayName?: string; email?: string })
-              ?.displayName ?? '',
+            displayName:
+              (ownerMember.userId as { displayName?: string; email?: string })?.displayName ?? '',
             email: (ownerMember.userId as { displayName?: string; email?: string })?.email ?? '',
           }
         : null,
@@ -290,9 +287,7 @@ export async function handleGetAdminStats(req: Request, res: Response, next: Nex
         req.team?.role === 'owner'
           ? activeKeys.map((k) => {
               const maxUses =
-                typeof k.maxUses === 'number' && k.maxUses > 0
-                  ? k.maxUses
-                  : env.ADMIN_KEY_MAX_USES;
+                typeof k.maxUses === 'number' && k.maxUses > 0 ? k.maxUses : env.ADMIN_KEY_MAX_USES;
               const usesCount = typeof k.usesCount === 'number' ? k.usesCount : 0;
               return {
                 key: k.key,

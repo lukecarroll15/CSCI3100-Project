@@ -1724,10 +1724,10 @@ export default function FilesPage() {
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="1.6"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </a>
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </a>
                           {canDeleteFile(file) ? (
                             <button
                               onClick={(event) => {

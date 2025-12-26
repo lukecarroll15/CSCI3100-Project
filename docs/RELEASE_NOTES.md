@@ -18,8 +18,9 @@
 ### Added
 
 - Team owner vs team admin separation (first key owns the team)
+- Required Team Setup window for first-time key owners
 - Team deletion with exact-name confirmation
-- Member-only invites for non-owner admins
+- Member-only invites in the Admin Dashboard
 - Task assignment required (members locked to self)
 - Multi-assignee tasks for admins/owners
 - File and folder delete permissions (owners/admins only)
@@ -45,7 +46,7 @@
 
 - Team model with invite-only membership
 - Team-scoped tasks/files/folders/departments (requires `X-Team-Id`)
-- Admin Dashboard actions to create teams and send invites
+- Admin Dashboard actions to send invites
 - Team selector in the top bar
 - Auto-join on login for invited users
 - Backend tests for teams/invites

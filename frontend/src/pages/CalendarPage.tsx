@@ -114,8 +114,8 @@ const STATUS_STYLES: Record<Task['status'], { text: string; pill: string }> = {
   },
 };
 
-const normalizeDepartmentName = (value: string) => {
-  const trimmed = value.trim();
+const normalizeDepartmentName = (value?: string | null) => {
+  const trimmed = value?.trim() ?? '';
   if (!trimmed) return '';
   return trimmed
     .split(/[\s-]+/)
@@ -129,9 +129,9 @@ const normalizeDepartmentName = (value: string) => {
     .join(' ');
 };
 
-const normalizeAssignees = (assignee: string | string[] | undefined) => {
+const normalizeAssignees = (assignee: string | string[] | null | undefined) => {
   const list = Array.isArray(assignee) ? assignee : assignee ? [assignee] : [];
-  const cleaned = list.map((item) => item.trim()).filter(Boolean);
+  const cleaned = list.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
   return Array.from(new Set(cleaned)).filter((name) => name.toLowerCase() !== 'unassigned');
 };
 
@@ -150,8 +150,10 @@ const truncateText = (value: string, maxLength: number) => {
   return `${value.slice(0, safeLength)}...`;
 };
 
-const formatDisplayDate = (date: Date) =>
-  date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const formatDisplayDate = (date: Date) => {
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 const toInputDate = (date: Date) => {
   const year = date.getFullYear();
@@ -900,7 +902,7 @@ export default function CalendarPage() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [addTaskError, setAddTaskError] = useState('');
-  const [shake, setShake] = useState(false);
+  const [shake, _setShake] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [taskName, setTaskName] = useState('');
   const [taskPriority, setTaskPriority] = useState<Priority | ''>('');
@@ -1149,9 +1151,9 @@ export default function CalendarPage() {
       assigneeOptions.some((option) => option.value === value)
     );
     if (valid.length === 0) {
-      const selfOption =
-        selfName &&
-        assigneeOptions.find((option) => option.value.toLowerCase() === selfName.toLowerCase());
+      const selfOption = selfName
+        ? assigneeOptions.find((option) => option.value.toLowerCase() === selfName.toLowerCase())
+        : undefined;
       setTaskAssignee([selfOption?.value ?? assigneeOptions[0].value]);
       return;
     }
@@ -1366,7 +1368,7 @@ export default function CalendarPage() {
     setShowEditDatePicker(false);
     setIsEditingTask(false);
     setShowStatusMenu(false);
-  }, [resolveAssigneeValue, selectedTask, showTaskModal, isEditingTask]);
+  }, [resolveAssigneeValues, selectedTask, showTaskModal, isEditingTask]);
 
   const selectedDate = useMemo(() => parseInputDate(taskDate), [taskDate]);
   const editSelectedDate = useMemo(() => parseInputDate(editTaskDueDate), [editTaskDueDate]);
@@ -2459,7 +2461,9 @@ export default function CalendarPage() {
                           return;
                         }
                         if (!canChangeSelectedStatus) {
-                          setCompleteError('Only assignees or task creators can update task status.');
+                          setCompleteError(
+                            'Only assignees or task creators can update task status.'
+                          );
                           window.setTimeout(() => setCompleteError(''), 2200);
                           return;
                         }
@@ -2622,7 +2626,6 @@ export default function CalendarPage() {
                   setShowAddModal(false);
                   setFormError('');
                   setShowDatePicker(false);
-                  setShowAssigneeSuggestions(false);
                 }}
                 className="cursor-pointer rounded-md border border-neutral-200 px-2 py-1 text-sm font-semibold text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
               >

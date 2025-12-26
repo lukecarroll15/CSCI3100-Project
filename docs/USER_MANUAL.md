@@ -64,6 +64,8 @@ Admin access is enabled by entering a valid activation key or by being promoted 
 Expected result:
 
 - First activation becomes the Team Owner for that key; later activations become Team Admins.
+- After the first activation, a required Team Setup window appears. The owner must name the team
+  before continuing, and the window reappears after refresh or logout until it is completed.
 - The Admin Dashboard button becomes available in the top bar.
 - If you are promoted to team admin, the Admin Access panel shows as active without re-entering a key.
 
@@ -88,10 +90,15 @@ Team roles:
 
 How to get access:
 
-1. The team owner (key owner) opens **Admin Dashboard** and creates a team.
+1. The team owner (key owner) completes the Team Setup window and names the team.
 2. The owner or team admin invites your registered email.
 3. You log in (OTP or GitHub). On first load, the app auto-accepts the invite.
 4. Use the **Team** selector in the top bar to pick the active team.
+
+Notes:
+
+- If the team owner has not finished naming the team, other accounts cannot activate the same key.
+- Invites add members only; team admins are added by activating the team key.
 
 Expected result: tasks/files shown are scoped to the selected team.
 

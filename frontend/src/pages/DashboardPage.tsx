@@ -1236,7 +1236,7 @@ export default function DashboardPage() {
     setEditFormError('');
     setShowEditDatePicker(false);
     setShowStatusMenu(false);
-  }, [resolveAssigneeValue, selectedTask, showTaskModal, isEditingTask]);
+  }, [resolveAssigneeValues, selectedTask, showTaskModal, isEditingTask]);
 
   useEffect(() => {
     if (!showTaskModal && !showUpdatesModal && !showDeleteModal) return;
@@ -1854,7 +1854,9 @@ export default function DashboardPage() {
                           return;
                         }
                         if (!canChangeSelectedStatus) {
-                          setCompleteError('Only assignees or task creators can update task status.');
+                          setCompleteError(
+                            'Only assignees or task creators can update task status.'
+                          );
                           window.setTimeout(() => setCompleteError(''), 2200);
                           return;
                         }

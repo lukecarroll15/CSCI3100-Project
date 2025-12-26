@@ -72,10 +72,7 @@ test('Teams: invite creates membership on /teams/mine', async () => {
     .set('Cookie', sessionCookieFor(user));
 
   assert.equal(mineRes.status, 200);
-  assert.ok(
-    Array.isArray(mineRes.body?.teams),
-    'Expected teams list in /teams/mine response'
-  );
+  assert.ok(Array.isArray(mineRes.body?.teams), 'Expected teams list in /teams/mine response');
   assert.ok(
     mineRes.body.teams.some((t: { id: string }) => t.id === String(team._id)),
     'Expected invited team in /teams/mine response'

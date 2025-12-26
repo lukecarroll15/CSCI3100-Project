@@ -30,10 +30,9 @@ export async function getMyTeams(): Promise<TeamSummary[]> {
 }
 
 export async function createTeam(name: string): Promise<TeamSummary> {
-  const res = await apiPostJson<{ team: { id: string; name: string }; role: TeamRole }>(
-    '/teams',
-    { name }
-  );
+  const res = await apiPostJson<{ team: { id: string; name: string }; role: TeamRole }>('/teams', {
+    name,
+  });
   return { id: res.team.id, name: res.team.name, role: res.role };
 }
 

@@ -79,9 +79,9 @@ Minimum required values in `backend/.env`:
 
 ### Team invite policy
 
-| Variable             | Default | Description                           |
-| -------------------- | ------- | ------------------------------------- |
-| TEAM_INVITE_TTL_DAYS | 7       | Days until a pending invite expires   |
+| Variable             | Default | Description                         |
+| -------------------- | ------- | ----------------------------------- |
+| TEAM_INVITE_TTL_DAYS | 7       | Days until a pending invite expires |
 
 Invites only succeed for emails that already have a TaskFlow account.
 

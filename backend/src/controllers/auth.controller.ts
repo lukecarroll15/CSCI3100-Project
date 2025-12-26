@@ -17,6 +17,7 @@ import {
   isGithubConfigured,
 } from '../services/githubOAuth.service';
 import { clearSessionCookie, setSessionCookie } from '../middleware/auth';
+import { LicenceKeyModel } from '../models/LicenceKey';
 
 const PurposeSchema = z.enum(['login', 'signup']).default('login');
 
@@ -51,6 +52,14 @@ export async function handleVerifyOtp(req: Request, res: Response, next: NextFun
 
     type WithId = { _id: { toString(): string } };
     const userId = (user as unknown as WithId)._id.toString();
+    const pendingKey = await LicenceKeyModel.findOne({
+      ownerUserId: userId,
+      teamId: null,
+      revoked: false,
+      redeemed: false,
+    })
+      .select('_id')
+      .lean();
 
     setSessionCookie(res, { userId, email: user.email, role: user.role });
     res.json({
@@ -60,6 +69,7 @@ export async function handleVerifyOtp(req: Request, res: Response, next: NextFun
         displayName: user.displayName,
         role: user.role,
         adminLevel: user.adminLevel ?? null,
+        pendingTeamCreation: Boolean(pendingKey),
       },
     });
   } catch (err) {

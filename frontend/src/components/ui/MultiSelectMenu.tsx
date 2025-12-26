@@ -71,9 +71,7 @@ export default function MultiSelectMenu({
         aria-expanded={open}
         aria-disabled={disabled}
       >
-        <span className={values.length > 0 ? 'text-neutral-700' : 'text-neutral-400'}>
-          {label}
-        </span>
+        <span className={values.length > 0 ? 'text-neutral-700' : 'text-neutral-400'}>{label}</span>
         <svg viewBox="0 0 24 24" className="h-4 w-4 text-neutral-400" aria-hidden="true">
           <path
             d="M7 10l5 5 5-5"
