@@ -54,13 +54,13 @@ export async function handleActivateLicence(req: Request, res: Response, next: N
     const key = await LicenceKeyModel.findOne({ key: normalized });
 
     if (!key) {
-      throw new AppError(400, 'INVALID_CODE', 'Invalid activation code');
+      throw new AppError(400, 'INVALID_CODE', 'Invalid Activation Key');
     }
 
     if (key.expiresAt && key.expiresAt.getTime() <= Date.now()) {
       key.revoked = true;
       await key.save();
-      throw new AppError(400, 'KEY_EXPIRED', 'This activation code has expired');
+      throw new AppError(400, 'KEY_EXPIRED', 'This activation key has expired');
     }
 
     const limit =
