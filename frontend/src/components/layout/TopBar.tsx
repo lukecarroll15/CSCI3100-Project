@@ -520,7 +520,7 @@ export default function TopBar({
         />
         <div className="flex items-center gap-2 rounded-md border-2 border-gray-500 bg-gray-50 px-3 py-2 text-sm sm:px-4 sm:text-base">
           <span className="max-w-[180px] truncate" title={userName}>
-            {userName}
+            [{userName}]
           </span>
         </div>
         {teamLoading ? (
@@ -558,14 +558,14 @@ export default function TopBar({
             onClick={handleOpenDashboard}
             className="cursor-pointer rounded-md border-2 border-blue-600 bg-blue-50 px-4 py-2 text-base font-semibold text-blue-600 transition-all hover:-translate-y-0.5 hover:border-blue-700 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200"
           >
-            Admin Dashboard
+            [Admin Dashboard]
           </button>
         )}
         <button
           onClick={onLogout}
           className="cursor-pointer rounded-md border-2 border-gray-800 bg-white px-4 py-2 text-sm transition-all hover:-translate-y-0.5 hover:bg-gray-100 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200 sm:px-5 sm:text-base"
         >
-          Logout
+          [Log Out]
         </button>
       </div>
 

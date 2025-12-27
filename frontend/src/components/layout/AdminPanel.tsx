@@ -53,7 +53,7 @@ export default function AdminPanel() {
     <div className="mx-5 mb-5 rounded-2xl border border-neutral-200 bg-white/90 p-5 shadow-sm">
       <div className="mb-3 text-center">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-          Admin Access
+          [Admin Access]
         </p>
         <div className="mt-2 h-px w-full bg-neutral-200" />
       </div>
