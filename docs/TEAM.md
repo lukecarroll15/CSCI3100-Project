@@ -5,7 +5,7 @@
 - Document: TEAM
 - Version: 1.0.0
 - Status: Final
-- Last updated: 2025-12-26
+- Last updated: 2025-12-27
 - Owner: Group 02
 
 ## Course info
@@ -21,7 +21,7 @@
 | Luke Carroll    | 1155255972 |
 | Archie Hamilton | 1155256512 |
 | Chun Wang YIP   | 1155192968 |
-| Hou Fong CHAN   | TBD        |
+| Hou Fong CHAN   | 1155200045 |
 
 ## Contribution summary
 

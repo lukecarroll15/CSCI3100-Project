@@ -2,7 +2,7 @@
 
 TaskFlow is a Jira-inspired web app for team tasks, files, and lightweight collaboration. This repository is the official course project deliverable for CSCI3100 Software Engineering.
 
-Release: v1.0.0 (2025-12-26)
+Release: v1.0.0 (2025-12-27)
 
 ## Product highlights
 
@@ -28,14 +28,6 @@ Implemented in this release:
 - Dashboard: activity feed (tasks + files), daily updates modal, due-today task list.
 - Canvas: personal board, autosave, export.
 - Health check endpoints.
-
-Not implemented (out of scope for v1.0.0):
-
-- Key-file upload.
-- Kanban and timeline views.
-- Discussion board / direct messaging.
-- Attachment encryption.
-- Advanced analytics and external integrations.
 
 ## Teams and roles
 

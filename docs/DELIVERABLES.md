@@ -5,7 +5,7 @@
 - Document: DELIVERABLES
 - Version: 1.0.0
 - Status: Final
-- Last updated: 2025-12-26
+- Last updated: 2025-12-27
 - Owner: Group 02
 
 This file maps repository documents to the course submission PDFs and to the project requirements. Update this file before each submission.
@@ -33,7 +33,7 @@ This file maps repository documents to the course submission PDFs and to the pro
   - Meeting minutes
   - Decision log updates
   - Testing evidence (screenshots/logs)
-  - Links to GitHub issues and PRs
+  - Links to GitHub issues and PRs (if available)
 
 ## 3) Source control (R6)
 
@@ -52,7 +52,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 
 - [ ] All PDFs are updated and named correctly in `docs/submission/`
 - [ ] Docs are accurate to the current release scope (v1.0.0)
-- [ ] Requirement IDs match the SRS
+- [ ] Requirement IDs match `docs/TRACEABILITY.md`
 - [ ] Tests include plan, cases, and results with evidence
 - [ ] User manual matches visible behavior of the product
 - [ ] Release notes list added/changed/fixed/known issues

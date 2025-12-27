@@ -5,7 +5,7 @@
 - Document: RELEASE_NOTES
 - Version: 1.0.0
 - Status: Final
-- Last updated: 2025-12-26
+- Last updated: 2025-12-27
 - Owner: Group 02
 
 ## Versioning policy
@@ -13,7 +13,7 @@
 - Semantic versioning: MAJOR.MINOR.PATCH
 - Current release: v1.0.0
 
-## Version 1.0.0 - TaskFlow v1.0.0 (2025-12-26)
+## Version 1.0.0 - TaskFlow v1.0.0 (2025-12-27)
 
 ### Added
 
@@ -43,14 +43,6 @@
 
 - GitHub OAuth requires environment configuration.
 - Canvas is single-user (no real-time collaboration).
-
-### Out of scope (not implemented)
-
-- Key-file upload.
-- Kanban and timeline views.
-- Discussion board / direct messaging.
-- Attachment encryption.
-- Performance/load testing.
 
 ## Prior milestones (summary)
 

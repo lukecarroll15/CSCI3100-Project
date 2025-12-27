@@ -5,7 +5,7 @@
 - Document: ENVIRONMENT
 - Version: 1.0.0
 - Status: Final
-- Last updated: 2025-12-26
+- Last updated: 2025-12-27
 - Owner: Group 02
 
 ## 1) Purpose

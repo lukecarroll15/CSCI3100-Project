@@ -5,7 +5,7 @@
 - Document: TESTING
 - Version: 1.0.0
 - Status: Final
-- Last updated: 2025-12-26
+- Last updated: 2025-12-27
 - Owner: Group 02
 
 ## 0) Quickstart (local)
@@ -64,14 +64,6 @@ In scope (v1.0.0):
 - Department management (admin-only)
 - Canvas (nodes, connectors, autosave, export)
 - Health endpoints
-
-Out of scope (not implemented in v1.0.0):
-
-- Key-file upload
-- Kanban and timeline views
-- Discussion board / direct messaging
-- Attachment encryption
-- Performance/load testing
 
 ### 1.3 Test levels and strategy
 
