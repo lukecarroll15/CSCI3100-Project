@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { Schema, model, type InferSchemaType, Types } from 'mongoose';
 
 const TeamSchema = new Schema(
   {
@@ -11,5 +11,5 @@ const TeamSchema = new Schema(
 
 TeamSchema.index({ name: 1 }, { unique: true });
 
-export type TeamDoc = InferSchemaType<typeof TeamSchema>;
+export type TeamDoc = InferSchemaType<typeof TeamSchema> & { _id: Types.ObjectId };
 export const TeamModel = model('Team', TeamSchema);

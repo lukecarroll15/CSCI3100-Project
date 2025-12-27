@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { Schema, model, type InferSchemaType, Types } from 'mongoose';
 
 const DepartmentSchema = new Schema(
   {
@@ -11,5 +11,5 @@ const DepartmentSchema = new Schema(
 
 DepartmentSchema.index({ teamId: 1, name: 1 }, { unique: true });
 
-export type DepartmentDoc = InferSchemaType<typeof DepartmentSchema>;
+export type DepartmentDoc = InferSchemaType<typeof DepartmentSchema> & { _id: Types.ObjectId };
 export const DepartmentModel = model('Department', DepartmentSchema);
