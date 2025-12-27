@@ -30,9 +30,9 @@ Log any icons, images, or fonts used in the UI.
 
 If AI tools were used for any deliverable (code, docs, diagrams), record them here.
 
-| Tool                       | Scope of use                                                                            | Human review performed | Reviewer     | Date       |
-| -------------------------- | --------------------------------------------------------------------------------------- | ---------------------- | ------------ | ---------- |
-| OpenAI ChatGPT (Codex CLI) | Dashboard + Calendar + Files UI updates, access control checks, documentation alignment | Yes                    | Project team | 2025-12-25 |
+| Tool                       | Scope of use                                                           | Human review performed | Reviewer     | Date       |
+| -------------------------- | ---------------------------------------------------------------------- | ---------------------- | ------------ | ---------- |
+| OpenAI ChatGPT (Codex CLI) | Testing automation (backend, frontend, E2E), doc alignment and updates | Yes                    | Project team | 2025-12-26 |
 
 ## 5) Notes
 

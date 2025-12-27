@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { Schema, model, type InferSchemaType, Types } from 'mongoose';
 
 const FileSchema = new Schema(
   {
@@ -16,5 +16,5 @@ const FileSchema = new Schema(
   { timestamps: true }
 );
 
-export type FileDoc = InferSchemaType<typeof FileSchema>;
+export type FileDoc = InferSchemaType<typeof FileSchema> & { _id: Types.ObjectId };
 export const FileModel = model('File', FileSchema);

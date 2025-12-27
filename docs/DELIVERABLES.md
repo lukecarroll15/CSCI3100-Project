@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: DELIVERABLES
-- Version: 0.6
-- Status: Draft
-- Last updated: 2025-12-25
+- Version: 1.0.0
+- Status: Final
+- Last updated: 2025-12-26
 - Owner: Group 02
 
 This file maps repository documents to the course submission PDFs and to the project requirements. Update this file before each submission.
@@ -38,7 +38,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 ## 3) Source control (R6)
 
 - GitHub repository with history: branches, commits, PRs
-- Release tags (recommended): `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.x.x`
+- Release tags (recommended): `v0.1.0`, `v0.2.0`, `v0.3.0`, `v1.0.0`
 
 ## 4) Internal supporting docs (not submitted as PDFs)
 
@@ -51,7 +51,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 ## 5) Final submission checklist
 
 - [ ] All PDFs are updated and named correctly in `docs/submission/`
-- [ ] Docs are accurate to the current release scope
+- [ ] Docs are accurate to the current release scope (v1.0.0)
 - [ ] Requirement IDs match the SRS
 - [ ] Tests include plan, cases, and results with evidence
 - [ ] User manual matches visible behavior of the product

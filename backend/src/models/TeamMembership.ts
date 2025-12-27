@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { Schema, model, type InferSchemaType, Types } from 'mongoose';
 
 export const TEAM_ROLES = ['owner', 'admin', 'member'] as const;
 export type TeamRole = (typeof TEAM_ROLES)[number];
@@ -14,5 +14,7 @@ const TeamMembershipSchema = new Schema(
 
 TeamMembershipSchema.index({ teamId: 1, userId: 1 }, { unique: true });
 
-export type TeamMembershipDoc = InferSchemaType<typeof TeamMembershipSchema>;
+export type TeamMembershipDoc = InferSchemaType<typeof TeamMembershipSchema> & {
+  _id: Types.ObjectId;
+};
 export const TeamMembershipModel = model('TeamMembership', TeamMembershipSchema);

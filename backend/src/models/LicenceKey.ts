@@ -1,4 +1,4 @@
-import { Schema, model, type InferSchemaType } from 'mongoose';
+import { Schema, model, type InferSchemaType, Types } from 'mongoose';
 
 const LicenceKeySchema = new Schema(
   {
@@ -16,5 +16,5 @@ const LicenceKeySchema = new Schema(
   { timestamps: true }
 );
 
-export type LicenceKeyDoc = InferSchemaType<typeof LicenceKeySchema>;
+export type LicenceKeyDoc = InferSchemaType<typeof LicenceKeySchema> & { _id: Types.ObjectId };
 export const LicenceKeyModel = model('LicenceKey', LicenceKeySchema);

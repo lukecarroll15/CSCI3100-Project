@@ -7,7 +7,7 @@
     "node": "20.x"
   },
   "scripts": {
-    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
     "mail:up": "docker compose -f docker-compose.mailpit.yml up -d",
     "mail:down": "docker compose -f docker-compose.mailpit.yml down",
     "dev": "concurrently -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -23,11 +23,16 @@
     "typecheck:backend": "npm --prefix backend run typecheck",
     "typecheck:frontend": "npm --prefix frontend run typecheck",
     "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "test:frontend": "npm --prefix frontend run test",
+    "playwright:install": "playwright install",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "test:all": "npm run test:backend && npm run test:frontend && npm run test:e2e",
     "test:backend": "npm --prefix backend run test",
     "lint": "npm run lint:backend && npm run lint:frontend",
     "test": "npm run test:backend"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@types/multer": "^2.0.0",
     "concurrently": "^9.2.0",
     "prettier": "^3.6.2",

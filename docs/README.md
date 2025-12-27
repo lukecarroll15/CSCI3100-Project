@@ -1,6 +1,6 @@
 # Documentation Index
 
-This folder contains the official course deliverables and supporting documentation for TaskFlow. Each file is written so a marker or teammate can understand the system, set it up, and verify scope.
+This folder contains the official course deliverables and supporting documentation for TaskFlow v1.0.0. Each file is written so a marker or teammate can understand the system, set it up, and verify scope.
 
 ## Main deliverables (submission sources)
 
