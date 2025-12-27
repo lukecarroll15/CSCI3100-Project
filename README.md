@@ -13,6 +13,7 @@ Release: v1.0.0 (2025-12-26)
 - Files with standard/private/admin-only visibility, plus folders with standard/private visibility (50MB upload limit).
 - Dashboard with activity feed, daily updates, and due-today reminders.
 - Personal Canvas board with autosave and export.
+- Branded TaskFlow logo on login and app header, plus favicon.
 
 ## Current scope (v1.0.0)
 

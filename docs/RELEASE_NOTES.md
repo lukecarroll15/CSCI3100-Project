@@ -23,6 +23,7 @@
 - Files: folder tree, grid/list views, access filters, upload/download/preview.
 - Dashboard: activity feed, daily updates, due-today list.
 - Canvas personal board with autosave and export.
+- TaskFlow logo in the login header and app top bar, plus favicon support.
 - Automated testing stack: backend + frontend + E2E smoke tests.
 
 ### Changed

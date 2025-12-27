@@ -13,7 +13,6 @@ type Props = {
   userName?: string;
   userRole?: 'user' | 'admin';
   userAdminLevel?: 'owner' | 'admin' | null;
-  companyName?: string;
   onLogout: () => void;
   teams?: TeamSummary[];
   activeTeamId?: string | null;
@@ -482,7 +481,6 @@ export default function TopBar({
   userName = 'User',
   userRole = 'user',
   userAdminLevel = null,
-  companyName = 'TaskFlow',
   onLogout,
   teams = [],
   activeTeamId = null,
@@ -513,11 +511,13 @@ export default function TopBar({
   };
 
   return (
-    <header className="relative flex flex-wrap items-center gap-3 border-b-2 border-gray-800 bg-white px-4 py-3 sm:px-6 md:h-[70px] md:flex-nowrap md:px-8">
+    <header className="flex flex-wrap items-center gap-3 border-b-2 border-gray-800 bg-white px-4 py-3 sm:px-6 md:h-[70px] md:flex-nowrap md:px-8">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-gray-800 bg-gray-100 text-xs">
-          U
-        </div>
+        <img
+          src="/brand/taskflow-logo.svg"
+          alt="TaskFlow"
+          className="h-10 w-10 rounded-lg border-2 border-gray-800 bg-white p-1"
+        />
         <div className="flex items-center gap-2 rounded-md border-2 border-gray-500 bg-gray-50 px-3 py-2 text-sm sm:px-4 sm:text-base">
           <span className="max-w-[180px] truncate" title={userName}>
             {userName}
@@ -550,12 +550,6 @@ export default function TopBar({
             No team
           </div>
         )}
-      </div>
-
-      <div className="order-3 w-full text-center md:absolute md:left-1/2 md:order-none md:w-auto md:-translate-x-1/2">
-        <div className="inline-flex rounded-md border-2 border-gray-800 px-4 py-1 text-xl font-bold sm:text-2xl">
-          {companyName}
-        </div>
       </div>
 
       <div className="ml-auto flex items-center gap-3">
