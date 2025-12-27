@@ -248,10 +248,11 @@ export default function LoginPage() {
         <div className="relative isolate flex min-h-screen flex-col bg-white">
           <header className="absolute left-8 right-8 top-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* Icon can be swapped later */}
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-900 text-white shadow-sm">
-                <span className="text-sm font-semibold">TF</span>
-              </div>
+              <img
+                src="/brand/taskflow-logo.svg"
+                alt="TaskFlow"
+                className="h-10 w-10 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm"
+              />
               <span className="text-lg font-semibold tracking-tight text-neutral-900">
                 [TaskFlow]
               </span>

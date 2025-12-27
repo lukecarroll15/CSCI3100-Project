@@ -58,7 +58,6 @@ export default function AppLayout({ sidebarExtra }: { sidebarExtra?: React.React
         userName={user?.displayName || user?.email || 'User'}
         userRole={(user?.role as 'user' | 'admin') ?? 'user'}
         userAdminLevel={user?.adminLevel ?? null}
-        companyName={(import.meta.env.VITE_APP_NAME as string | undefined) ?? 'TaskFlow'}
         onLogout={handleLogout}
         teams={teams}
         activeTeamId={activeTeamId}
