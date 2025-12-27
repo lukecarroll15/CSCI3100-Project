@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: USER_MANUAL
-- Version: 0.6
-- Status: Draft
-- Last updated: 2025-12-25
+- Version: 1.0.0
+- Status: Final
+- Last updated: 2025-12-26
 - Owner: Group 02
 
 ## 1) Audience
@@ -44,9 +44,9 @@ Expected result: you are signed in.
 
 ## 6) Log in (GitHub)
 
-If **Continue with GitHub** is available:
+If **Login with GitHub** is available:
 
-1. Click **Continue with GitHub**.
+1. Click **Login with GitHub**.
 2. Approve the OAuth request in GitHub.
 3. You are redirected back to TaskFlow and signed in.
 
@@ -60,7 +60,7 @@ Team roles:
 
 - **Team owner** (first activation key use): can create the team, view activation keys, invite members or admins, and delete the team.
 - **Team admin** (additional key users or promoted admins): can open Admin Dashboard, invite members, and manage shared team tasks, files, and departments.
-- **Team member**: can view assigned tasks and personal tasks, upload standard/private files, and delete their own files/folders.
+- **Team member**: can view assigned tasks plus personal tasks, upload standard/private files, and delete own files/folders.
 
 How to get access:
 
@@ -118,7 +118,7 @@ The Dashboard is the first screen after login. It summarizes activity for your a
 ### Activity Feed
 
 - Shows task creation, task updates, status changes, and file uploads.
-- Items are grouped by day using the activity timestamp (not the task due date).
+- Items are grouped by day using the activity timestamp.
 - Metadata shows due date, assignees, and department for tasks.
 - Use **All / Tasks / Files** to filter the list and the search bar to narrow results.
 - Click an item:
@@ -137,10 +137,6 @@ The Dashboard is the first screen after login. It summarizes activity for your a
 - Shows tasks due today that are not completed.
 - Tasks are ordered by priority.
 - Click a task to open **Task Details** and update it as usual.
-
-### Reminder about saved state
-
-Dashboard search, filter, scroll position, and open panels are saved locally so they restore on refresh.
 
 ## 11) Tasks and calendar
 
@@ -186,17 +182,12 @@ Updating status:
 2. Use the status dropdown.
 3. Click **Confirm**.
 
-Notes:
-
-- Task names in the calendar are shortened after 9 characters; the full name is visible in Task Details and list view.
-- Task Details shows an edited indicator when a task has been updated.
-
 ## 12) Departments
 
 - Departments are shared across Calendar and Files.
 - Team admins/owners can add or remove departments.
-- Removing a department also removes related tasks and files after confirmation.
-- Department names automatically capitalize **IT** and **HR**.
+- **General** and **Workspace** cannot be deleted.
+- Deleting a department that has tasks or files requires confirmation; those items are removed after confirmation.
 
 ## 13) Files and folders
 
@@ -204,7 +195,7 @@ Views and navigation:
 
 - Use the left folder tree to navigate.
 - Switch between **Grid** and **List** views.
-- Only the file grid/list scrolls; filters and navigation stay visible.
+- Filters and navigation stay visible while files scroll.
 
 Filters:
 
@@ -214,13 +205,15 @@ Filters:
 
 Access rules:
 
-- Standard: visible to all team members.
-- Admin-only: visible to team admins/owners.
-- Private: visible only to the uploader.
+- **Standard**: visible to all team members.
+- **Admin-only**: visible to team admins/owners.
+- **Private**: visible only to the uploader.
+- **Private folders**: visible only to the folder creator.
 
 Common actions:
 
 - **Upload**: choose department and visibility before selecting a file.
+- **File size limit**: 50MB per file.
 - **Preview**: open a file directly from grid or list.
 - **Download**: download a file from grid or list.
 - **Delete**: members can delete their own files/folders; admins can delete any.
@@ -261,6 +254,7 @@ Notes:
 
 - The board auto-saves and reloads on refresh/login.
 - Canvas is single-user; there is no real-time collaboration in this release.
+- Very large boards may fail to save due to a payload size cap.
 
 ## 15) Admin Dashboard and team deletion
 
@@ -271,7 +265,7 @@ Owner-only actions:
 - Delete team: click **DELETE [team name]** and type the exact team name to confirm.
   - Copy/paste is disabled to avoid accidental deletions.
   - Deleting a team removes its data and revokes its activation keys.
-  - The confirm button displays **DELETE [team name]** to make the action explicit.
+  - Admin roles for that team are cleared.
 
 Admin actions:
 
@@ -295,10 +289,10 @@ Expected result: your session ends and you return to the login screen.
 - **Calendar empty:** check the Team selector and filters (priority/department).
 - **Files missing:** check access filter and department filter.
 
-## 18) Planned features (not in current release)
+## 18) Out of scope (not implemented)
 
 - Key-file upload
 - Kanban and timeline views
-- Advanced reporting and analytics
-- External integrations (storage, email)
-- Real-time collaboration for Canvas
+- Discussion board / direct messaging
+- Attachment encryption
+- Real-time Canvas collaboration

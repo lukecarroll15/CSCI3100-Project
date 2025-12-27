@@ -1,54 +1,52 @@
 # TaskFlow (CSCI3100 Software Engineering Project)
 
-TaskFlow is a Jira-like web app for managing team tasks, files, and collaboration. This repo is the course project deliverable for CSCI3100 Software Engineering.
+TaskFlow is a Jira-inspired web app for team tasks, files, and lightweight collaboration. This repository is the official course project deliverable for CSCI3100 Software Engineering.
 
-Release: v0.x.x (MVP)
+Release: v1.0.0 (2025-12-26)
 
 ## Product highlights
 
 - Email OTP login with optional GitHub OAuth.
-- Invite-only teams with owner/admin/member roles.
-- Activation keys for admin access and team creation.
-- Task calendar, list, and completed views with clear access rules.
+- Admin activation key flow (owner/admin/member roles).
+- Invite-only teams with team-scoped data and access rules.
+- Calendar, list, and completed task views with role-aware visibility.
+- Files with standard/private/admin-only visibility, plus folders with standard/private visibility (50MB upload limit).
 - Dashboard with activity feed, daily updates, and due-today reminders.
-- Files and folders with standard/admin-only/private visibility.
-- Personal Canvas board for individual brainstorming.
+- Personal Canvas board with autosave and export.
 
-## Current scope (v0.x.x)
-
-Dashboard scope locked on 2025-12-25.
+## Current scope (v1.0.0)
 
 Implemented in this release:
 
 - Auth: OTP signup/login, optional GitHub OAuth, session-based auth.
-- Admin access: activation keys, Admin Dashboard, required team setup.
+- Admin access: activation keys, Admin Dashboard, required Team Setup for the key owner.
 - Teams: create team, invite members, auto-join on login, team-scoped data.
-- Tasks: create/edit/delete, multi-assignee for admins, status updates, priority/department filters, day drill-down, month/year picker.
+- Tasks: create/edit/delete, multi-assignee for admins, status updates, filters.
 - Departments: admin-only create/delete shared by Calendar and Files.
-- Files: folder tree, grid/list views, filters (type/department/access), upload/download/preview, private and admin-only access.
+- Files: folder tree, grid/list views, filters (type/department/access), upload/download/preview.
 - Dashboard: activity feed (tasks + files), daily updates modal, due-today task list.
-- Canvas: sticky notes/cards/shapes, connectors, pan/zoom, undo/redo, export, autosave.
+- Canvas: personal board, autosave, export.
 - Health check endpoints.
 
-Planned (not implemented yet):
+Not implemented (out of scope for v1.0.0):
 
 - Key-file upload.
 - Kanban and timeline views.
-- Advanced analytics and reporting.
-- External integrations (email, storage, notifications).
+- Discussion board / direct messaging.
+- Attachment encryption.
+- Advanced analytics and external integrations.
 
-## Teams and roles (MVP)
+## Teams and roles
 
-- Team owner (first activation key use): creates the team, views activation keys, invites members or admins, deletes the team.
-- Team admin (additional key use or promoted): opens Admin Dashboard, invites members, manages shared team data.
-- Team member: sees assigned tasks plus their own personal tasks, manages their own files/folders.
+- Team owner (first activation key use): creates the team, invites members/admins, deletes team.
+- Team admin (additional key use or promoted): opens Admin Dashboard, invites members, manages team data.
+- Team member: sees assigned + personal tasks, manages own files/folders.
 
 Important rules:
 
-- Invites only work for existing accounts (users must sign up before being invited).
-- Owners can invite admins; admins can only invite members.
-- The first key holder must finish Team Setup (team name) before anyone else can use the key.
-- Team-scoped APIs require `X-Team-Id`. The frontend sets this automatically.
+- Invites only work for existing accounts (users must sign up first).
+- Owners can invite admins; admins can invite members only.
+- Team-scoped APIs require `X-Team-Id` (frontend sets this automatically).
 
 ## Quickstart (local development)
 
@@ -90,14 +88,25 @@ Full setup guide: `docs/ENVIRONMENT.md`
 npm run test:backend
 ```
 
-- Admin key provisioning (manual):
+- Frontend tests:
+
+```bash
+npm run test:frontend
+```
+
+- E2E tests (requires Playwright browsers once):
+
+```bash
+npm run playwright:install
+npm run test:e2e
+```
+
+## Admin key provisioning (manual)
 
 ```bash
 cd backend
 npm run admin:key:generate -- DEMO-KEYS-2025
 ```
-
-For team, Dashboard, Calendar, Files, and Canvas testing steps, see `docs/TESTING.md` and `docs/USER_MANUAL.md`.
 
 ## Documentation index
 
@@ -114,5 +123,4 @@ For team, Dashboard, Calendar, Files, and Canvas testing steps, see `docs/TESTIN
 ## Notes
 
 - Do not commit secrets. Keep `.env` files local.
-- Features listed as "planned" are documented in the SRS but not yet implemented.
 - Canvas data is stored per user and capped to keep storage and performance predictable.

@@ -1,45 +1,22 @@
 import test, { before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
-import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
-
 import { createApp } from '../app';
-import { env } from '../config/env';
-import { UserModel } from '../models/User';
 import { LicenceKeyModel } from '../models/LicenceKey';
-import { TeamModel } from '../models/Team';
+import { UserModel } from '../models/User';
 import { TeamMembershipModel } from '../models/TeamMembership';
+import { connectTestDb, clearDb, disconnectTestDb } from './helpers/db';
+import { sessionCookieFor } from './helpers/session';
+import { createLicenceKey, createOwnerTeam, createUser } from './helpers/factories';
 
 const app = createApp();
 
-function sessionCookieFor(user: { _id: unknown; email: string }): string {
-  const token = jwt.sign({ email: user.email }, env.SESSION_SECRET, {
-    subject: String(user._id),
-    expiresIn: `${env.SESSION_TTL_HOURS}h`,
-  });
-  return `taskflow_session=${token}`;
-}
-
-before(async () => {
-  await mongoose.connect(env.MONGO_URI);
-});
-
-after(async () => {
-  await mongoose.disconnect();
-});
-
-beforeEach(async () => {
-  if (mongoose.connection.readyState !== 1) {
-    await mongoose.connect(env.MONGO_URI);
-  }
-  if (mongoose.connection.db) {
-    await mongoose.connection.db.dropDatabase();
-  }
-});
+before(connectTestDb);
+after(disconnectTestDb);
+beforeEach(clearDb);
 
 test('POST /api/v1/admin/activate rejects missing code', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -51,7 +28,7 @@ test('POST /api/v1/admin/activate rejects missing code', async () => {
 });
 
 test('POST /api/v1/admin/activate rejects invalid format (must be AAAA-BBBB-CCCC)', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -63,7 +40,7 @@ test('POST /api/v1/admin/activate rejects invalid format (must be AAAA-BBBB-CCCC
 });
 
 test('POST /api/v1/admin/activate rejects valid-looking but unknown key', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -75,15 +52,8 @@ test('POST /api/v1/admin/activate rejects valid-looking but unknown key', async 
 });
 
 test('POST /api/v1/admin/activate rejects expired key', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
-  await LicenceKeyModel.create({
-    key: 'AAAA-BBBB-CCCC',
-    redeemed: false,
-    usesCount: 0,
-    maxUses: 5,
-    revoked: false,
-    expiresAt: new Date(Date.now() - 60_000),
-  });
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
+  await createLicenceKey({ key: 'AAAA-BBBB-CCCC', expiresAt: new Date(Date.now() - 60_000) });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -98,14 +68,8 @@ test('POST /api/v1/admin/activate rejects expired key', async () => {
 });
 
 test('POST /api/v1/admin/activate rejects exhausted key', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
-  await LicenceKeyModel.create({
-    key: 'AAAA-BBBB-CCCC',
-    redeemed: false,
-    usesCount: 2,
-    maxUses: 2,
-    revoked: false,
-  });
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
+  await createLicenceKey({ key: 'AAAA-BBBB-CCCC', usesCount: 2, maxUses: 2 });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -117,14 +81,8 @@ test('POST /api/v1/admin/activate rejects exhausted key', async () => {
 });
 
 test('POST /api/v1/admin/activate upgrades user role to admin when key is valid', async () => {
-  const user = await UserModel.create({ email: 'u1@example.com', displayName: 'U1', role: 'user' });
-  await LicenceKeyModel.create({
-    key: 'AAAA-BBBB-CCCC',
-    redeemed: false,
-    usesCount: 0,
-    maxUses: 5,
-    revoked: false,
-  });
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
+  await createLicenceKey({ key: 'AAAA-BBBB-CCCC' });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -145,18 +103,12 @@ test('POST /api/v1/admin/activate upgrades user role to admin when key is valid'
 });
 
 test('POST /api/v1/admin/activate rejects already-admin accounts', async () => {
-  const admin = await UserModel.create({
+  const admin = await createUser({
     email: 'admin@example.com',
     displayName: 'Admin',
     role: 'admin',
   });
-  await LicenceKeyModel.create({
-    key: 'AAAA-BBBB-CCCC',
-    redeemed: false,
-    usesCount: 0,
-    maxUses: 5,
-    revoked: false,
-  });
+  await createLicenceKey({ key: 'AAAA-BBBB-CCCC' });
 
   const res = await request(app)
     .post('/api/v1/admin/activate')
@@ -167,19 +119,68 @@ test('POST /api/v1/admin/activate rejects already-admin accounts', async () => {
   assert.equal(res.body?.error?.code, 'ALREADY_ADMIN');
 });
 
+test('POST /api/v1/admin/activate rejects unauthenticated requests', async () => {
+  const res = await request(app).post('/api/v1/admin/activate').send({ code: 'AAAA-BBBB-CCCC' });
+
+  assert.equal(res.status, 401);
+  assert.equal(res.body?.error?.code, 'UNAUTHENTICATED');
+});
+
+test('POST /api/v1/admin/activate blocks when team setup is pending', async () => {
+  const keyOwner = await createUser({ email: 'owner@example.com', displayName: 'Owner' });
+  const member = await createUser({ email: 'member@example.com', displayName: 'Member' });
+  await createLicenceKey({
+    key: 'AAAA-BBBB-CCCC',
+    ownerUserId: keyOwner._id,
+    teamId: null,
+  });
+
+  const res = await request(app)
+    .post('/api/v1/admin/activate')
+    .set('Cookie', sessionCookieFor(member))
+    .send({ code: 'AAAA-BBBB-CCCC' });
+
+  assert.equal(res.status, 409);
+  assert.equal(res.body?.error?.code, 'TEAM_PENDING');
+});
+
+test('POST /api/v1/admin/activate rotates key when reaching max uses', async () => {
+  const user = await createUser({ email: 'u1@example.com', displayName: 'U1' });
+  await createLicenceKey({
+    key: 'AAAA-BBBB-CCCC',
+    usesCount: 0,
+    maxUses: 1,
+    revoked: false,
+    redeemed: false,
+  });
+
+  const res = await request(app)
+    .post('/api/v1/admin/activate')
+    .set('Cookie', sessionCookieFor(user))
+    .send({ code: 'AAAA-BBBB-CCCC' });
+
+  assert.equal(res.status, 200);
+
+  const oldKey = await LicenceKeyModel.findOne({ key: 'AAAA-BBBB-CCCC' }).lean();
+  assert.equal(oldKey?.revoked, true);
+  assert.equal(oldKey?.redeemed, true);
+
+  const nextKey = await LicenceKeyModel.findOne({
+    ownerUserId: user._id,
+    key: { $ne: 'AAAA-BBBB-CCCC' },
+    revoked: false,
+  }).lean();
+  assert.ok(nextKey);
+});
+
 test('GET /api/v1/admin/stats is forbidden for team members', async () => {
-  const owner = await UserModel.create({
+  const owner = await createUser({
     email: 'owner@example.com',
     displayName: 'Owner',
     role: 'admin',
   });
-  const member = await UserModel.create({
-    email: 'member@example.com',
-    displayName: 'Member',
-    role: 'user',
-  });
-  const team = await TeamModel.create({ name: 'Alpha', createdBy: owner._id });
-  await TeamMembershipModel.create({ teamId: team._id, userId: owner._id, role: 'owner' });
+  const member = await createUser({ email: 'member@example.com', displayName: 'Member' });
+  const { team } = await createOwnerTeam(owner);
   await TeamMembershipModel.create({ teamId: team._id, userId: member._id, role: 'member' });
 
   const res = await request(app)
@@ -192,27 +193,15 @@ test('GET /api/v1/admin/stats is forbidden for team members', async () => {
 });
 
 test('GET /api/v1/admin/stats returns admin data for team admins', async () => {
-  const owner = await UserModel.create({
+  const owner = await createUser({
     email: 'owner@example.com',
     displayName: 'Owner',
     role: 'admin',
   });
-  const admin = await UserModel.create({
-    email: 'admin@example.com',
-    displayName: 'Admin',
-    role: 'user',
-  });
-  const team = await TeamModel.create({ name: 'Alpha', createdBy: owner._id });
-  await TeamMembershipModel.create({ teamId: team._id, userId: owner._id, role: 'owner' });
+  const admin = await createUser({ email: 'admin@example.com', displayName: 'Admin' });
+  const { team } = await createOwnerTeam(owner);
   await TeamMembershipModel.create({ teamId: team._id, userId: admin._id, role: 'admin' });
-  await LicenceKeyModel.create({
-    key: 'ZZZZ-YYYY-XXXX',
-    redeemed: false,
-    usesCount: 1,
-    maxUses: 5,
-    revoked: false,
-    teamId: team._id,
-  });
+  await createLicenceKey({ key: 'ZZZZ-YYYY-XXXX', usesCount: 1, teamId: team._id });
 
   const res = await request(app)
     .get('/api/v1/admin/stats')

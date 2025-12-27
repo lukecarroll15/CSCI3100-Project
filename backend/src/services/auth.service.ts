@@ -53,7 +53,8 @@ export async function requestOtp(emailRaw: string, purpose: OtpPurpose = 'login'
     }
   }
 
-  const codePlain = generateNumericOtp(env.OTP_LENGTH);
+  const testCode = env.NODE_ENV !== 'production' ? env.OTP_TEST_CODE : undefined;
+  const codePlain = testCode ?? generateNumericOtp(env.OTP_LENGTH);
   const codeHash = await bcrypt.hash(codePlain, env.OTP_BCRYPT_ROUNDS);
 
   // Invalidate older unused codes for the same purpose (keeps “latest wins” semantics).

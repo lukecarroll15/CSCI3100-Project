@@ -21,6 +21,8 @@
 - Files/folders workflow updates (if any)
 - Department management updates (if any)
 - Canvas feature updates (if any)
+- Testing status (backend, frontend, E2E)
+- Release readiness and documentation updates
 
 ## Progress since last meeting
 

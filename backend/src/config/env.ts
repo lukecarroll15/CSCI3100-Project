@@ -33,6 +33,10 @@ const EnvSchema = z.object({
   OTP_MAX_VERIFY_ATTEMPTS: z.coerce.number().int().positive().default(5),
   OTP_MAX_ATTEMPTS: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   OTP_BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
+  OTP_TEST_CODE: z.preprocess(
+    emptyToUndefined,
+    z.string().regex(/^\d+$/).min(4).max(10).optional()
+  ),
 
   EMAIL_FROM: z.string().default('no-reply@taskflow.local'),
 

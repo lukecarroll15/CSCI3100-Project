@@ -84,6 +84,14 @@ From repo root:
 npm run format:check
 npm run typecheck
 npm run lint
-npm run test
+npm run test:backend
+npm run test:frontend
+npm run test:e2e
 npm run build
+```
+
+One-time Playwright browser install:
+
+```bash
+npm run playwright:install
 ```

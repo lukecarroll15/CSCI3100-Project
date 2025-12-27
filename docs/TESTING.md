@@ -3,53 +3,44 @@
 ## Document control
 
 - Document: TESTING
-- Version: 0.6
-- Status: Draft
-- Last updated: 2025-12-25
+- Version: 1.0.0
+- Status: Final
+- Last updated: 2025-12-26
 - Owner: Group 02
 
 ## 0) Quickstart (local)
 
-1. Provision an admin key
-
-- Option A (explicit key): set in `backend/.env`:
-  - `ADMIN_KEY_AUTO_SEED=false`
-  - `INITIAL_ADMIN_KEY=DEMO-KEYS-2025`
-- Option B (CLI): set `ADMIN_KEY_AUTO_SEED=false` and generate a key:
+1. Install dependencies
 
 ```bash
-cd backend
-npm run admin:key:generate -- DEMO-KEYS-2025
+npm run install:all
 ```
 
 2. Run automated tests
 
 ```bash
 npm run test:backend
+npm run test:frontend
 ```
 
-3. Run UI smoke tests
+3. Run E2E smoke tests (one-time browser install required)
 
 ```bash
-npm run dev
+npm run playwright:install
+npm run test:e2e
 ```
 
-- Log in with OTP
-- Activate a valid key (owner)
-- Finish Team Setup (must create a team name)
-- Invite a member (existing account only)
-- Verify Calendar view, List view, and Completed list load
-- Open **Dashboard** and verify Activity Feed, Updates modal, and Due Today list
-- Create tasks and change status
-- Open **Files** and verify grid/list view, upload, and filters
-- Open **Canvas** and verify create, edit, and export
+E2E notes:
+
+- The Playwright config sets `NODE_ENV=test`, `OTP_TEST_CODE=000000`, and `INITIAL_ADMIN_KEY=TEST-KEYS-0000`.
+- E2E uses a dedicated database: `mongodb://127.0.0.1:27017/taskflow_e2e`.
 
 ## 1) Test plan
 
 ### 1.1 Objectives
 
 - Verify OTP and GitHub authentication flows.
-- Verify admin key activation policy (format, lookup, expiry, max uses).
+- Verify admin activation key policy (format, lookup, expiry, max uses).
 - Verify team setup gating (owner must create team before others can activate).
 - Verify task rules (personal vs shared, multi-assignee, status updates).
 - Verify Dashboard activity feed and updates.
@@ -59,38 +50,40 @@ npm run dev
 
 ### 1.2 Scope
 
-In scope (current release):
+In scope (v1.0.0):
 
 - OTP auth APIs: `/auth/request-otp`, `/auth/verify-otp`, `/auth/logout`
-- GitHub OAuth login (manual)
+- GitHub OAuth login (manual + backend tests)
 - Admin key activation and admin stats
 - Teams: invite-only membership and team-scoped access
-- Team roles (owner/admin/member) and team delete
-- Task management (create, assign, update status)
+- Team roles (owner/admin/member) and team deletion
+- Task management (create, assign, update status, delete)
 - Calendar, list, and completed views
 - Dashboard activity feed, updates modal, and due-today list
-- Files/folders with admin-only and private access
+- Files with admin-only/private access and folders with private access
 - Department management (admin-only)
 - Canvas (nodes, connectors, autosave, export)
 - Health endpoints
 
-Out of scope (not implemented yet):
+Out of scope (not implemented in v1.0.0):
 
 - Key-file upload
 - Kanban and timeline views
+- Discussion board / direct messaging
+- Attachment encryption
 - Performance/load testing
 
 ### 1.3 Test levels and strategy
 
-- Unit: validate admin key formatting and helper logic.
-- Integration: API endpoints with MongoDB (OTP + admin key + team endpoints).
-- System/UI: manual flows through the frontend.
-- Black-box tests for requirement behavior, white-box tests for edge cases.
+- Unit: utility and validation logic (admin key format, auth helpers).
+- Integration: API endpoints with MongoDB (OTP, admin keys, teams, tasks, files, canvas).
+- UI: React component tests with mocked APIs.
+- System/E2E: Playwright smoke tests for the end-to-end flow.
 
 ### 1.4 Test design techniques
 
-- Equivalence classes (valid vs invalid formats, valid vs invalid inputs).
-- Boundary values (max uses, expiry time, max lengths).
+- Equivalence classes (valid vs invalid formats, authorized vs unauthorized roles).
+- Boundary values (max uses, expiry time, max lengths, file size limit).
 - Negative tests (invalid OTP, expired key, unauthorized actions).
 - Regression tests added when bugs are fixed.
 
@@ -105,39 +98,39 @@ Entry criteria:
 Exit criteria:
 
 - Representative test cases executed.
+- Automated test suites pass.
 - Critical failures recorded with evidence.
 - Traceability updated.
 
 ### 1.6 Tools
 
-- Automated: Node test runner + Supertest (backend tests).
-- Manual: browser + Mailpit (optional for OTP).
+- Backend: Node test runner (`node:test`) + Supertest + c8 coverage.
+- Frontend: Vitest + React Testing Library + MSW.
+- E2E: Playwright (browser-based smoke tests).
+- Manual: browser + Mailpit (optional for OTP inbox).
 
 ### 1.7 Schedule and resources
 
 - Run automated tests on every PR and before release.
-- Run Calendar/Files UI smoke tests for each UI change.
+- Run E2E smoke tests before submission or demo.
+- Record evidence artifacts in `docs/process/`.
 
 ## 2) Environment and test data
 
 - OS: macOS / Windows / Linux
 - Node: 20.x
-- Database: MongoDB (local or hosted)
+- Database (backend tests): `mongodb://127.0.0.1:27017/taskflow_test`
+- Database (E2E): `mongodb://127.0.0.1:27017/taskflow_e2e`
 - Optional: Mailpit for OTP inbox
 
 Test users:
 
-- UserA: normal user
-- UserB: normal user, activates admin key
-
-Test teams:
-
-- Team Alpha: created by the team owner (key owner)
-- Member user invited by email
+- User A: normal user
+- User B: normal user, activates admin key
 
 Test admin key:
 
-- Example: `DEMO-KEYS-2025` (must match format `AAAA-BBBB-CCCC`)
+- Example: `DEMO-KEYS-2025` (format `AAAA-BBBB-CCCC`)
 
 ## 3) Admin key policy (source of truth)
 
@@ -155,79 +148,17 @@ cd backend
 npm run admin:key:generate -- DEMO-KEYS-2025
 ```
 
-Check a key in MongoDB:
-
-```bash
-cd backend
-node scripts/checkLicence.mjs DEMO-KEYS-2025
-```
-
 ## 4) Team access policy (source of truth)
 
 - Teams are invite-only; members must be invited by email.
 - Invites only work for existing accounts; users must sign up first.
 - Invites auto-accept when the invited user calls `GET /api/v1/teams/mine` (frontend does this on load).
 - Team-scoped APIs require the `X-Team-Id` header (frontend sets it from the Team selector).
-- Team owners can create teams and share activation keys; owners can invite admins, admins invite members only.
-- Member-created tasks are personal; admins cannot view or edit them.
-- Admin/owner-created tasks assigned to others are shared across admins.
+- Team owners can invite admins; admins can invite members only.
+- Member-created tasks are personal and visible only to the creator.
+- Admin/owner-created tasks assigned to others are shared with assignees and admins.
 
-## 5) Manual API checks (optional, CLI)
-
-1. Log in via OTP in the browser to obtain the session cookie.
-2. Use the cookie in curl:
-
-```bash
-curl -s -X POST http://localhost:5001/api/v1/teams \
-  -H "Content-Type: application/json" \
-  -H "Cookie: taskflow_session=YOUR_COOKIE" \
-  -d '{"name":"Alpha Team"}'
-```
-
-3. Invite a member:
-
-```bash
-curl -s -X POST http://localhost:5001/api/v1/teams/TEAM_ID/invites \
-  -H "Content-Type: application/json" \
-  -H "Cookie: taskflow_session=YOUR_COOKIE" \
-  -d '{"email":"member@example.com"}'
-```
-
-4. Access team-scoped data:
-
-```bash
-curl -s http://localhost:5001/api/v1/tasks \
-  -H "Cookie: taskflow_session=YOUR_COOKIE" \
-  -H "X-Team-Id: TEAM_ID"
-```
-
-5. Fetch Canvas (per user):
-
-```bash
-curl -s http://localhost:5001/api/v1/canvas \
-  -H "Cookie: taskflow_session=YOUR_COOKIE"
-```
-
-## 6) Coverage summary (course requirement)
-
-| Component                        | Covered? | How tested                                  | Notes                               |
-| -------------------------------- | -------- | ------------------------------------------- | ----------------------------------- |
-| OTP auth (request/verify/logout) | Yes      | `backend/src/test/auth.test.ts` + manual UI | Core auth path                      |
-| GitHub OAuth                     | Partial  | Manual tests in browser                     | Requires OAuth config               |
-| Admin key activation             | Yes      | `backend/src/test/admin.test.ts` + UI smoke | Format, unknown, expired, exhausted |
-| Teams + invites                  | Yes      | `backend/src/test/teams.test.ts`            | Auto-join on `/teams/mine`          |
-| Admin Dashboard roles            | Yes      | Manual UI tests                             | Owner vs admin separation           |
-| Tasks + assignment rules         | Yes      | Manual UI tests                             | Personal vs shared task visibility  |
-| Calendar + list views            | Yes      | Manual UI tests                             | Filters, status, completed list     |
-| Dashboard activity feed          | Yes      | Manual UI tests                             | Activity feed, updates modal        |
-| Files/folders access control     | Yes      | Manual UI tests                             | Admin-only and private access       |
-| Department management            | Yes      | Manual UI tests                             | Admin-only, cascades on delete      |
-| Canvas board                     | Yes      | Manual UI tests                             | Autosave + export                   |
-| Key-file upload                  | No       | Not implemented                             | Future work                         |
-| Attachment encryption            | No       | Not implemented                             | Future work                         |
-| Performance testing              | No       | Not implemented                             | Future work                         |
-
-## 7) Automated tests
+## 5) Automated tests
 
 Run backend tests from repo root:
 
@@ -235,54 +166,114 @@ Run backend tests from repo root:
 npm run test:backend
 ```
 
-Test files:
+Backend test files:
 
 - `backend/src/test/admin.test.ts`
 - `backend/src/test/auth.test.ts`
+- `backend/src/test/canvas.test.ts`
+- `backend/src/test/departments.test.ts`
+- `backend/src/test/files.test.ts`
+- `backend/src/test/folders.test.ts`
+- `backend/src/test/github-oauth.test.ts`
 - `backend/src/test/health.test.ts`
+- `backend/src/test/smoke.test.ts`
+- `backend/src/test/tasks.test.ts`
 - `backend/src/test/teams.test.ts`
-- `backend/src/test/full-features.test.ts`
+- `backend/src/test/users.test.ts`
 
-Note: tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
+Notes:
 
-## 8) Representative test cases
+- Backend tests run sequentially to avoid MongoDB `dropDatabase()` collisions.
+- Coverage thresholds are enforced via `c8`.
 
-### Admin key activation
+Run frontend tests:
 
-| ID        | Type     | Steps                           | Expected                |
-| --------- | -------- | ------------------------------- | ----------------------- |
-| TC-LIC-01 | Positive | Submit valid key                | 200, user becomes admin |
-| TC-LIC-02 | Negative | Submit invalid format           | 400 INVALID_CODE_FORMAT |
-| TC-LIC-03 | Negative | Submit unknown key              | 400 INVALID_CODE        |
-| TC-LIC-04 | Negative | Submit expired key              | 400 KEY_EXPIRED         |
-| TC-LIC-05 | Negative | Submit exhausted key            | 400 KEY_EXHAUSTED       |
-| TC-LIC-06 | Negative | Submit key when admin           | 400 ALREADY_ADMIN       |
-| TC-LIC-07 | Security | GET admin stats user            | 403 FORBIDDEN           |
-| TC-LIC-08 | Positive | GET admin stats admin           | 200 with admin data     |
-| TC-LIC-09 | Negative | Activate key while team pending | 409 TEAM_PENDING        |
+```bash
+npm run test:frontend
+```
 
-### Team membership (invite-only)
+Frontend test files:
 
-| ID         | Type     | Steps                                     | Expected                             |
-| ---------- | -------- | ----------------------------------------- | ------------------------------------ |
-| TC-TEAM-01 | Positive | Team owner creates team + invite by email | 201 invite created                   |
-| TC-TEAM-02 | Positive | Invited user calls `/teams/mine`          | Team appears in list, membership set |
-| TC-TEAM-03 | Negative | Invite unknown email                      | 404 ACCOUNT_NOT_FOUND                |
-| TC-TEAM-04 | Positive | Owner invites admin by email              | 201 invite created with admin role   |
+- `frontend/src/__tests__/AdminPanel.test.tsx`
+- `frontend/src/__tests__/CalendarPage.test.tsx`
+- `frontend/src/__tests__/CanvasPage.test.tsx`
+- `frontend/src/__tests__/DashboardPage.test.tsx`
+- `frontend/src/__tests__/FilesPage.test.tsx`
+- `frontend/src/__tests__/LoginPage.test.tsx`
+
+Run E2E smoke tests:
+
+```bash
+npm run test:e2e
+```
+
+E2E test files:
+
+- `e2e/tests/smoke.spec.ts`
+
+## 6) Representative test cases (format required by course)
+
+Each case lists: what to test, conditions, inputs/steps, expected result.
+
+### Authentication (OTP)
+
+| ID       | What to test     | Conditions              | Inputs / Steps               | Expected result                      |
+| -------- | ---------------- | ----------------------- | ---------------------------- | ------------------------------------ |
+| TC-UM-01 | Request OTP      | Valid email             | Enter email, click Send code | 200, OTP issued                      |
+| TC-UM-02 | Verify OTP       | Valid code              | Enter OTP, submit            | Session created, user signed in      |
+| TC-UM-03 | Verify OTP error | Invalid or expired code | Enter wrong/expired OTP      | 400/401, error message               |
+| TC-UM-04 | Logout           | Authenticated session   | Click Logout                 | Session cleared, redirected to login |
+
+### Admin activation key
+
+| ID        | What to test   | Conditions             | Inputs / Steps          | Expected result         |
+| --------- | -------------- | ---------------------- | ----------------------- | ----------------------- |
+| TC-LIC-01 | Activate key   | Valid key              | Submit `AAAA-BBBB-CCCC` | 200, user becomes admin |
+| TC-LIC-02 | Invalid format | Bad key format         | Submit `AAAA-XXXX`      | 400 INVALID_CODE_FORMAT |
+| TC-LIC-03 | Expired key    | Key expired            | Submit expired key      | 400 KEY_EXPIRED         |
+| TC-LIC-04 | Team pending   | Owner not created team | Activate as second user | 409 TEAM_PENDING        |
 
 ### Tasks (personal vs shared)
 
-| ID         | Type     | Steps                                  | Expected                                |
-| ---------- | -------- | -------------------------------------- | --------------------------------------- |
-| TC-TASK-01 | Positive | Member creates task                    | Task visible only to creator            |
-| TC-TASK-02 | Positive | Admin creates task assigned to member  | Task visible to assignee and admins     |
-| TC-TASK-03 | Negative | Member edits someone else's task       | 403 FORBIDDEN                           |
-| TC-TASK-04 | Positive | Assignee changes status on shared task | Status updates without full edit rights |
+| ID         | What to test        | Conditions  | Inputs / Steps             | Expected result                     |
+| ---------- | ------------------- | ----------- | -------------------------- | ----------------------------------- |
+| TC-TASK-01 | Member creates task | Member role | Create task as member      | Task visible only to creator        |
+| TC-TASK-02 | Admin assigns task  | Admin role  | Assign task to member      | Task visible to assignee and admins |
+| TC-TASK-03 | Status update       | Assignee    | Change status to Completed | Status updates, completed date set  |
 
-### Dashboard (activity feed)
+### Files and access
 
-| ID         | Type | Steps                                            | Expected                                                         |
-| ---------- | ---- | ------------------------------------------------ | ---------------------------------------------------------------- |
-| UI-DASH-01 | UI   | Open Dashboard; review Activity Feed             | Items are grouped by day with time, type, and metadata           |
-| UI-DASH-02 | UI   | Click **X update(s)** and review today’s updates | Only today’s items are listed; clicking opens details or Files   |
-| UI-DASH-03 | UI   | Review **Due Today** list and open a task        | Due-today tasks appear; Task Details opens and can update status |
+| ID         | What to test           | Conditions         | Inputs / Steps                          | Expected result                    |
+| ---------- | ---------------------- | ------------------ | --------------------------------------- | ---------------------------------- |
+| TC-FILE-01 | Upload standard file   | Authenticated user | Upload <50MB file                       | 201 created                        |
+| TC-FILE-02 | Admin-only file access | Admin vs member    | Upload admin-only file, list as member  | Member cannot see admin-only file  |
+| TC-FILE-03 | Private file access    | Different uploader | Upload private file, list as other user | Other user cannot see private file |
+
+## 7) Coverage summary (course requirement)
+
+| Component                        | Covered? | How tested               | Notes                                                    |
+| -------------------------------- | -------- | ------------------------ | -------------------------------------------------------- |
+| OTP auth (request/verify/logout) | Yes      | Backend tests + UI tests | `auth.test.ts`, `LoginPage.test.tsx`                     |
+| GitHub OAuth                     | Partial  | Backend tests + manual   | Requires OAuth config                                    |
+| Admin key activation             | Yes      | Backend tests + E2E      | `admin.test.ts`, `smoke.spec.ts`                         |
+| Teams + invites                  | Yes      | Backend tests            | `teams.test.ts`                                          |
+| Tasks                            | Yes      | Backend + UI tests       | `tasks.test.ts`, `CalendarPage.test.tsx`                 |
+| Calendar/list/completed views    | Yes      | UI tests                 | `CalendarPage.test.tsx`                                  |
+| Dashboard activity feed          | Yes      | UI tests                 | `DashboardPage.test.tsx`                                 |
+| Files/folders access control     | Yes      | Backend + UI tests       | `files.test.ts`, `folders.test.ts`, `FilesPage.test.tsx` |
+| Departments                      | Yes      | Backend tests            | `departments.test.ts`                                    |
+| Canvas                           | Yes      | Backend + UI tests       | `canvas.test.ts`, `CanvasPage.test.tsx`                  |
+| E2E system flow                  | Yes      | Playwright               | `e2e/tests/smoke.spec.ts`                                |
+
+## 8) Manual UI checks (supplemental)
+
+When needed, run the app with `npm run dev` and verify:
+
+- Admin key activation and Team Setup gate.
+- Invite flow for existing accounts.
+- Calendar, list, and completed views.
+- Files upload/download/filters.
+- Dashboard updates and due-today list.
+- Canvas create, edit, export.
+
+Evidence (screenshots/logs) should be stored in `docs/process/` and indexed in `docs/process/EVIDENCE_INDEX.md`.

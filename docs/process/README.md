@@ -3,9 +3,9 @@
 ## Document control
 
 - Document: PROCESS_EVIDENCE
-- Version: 0.6
-- Status: Draft
-- Last updated: 2025-12-25
+- Version: 1.0.0
+- Status: Final
+- Last updated: 2025-12-26
 - Owner: Group 02
 
 ## 1) Purpose
@@ -26,6 +26,7 @@ The course requires an auditable software development process. This folder store
 - Department management evidence
 - Canvas board evidence (creation, persistence, export)
 - Admin key activation and Team Setup evidence
+- Automated test run logs (backend, frontend, E2E)
 
 ## 3) Naming conventions
 
