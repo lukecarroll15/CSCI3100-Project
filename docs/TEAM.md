@@ -25,15 +25,16 @@
 
 ## Contribution summary
 
-- Luke Carroll: initial project backbone template; implemented Tailwind CSS and HTML form based on Archie Hamilton's wireframe.
-- Archie Hamilton: UI wireframe design for the authentication layout.
-- Chun Wang YIP: converted the template into a working TypeScript codebase, set up CI workflow, implemented OTP + GitHub OAuth authentication, and built the login/sign-up UI.
-- Team (product phase): Calendar, Files, and Dashboard implementation; department management; role-based access refinements; admin key flow; testing automation; and documentation updates.
+- Luke Carroll: initial project backbone template; implemented Tailwind CSS and HTML form based on Archie Hamilton's wireframe; built the Dashboard section including the search bar.
+- Archie Hamilton: UI wireframe design for the authentication layout; implemented the Calendar section; implemented the admin activation key flow; performed manual and automated testing for the activation key.
+- Hou Fong CHAN: implemented the Files section (folders, grid/list, filters).
+- Chun Wang YIP: converted the template into a TypeScript codebase, set up CI, implemented OTP + GitHub OAuth authentication and the login UI, delivered the remaining features and UI updates, integrated team work with database syncing, and finalized testing and documentation.
 
 ## Document ownership (SC2 drafts)
 
 - Requirements Specification draft: Chun Wang YIP, Hou Fong CHAN
 - Design and Implementation draft: Luke Carroll, Archie Hamilton
+- Final SC2 revisions (post-scope alignment): Chun Wang YIP
 
 ## Notes
 
