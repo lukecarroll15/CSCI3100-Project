@@ -1,6 +1,6 @@
 # Evidence Index
 
-Use this file as a central index for audit evidence. When artifacts were not captured, the status is marked accordingly.
+Use this file as a central index for audit evidence. Dates can be cross-checked with git history if needed. When artifacts were not captured, the status is marked accordingly.
 
 | Date       | Evidence type   | Description                                 | File/link                                  | Related requirement          | Status/Notes                        |
 | ---------- | --------------- | ------------------------------------------- | ------------------------------------------ | ---------------------------- | ----------------------------------- |
