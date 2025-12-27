@@ -5,7 +5,7 @@
 - Document: USER_MANUAL
 - Version: 1.0.0
 - Status: Final
-- Last updated: 2025-12-26
+- Last updated: 2025-12-27
 - Owner: Group 02
 
 ## 1) Audience
@@ -58,8 +58,8 @@ TaskFlow is invite-only. You must be invited to a team before you can see its ta
 
 Team roles:
 
-- **Team owner** (first activation key use): can create the team, view activation keys, invite members or admins, and delete the team.
-- **Team admin** (additional key users or promoted admins): can open Admin Dashboard, invite members, and manage shared team tasks, files, and departments.
+- **Team owner** (first activation key use): can create the team, invite members or admins, and delete the team.
+- **Team admin** (additional key users or promoted admins): can open the Admin Dashboard, view activation keys, invite members, and manage shared team tasks, files, and departments.
 - **Team member**: can view assigned tasks plus personal tasks, upload standard/private files, and delete own files/folders.
 
 How to get access:
@@ -89,6 +89,7 @@ Expected result:
 - A required **Team Setup** window appears. The owner must name the team before continuing.
 - Additional activations become **team admins** once the team exists. If the team is not created yet, the activation returns a pending message and the user must wait.
 - The **Admin Dashboard** button appears in the top bar (left of **Logout**).
+- The **Admin Dashboard** shows activation keys, team members, and invite actions for the active team.
 - If you are already a team admin, the Admin Access panel shows as active without re-entering a key.
 
 For local testing, ask a maintainer for a key or generate one using the CLI:
@@ -216,7 +217,7 @@ Common actions:
 - **File size limit**: 50MB per file.
 - **Preview**: open a file directly from grid or list.
 - **Download**: download a file from grid or list.
-- **Delete**: members can delete their own files/folders; admins can delete any.
+- **Delete**: members can delete their own files/folders; admins can delete standard/admin-only files and any folders. Private files can only be deleted by the uploader.
 
 ## 14) Canvas (personal board)
 
@@ -288,11 +289,3 @@ Expected result: your session ends and you return to the login screen.
 - **Team actions blocked:** only team admins/owners can manage departments or admin-only files.
 - **Calendar empty:** check the Team selector and filters (priority/department).
 - **Files missing:** check access filter and department filter.
-
-## 18) Out of scope (not implemented)
-
-- Key-file upload
-- Kanban and timeline views
-- Discussion board / direct messaging
-- Attachment encryption
-- Real-time Canvas collaboration

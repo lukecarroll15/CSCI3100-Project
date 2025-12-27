@@ -22,9 +22,9 @@ Record any copied code, UI components, or documentation templates from external 
 
 Log any icons, images, or fonts used in the UI.
 
-| Asset | Source URL | License | Where used | Attribution added |
-| ----- | ---------- | ------- | ---------- | ----------------- |
-| None  | N/A        | N/A     | N/A        | N/A               |
+| Asset                   | Source URL                        | License            | Where used                                               | Attribution added |
+| ----------------------- | --------------------------------- | ------------------ | -------------------------------------------------------- | ----------------- |
+| TaskFlow logo + favicon | Generated via Google Gemini 3 Pro | N/A (AI-generated) | `frontend/public/brand/taskflow-logo.svg` and app header | Yes               |
 
 ## 4) AI tool assistance
 
@@ -32,7 +32,8 @@ If AI tools were used for any deliverable (code, docs, diagrams), record them he
 
 | Tool                       | Scope of use                                                           | Human review performed | Reviewer     | Date       |
 | -------------------------- | ---------------------------------------------------------------------- | ---------------------- | ------------ | ---------- |
-| OpenAI ChatGPT (Codex CLI) | Testing automation (backend, frontend, E2E), doc alignment and updates | Yes                    | Project team | 2025-12-26 |
+| OpenAI ChatGPT (Codex CLI) | Testing automation (backend, frontend, E2E), doc alignment and updates | Yes                    | Project team | 2025-12-27 |
+| Google Gemini 3 Pro        | TaskFlow logo and icon creation                                        | Yes                    | Project team | 2025-12-27 |
 
 ## 5) Notes
 
