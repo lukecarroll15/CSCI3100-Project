@@ -3,10 +3,10 @@ import AdminPanel from './AdminPanel';
 import { IconCalendar, IconCanvas, IconFolder, IconHome } from '../ui/Icons';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: <IconHome className="h-5 w-5" /> },
-  { path: '/calendar', label: 'Calendar', icon: <IconCalendar className="h-5 w-5" /> },
-  { path: '/files', label: 'Files', icon: <IconFolder className="h-5 w-5" /> },
-  { path: '/canvas', label: 'Canvas', icon: <IconCanvas className="h-5 w-5" /> },
+  { path: '/', label: '[Dashboard]', icon: <IconHome className="h-5 w-5" /> },
+  { path: '/calendar', label: '[Calendar]', icon: <IconCalendar className="h-5 w-5" /> },
+  { path: '/files', label: '[Files]', icon: <IconFolder className="h-5 w-5" /> },
+  { path: '/canvas', label: '[Canvas]', icon: <IconCanvas className="h-5 w-5" /> },
 ];
 
 export default function Sidebar({
