@@ -117,3 +117,4 @@ npm run admin:key:generate -- DEMO-KEYS-2025
 
 - Do not commit secrets. Keep `.env` files local.
 - Canvas data is stored per user and capped to keep storage and performance predictable.
+- Desktop-first UI: login and sign-up are responsive, but all other sections require a desktop viewport. Mobile/tablet support is planned for a later release.

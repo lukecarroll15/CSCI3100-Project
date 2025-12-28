@@ -18,10 +18,10 @@
 
 | Name            | Student ID |
 | --------------- | ---------- |
-| Luke Carroll    | 1155255972 |
 | Archie Hamilton | 1155256512 |
 | Chun Wang YIP   | 1155192968 |
 | Hou Fong CHAN   | 1155200045 |
+| Luke Carroll    | 1155255972 |
 
 ## Contribution summary
 
@@ -35,6 +35,26 @@
 - Requirements Specification draft: Chun Wang YIP, Hou Fong CHAN
 - Design and Implementation draft: Luke Carroll, Archie Hamilton
 - Final SC2 revisions (post-scope alignment): Chun Wang YIP
+
+## SC2 revision history
+
+### Requirements Specification (SRS)
+
+| Version | Date       | Owner(s)                     | Notes                      |
+| ------- | ---------- | ---------------------------- | -------------------------- |
+| v0.8    | 2025-11-17 | Hou Fong CHAN, Chun Wang YIP | First draft                |
+| v1.0    | 2025-12-26 | Chun Wang YIP                | Scope-aligned finalization |
+| v1.1    | 2025-12-27 | Archie Hamilton              | Formatting pass            |
+| v1.2    | 2025-12-27 | Chun Wang YIP                | Final edits and formatting |
+
+### Design and Implementation
+
+| Version | Date       | Owner(s)                      | Notes                      |
+| ------- | ---------- | ----------------------------- | -------------------------- |
+| v0.8    | 2025-11-20 | Archie Hamilton, Luke Carroll | First draft                |
+| v1.0    | 2025-12-26 | Chun Wang YIP                 | Scope-aligned finalization |
+| v1.1    | 2025-12-27 | Archie Hamilton               | Formatting pass            |
+| v1.2    | 2025-12-27 | Chun Wang YIP                 | Final edits and formatting |
 
 ## Notes
 
