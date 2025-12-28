@@ -43,6 +43,7 @@
 
 - GitHub OAuth requires environment configuration.
 - Canvas is single-user (no real-time collaboration).
+- Design decision: desktop-first UI; only the login and sign-up pages are responsive. Mobile/tablet support for the rest of the app is planned for a later release.
 
 ## Prior milestones (summary)
 

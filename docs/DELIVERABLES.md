@@ -8,21 +8,21 @@
 - Last updated: 2025-12-27
 - Owner: Group 02
 
-This file maps repository documents to the course submission PDFs and to the project requirements. Update this file before each submission.
+This file maps repository documents to the course submission files and to the project requirements. Update this file before each submission.
 
 ## 1) Course deliverables (R1)
 
 - R1.1 Requirements Specification
-  - PDF: `docs/submission/Group02_Requirements_Specification.pdf`
+  - Submission file: `docs/submission/Group02_Requirements_Specification.pdf`
   - Source: `Project/Ref/SC2 - Requirements Specifications.md` (team master copy)
 - R1.2 Design and Implementation
-  - PDF: `docs/submission/Group02_Design_Implementation.pdf`
+  - Submission file: `docs/submission/Group02_Design_Implementation.pdf`
   - Source: `Project/Ref/SC2 - Design Implementation.md` (team master copy)
 - R1.3 Testing
-  - PDF: `docs/submission/Group02_Testing.pdf`
+  - Submission file: `docs/submission/Group02_Testing.md`
   - Source: `docs/TESTING.md`
 - R1.4 Release Notes and User Manual
-  - PDF: `docs/submission/Group02_Release_Notes_User_Manual.pdf`
+  - Submission file: `docs/submission/Group02_Release_Notes_User_Manual.md`
   - Source: `docs/RELEASE_NOTES.md` + `docs/USER_MANUAL.md`
   - Note: includes team roles, invite flow, Dashboard, Calendar, Files, and Canvas behavior
 
@@ -50,7 +50,7 @@ This file maps repository documents to the course submission PDFs and to the pro
 
 ## 5) Final submission checklist
 
-- [ ] All PDFs are updated and named correctly in `docs/submission/`
+- [ ] All submission files are updated and named correctly in `docs/submission/`
 - [ ] Docs are accurate to the current release scope (v1.0.0)
 - [ ] Requirement IDs match `docs/TRACEABILITY.md`
 - [ ] Tests include plan, cases, and results with evidence
